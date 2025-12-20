@@ -214,6 +214,78 @@ impl RemoteSttManager {
 
         Ok(parsed.text)
     }
+
+    pub async fn test_connection(
+        &self,
+        settings: &RemoteSttSettings,
+        base_url: &str,
+    ) -> Result<()> {
+        let base_url = base_url.trim();
+        let base_url = if base_url.is_empty() {
+            settings.base_url.trim()
+        } else {
+            base_url
+        };
+
+        let base_url = base_url.trim_end_matches('/');
+        if base_url.is_empty() {
+            let message = "Remote STT base URL is empty".to_string();
+            self.record_error(settings, message.clone());
+            return Err(anyhow!(message));
+        }
+
+        let api_key = get_remote_stt_api_key().map_err(|e| {
+            let message = format!("Remote STT API key unavailable: {}", e);
+            self.record_error(settings, message.clone());
+            anyhow!(message)
+        })?;
+
+        let url = format!("{}/models", base_url);
+
+        if settings.debug_mode == RemoteSttDebugMode::Verbose {
+            self.record_info(
+                settings,
+                format!("Remote STT test request base_url={}", base_url),
+            );
+        }
+
+        let start = Instant::now();
+        let response = self
+            .client
+            .get(url)
+            .bearer_auth(api_key)
+            .send()
+            .await
+            .map_err(|e| {
+                let message = format!("Remote STT test request failed: {}", e);
+                self.record_error(settings, message.clone());
+                anyhow!(message)
+            })?;
+
+        let status = response.status();
+        let elapsed_ms = start.elapsed().as_millis();
+
+        if settings.debug_mode == RemoteSttDebugMode::Verbose {
+            self.record_info(
+                settings,
+                format!("Remote STT test response status={} elapsed_ms={}", status, elapsed_ms),
+            );
+        }
+
+        if !status.is_success() {
+            let body = response.bytes().await.unwrap_or_default();
+            let snippet = String::from_utf8_lossy(&body);
+            let snippet = snippet.chars().take(500).collect::<String>();
+            let message = format!(
+                "Remote STT test failed: status={} elapsed_ms={} body_snippet={}",
+                status, elapsed_ms, snippet
+            );
+            self.record_error(settings, message.clone());
+            return Err(anyhow!(message));
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(target_os = "windows")]

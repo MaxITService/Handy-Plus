@@ -1,8 +1,9 @@
 use crate::managers::remote_stt::{
     clear_remote_stt_api_key, has_remote_stt_api_key, set_remote_stt_api_key, RemoteSttManager,
 };
+use crate::settings::get_settings;
 use std::sync::Arc;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 #[tauri::command]
 #[specta::specta]
@@ -40,4 +41,18 @@ pub fn remote_stt_clear_debug(
 ) -> Result<(), String> {
     remote_manager.clear_debug();
     Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn remote_stt_test_connection(
+    app: AppHandle,
+    base_url: String,
+    remote_manager: State<'_, Arc<RemoteSttManager>>,
+) -> Result<(), String> {
+    let settings = get_settings(&app);
+    remote_manager
+        .test_connection(&settings.remote_stt, &base_url)
+        .await
+        .map_err(|e| e.to_string())
 }

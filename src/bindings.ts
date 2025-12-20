@@ -423,6 +423,14 @@ async remoteSttClearDebug() : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async remoteSttTestConnection(baseUrl: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("remote_stt_test_connection", { baseUrl }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async getAvailableModels() : Promise<Result<ModelInfo[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_available_models") };

@@ -46,8 +46,16 @@ export const RemoteSttSettings: React.FC<RemoteSttSettingsProps> = ({
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [hasApiKey, setHasApiKey] = useState(false);
   const [apiKeyLoading, setApiKeyLoading] = useState(false);
+  const [isEditingKey, setIsEditingKey] = useState(false);
+  const [hasKeyStatusLoaded, setHasKeyStatusLoaded] = useState(false);
 
   const [debugLines, setDebugLines] = useState<string[]>([]);
+  const [connectionStatus, setConnectionStatus] = useState<
+    "idle" | "checking" | "success" | "error"
+  >("idle");
+  const [connectionMessage, setConnectionMessage] = useState<string | null>(
+    null,
+  );
 
   const debugCapture = remoteSettings?.debug_capture ?? false;
   const debugMode = remoteSettings?.debug_mode ?? "normal";
@@ -64,6 +72,7 @@ export const RemoteSttSettings: React.FC<RemoteSttSettingsProps> = ({
   useEffect(() => {
     if (!isWindows) {
       setHasApiKey(false);
+      setHasKeyStatusLoaded(true);
       return;
     }
 
@@ -75,11 +84,27 @@ export const RemoteSttSettings: React.FC<RemoteSttSettingsProps> = ({
         }
       } catch (error) {
         console.error("Failed to check API key status:", error);
+      } finally {
+        setHasKeyStatusLoaded(true);
       }
     };
 
     loadApiKeyStatus();
   }, [isWindows, provider]);
+
+  useEffect(() => {
+    if (!hasKeyStatusLoaded) {
+      return;
+    }
+    if (!hasApiKey) {
+      setIsEditingKey(true);
+    }
+  }, [hasApiKey, hasKeyStatusLoaded]);
+
+  useEffect(() => {
+    setConnectionStatus("idle");
+    setConnectionMessage(null);
+  }, [baseUrlInput, hasApiKey, provider]);
 
   useEffect(() => {
     if (!isWindows || provider !== "remote_openai_compatible") {
@@ -168,6 +193,7 @@ export const RemoteSttSettings: React.FC<RemoteSttSettingsProps> = ({
       if (result.status === "ok") {
         setApiKeyInput("");
         setHasApiKey(true);
+        setIsEditingKey(false);
       } else {
         toast.error(result.error);
       }
@@ -184,6 +210,7 @@ export const RemoteSttSettings: React.FC<RemoteSttSettingsProps> = ({
       const result = await commands.remoteSttClearApiKey();
       if (result.status === "ok") {
         setHasApiKey(false);
+        setApiKeyInput("");
       } else {
         toast.error(result.error);
       }
@@ -191,6 +218,47 @@ export const RemoteSttSettings: React.FC<RemoteSttSettingsProps> = ({
       toast.error(String(error));
     } finally {
       setApiKeyLoading(false);
+    }
+  };
+
+  const handleStartReplaceKey = () => {
+    setApiKeyInput("");
+    setIsEditingKey(true);
+  };
+
+  const handleCancelReplaceKey = () => {
+    setApiKeyInput("");
+    setIsEditingKey(false);
+  };
+
+  const handleTestConnection = async () => {
+    const baseUrl = baseUrlInput.trim();
+    if (!baseUrl || !hasApiKey) return;
+
+    setConnectionStatus("checking");
+    setConnectionMessage(null);
+    try {
+      const result = await commands.remoteSttTestConnection(baseUrl);
+      if (result.status === "ok") {
+        setConnectionStatus("success");
+        setConnectionMessage(
+          t("settings.advanced.remoteStt.connection.success"),
+        );
+      } else {
+        setConnectionStatus("error");
+        setConnectionMessage(
+          t("settings.advanced.remoteStt.connection.failed", {
+            error: result.error,
+          }),
+        );
+      }
+    } catch (error) {
+      setConnectionStatus("error");
+      setConnectionMessage(
+        t("settings.advanced.remoteStt.connection.failed", {
+          error: String(error),
+        }),
+      );
     }
   };
 
@@ -206,6 +274,8 @@ export const RemoteSttSettings: React.FC<RemoteSttSettingsProps> = ({
 
   const showRemoteFields =
     isWindows && provider === "remote_openai_compatible";
+  const canTestConnection =
+    hasApiKey && baseUrlInput.trim().length > 0 && !apiKeyLoading;
 
   return (
     <div className="space-y-2">
@@ -272,39 +342,109 @@ export const RemoteSttSettings: React.FC<RemoteSttSettingsProps> = ({
             grouped={grouped}
             layout="stacked"
           >
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <Input
-                  type="password"
-                  value={apiKeyInput}
-                  onChange={(event) => setApiKeyInput(event.target.value)}
-                  placeholder={t(
-                    "settings.advanced.remoteStt.apiKey.placeholder",
-                  )}
-                  disabled={apiKeyLoading}
-                />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleSaveApiKey}
-                  disabled={apiKeyLoading || !apiKeyInput.trim()}
-                >
-                  {t("settings.advanced.remoteStt.apiKey.save")}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleClearApiKey}
-                  disabled={apiKeyLoading || !hasApiKey}
-                >
-                  {t("settings.advanced.remoteStt.apiKey.clear")}
-                </Button>
+            <div className="flex flex-col gap-3 rounded-lg border border-mid-gray/30 bg-mid-gray/5 p-3">
+              {hasApiKey && !isEditingKey ? (
+                <div className="flex flex-col gap-2">
+                  <Input
+                    type="text"
+                    value="********"
+                    readOnly
+                    className="text-green-400"
+                  />
+                  <div className="flex items-center gap-2 text-sm text-green-400">
+                    <span className="inline-flex h-2 w-2 rounded-full bg-green-400" />
+                    <span className="text-green-400">
+                      {t("settings.advanced.remoteStt.apiKey.statusStored")}
+                    </span>
+                  </div>
+                  <p className="text-xs text-text/60">
+                    {t("settings.advanced.remoteStt.apiKey.statusStoredHint")}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleStartReplaceKey}
+                      disabled={apiKeyLoading}
+                    >
+                      {t("settings.advanced.remoteStt.apiKey.replace")}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearApiKey}
+                      disabled={apiKeyLoading}
+                    >
+                      {t("settings.advanced.remoteStt.apiKey.clear")}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="password"
+                      value={apiKeyInput}
+                      onChange={(event) => setApiKeyInput(event.target.value)}
+                      placeholder={t(
+                        "settings.advanced.remoteStt.apiKey.placeholder",
+                      )}
+                      disabled={apiKeyLoading}
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleSaveApiKey}
+                      disabled={apiKeyLoading || !apiKeyInput.trim()}
+                    >
+                      {t("settings.advanced.remoteStt.apiKey.save")}
+                    </Button>
+                    {hasApiKey && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleCancelReplaceKey}
+                        disabled={apiKeyLoading}
+                      >
+                        {t("settings.advanced.remoteStt.apiKey.cancel")}
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-text/60">
+                    {hasApiKey
+                      ? t("settings.advanced.remoteStt.apiKey.replaceHint")
+                      : t("settings.advanced.remoteStt.apiKey.statusMissing")}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleTestConnection}
+                    disabled={
+                      !canTestConnection || connectionStatus === "checking"
+                    }
+                  >
+                    {connectionStatus === "checking"
+                      ? t("settings.advanced.remoteStt.connection.testing")
+                      : t("settings.advanced.remoteStt.connection.test")}
+                  </Button>
+                </div>
+                {connectionMessage && (
+                  <span
+                    className={`text-xs ${
+                      connectionStatus === "success"
+                        ? "text-green-400"
+                        : "text-red-400"
+                    }`}
+                  >
+                    {connectionMessage}
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-text/60">
-                {hasApiKey
-                  ? t("settings.advanced.remoteStt.apiKey.statusSet")
-                  : t("settings.advanced.remoteStt.apiKey.statusMissing")}
-              </p>
             </div>
           </SettingContainer>
 

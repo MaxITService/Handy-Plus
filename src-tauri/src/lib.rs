@@ -288,6 +288,7 @@ pub fn run() {
         commands::remote_stt::remote_stt_clear_api_key,
         commands::remote_stt::remote_stt_get_debug_dump,
         commands::remote_stt::remote_stt_clear_debug,
+        commands::remote_stt::remote_stt_test_connection,
         commands::models::get_available_models,
         commands::models::get_model_info,
         commands::models::download_model,
