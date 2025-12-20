@@ -316,6 +316,7 @@ export const RemoteSttSettings: React.FC<RemoteSttSettingsProps> = ({
               onChange={(event) => setBaseUrlInput(event.target.value)}
               onBlur={handleBaseUrlBlur}
               placeholder={t("settings.advanced.remoteStt.baseUrl.placeholder")}
+              className="w-full"
             />
           </SettingContainer>
 
@@ -332,6 +333,7 @@ export const RemoteSttSettings: React.FC<RemoteSttSettingsProps> = ({
               onChange={(event) => setModelIdInput(event.target.value)}
               onBlur={handleModelIdBlur}
               placeholder={t("settings.advanced.remoteStt.modelId.placeholder")}
+              className="w-full"
             />
           </SettingContainer>
 
