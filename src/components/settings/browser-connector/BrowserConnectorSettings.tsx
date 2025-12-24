@@ -65,6 +65,10 @@ export const BrowserConnectorSettings: React.FC = () => {
 
   const handleAutoOpenEnabledChange = (enabled: boolean) => {
     void updateSetting("connector_auto_open_enabled", enabled);
+    // Auto-select first site when enabling if no site is currently selected
+    if (enabled && !settings?.connector_auto_open_url) {
+      void updateSetting("connector_auto_open_url", AUTO_OPEN_SITES[0].value);
+    }
   };
 
   const handleAutoOpenSiteChange = (url: string) => {
@@ -212,22 +216,24 @@ export const BrowserConnectorSettings: React.FC = () => {
             disabled={isUpdating("connector_auto_open_enabled")}
           />
         </SettingContainer>
-        <SettingContainer
-          title={t("settings.browserConnector.autoOpen.site.title")}
-          description={t("settings.browserConnector.autoOpen.site.description")}
-          descriptionMode="tooltip"
-          grouped={true}
-        >
-          <Select
-            value={settings?.connector_auto_open_url ?? null}
-            options={AUTO_OPEN_SITES}
-            onChange={(value) => handleAutoOpenSiteChange(value ?? "")}
-            disabled={!settings?.connector_auto_open_enabled || isUpdating("connector_auto_open_url")}
-            placeholder={t("settings.browserConnector.autoOpen.site.placeholder")}
-            isClearable={false}
-            className="w-48"
-          />
-        </SettingContainer>
+        <div className={!settings?.connector_auto_open_enabled ? "opacity-50" : ""}>
+          <SettingContainer
+            title={t("settings.browserConnector.autoOpen.site.title")}
+            description={t("settings.browserConnector.autoOpen.site.description")}
+            descriptionMode="tooltip"
+            grouped={true}
+          >
+            <Select
+              value={settings?.connector_auto_open_url ?? null}
+              options={AUTO_OPEN_SITES}
+              onChange={(value) => handleAutoOpenSiteChange(value ?? "")}
+              disabled={!settings?.connector_auto_open_enabled || isUpdating("connector_auto_open_url")}
+              placeholder={t("settings.browserConnector.autoOpen.site.placeholder")}
+              isClearable={false}
+              className="w-48"
+            />
+          </SettingContainer>
+        </div>
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.browserConnector.connection.title")}>

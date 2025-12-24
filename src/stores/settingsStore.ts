@@ -136,6 +136,16 @@ const settingUpdaters: {
     commands.changeConnectorSendSelectionSystemPromptSetting(value as string),
   connector_send_selection_user_prompt: (value) =>
     commands.changeConnectorSendSelectionUserPromptSetting(value as string),
+  connector_auto_open_enabled: (value) =>
+    commands.changeConnectorAutoOpenEnabledSetting(value as boolean),
+  connector_auto_open_url: (value) =>
+    commands.changeConnectorAutoOpenUrlSetting(value as string),
+  connector_host: (value) =>
+    commands.changeConnectorHostSetting(value as string),
+  connector_port: (value) =>
+    commands.changeConnectorPortSetting(value as number),
+  connector_path: (value) =>
+    commands.changeConnectorPathSetting(value as string),
   mute_while_recording: (value) =>
     commands.changeMuteWhileRecordingSetting(value as boolean),
   append_trailing_space: (value) =>

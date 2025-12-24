@@ -900,6 +900,57 @@ pub fn change_connector_send_selection_user_prompt_setting(
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_connector_auto_open_enabled_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.connector_auto_open_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_connector_auto_open_url_setting(
+    app: AppHandle,
+    url: String,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.connector_auto_open_url = url;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_connector_host_setting(app: AppHandle, host: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.connector_host = host;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_connector_port_setting(app: AppHandle, port: u16) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.connector_port = port;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_connector_path_setting(app: AppHandle, path: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.connector_path = path;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_app_language_setting(app: AppHandle, language: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.app_language = language.clone();
