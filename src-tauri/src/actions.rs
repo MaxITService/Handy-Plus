@@ -1324,33 +1324,8 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
 
             let settings = get_settings(&ah);
 
-            // Launch screenshot capture tool immediately
-            let capture_command = settings.screenshot_capture_command.clone();
-            if !capture_command.trim().is_empty() {
-                // Use powershell on Windows to handle paths with spaces and quotes properly
-                #[cfg(target_os = "windows")]
-                let launch_result = std::process::Command::new("powershell")
-                    .args(["-NoProfile", "-Command", &capture_command])
-                    .spawn();
-
-                #[cfg(not(target_os = "windows"))]
-                let launch_result = std::process::Command::new("sh")
-                    .args(["-c", &capture_command])
-                    .spawn();
-
-                match launch_result {
-                    Ok(child) => info!("Screenshot capture tool launched (pid {:?}): {}", child.id(), capture_command),
-                    Err(e) => {
-                        error!("Failed to launch screenshot tool '{}': {}", capture_command, e);
-                        emit_screenshot_error(&ah, format!("Failed to launch screenshot tool: {}", e));
-                        utils::hide_recording_overlay(&ah);
-                        change_tray_icon(&ah, TrayIconState::Idle);
-                        return;
-                    }
-                }
-            }
-
-            // Gate 1: Stop recording and transcribe
+            // Gate 1: Stop recording and transcribe FIRST (before launching screenshot tool)
+            // This ensures we capture the audio before any external process can interfere
             let stop_recording_time = Instant::now();
             let voice_result = if let Some(samples) = rm.stop_recording(&binding_id) {
                 debug!(
@@ -1426,6 +1401,31 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
                     return;
                 }
             };
+
+            // Now launch screenshot capture tool AFTER transcription is complete
+            // This ensures audio is captured before the screenshot tool can interfere
+            let capture_command = settings.screenshot_capture_command.clone();
+            if !capture_command.trim().is_empty() {
+                // Use powershell on Windows to handle paths with spaces and quotes properly
+                #[cfg(target_os = "windows")]
+                let launch_result = std::process::Command::new("powershell")
+                    .args(["-NoProfile", "-Command", &capture_command])
+                    .spawn();
+
+                #[cfg(not(target_os = "windows"))]
+                let launch_result = std::process::Command::new("sh")
+                    .args(["-c", &capture_command])
+                    .spawn();
+
+                match launch_result {
+                    Ok(child) => info!("Screenshot capture tool launched (pid {:?}): {}", child.id(), capture_command),
+                    Err(e) => {
+                        error!("Failed to launch screenshot tool '{}': {}", capture_command, e);
+                        emit_screenshot_error(&ah, format!("Failed to launch screenshot tool: {}", e));
+                        // Don't return here - we already have the transcription, continue waiting for screenshot
+                    }
+                }
+            }
 
             // Gate 2: Wait for screenshot (overlay already hidden)
             let screenshot_folder = PathBuf::from(&settings.screenshot_folder);

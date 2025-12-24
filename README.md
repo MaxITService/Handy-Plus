@@ -44,16 +44,29 @@ Send voice to ChatGPT/Perplexity via **Handy Connector** Chrome extension.
 - Select article, say "summarize this" → ChatGPT gets instruction + full text
 - Capture region, say "explain this chart" → ChatGPT gets question + screenshot
 
-### 📷 Send Screenshot to Extension (Windows only) (Requires external screenshot tool, like ShareX!)
+### 📷 Send Screenshot to Extension (Windows only)
 Capture a screenshot region and send it with voice instruction to ChatGPT/Claude.
 
-1. Press the shortcut and speak your instruction
-2. Select screen region with ShareX (or your configured tool)
-3. Screenshot + instruction sent to extension
+**Requires:** External screenshot tool like [ShareX](https://getsharex.com/) (free, open source)
 
-**"Allow Without Voice" mode:** Can send screenshot with just a default prompt (e.g., "Look at this picture") — no voice needed.
+**How it works:**
+1. Press and hold the shortcut, speak your instruction (e.g., "explain this chart")
+2. Release the shortcut — voice is transcribed first
+3. Screenshot tool launches automatically
+4. Select screen region with your screenshot tool
+5. Screenshot + your voice instruction sent to extension
 
-**Setup:** Settings → Browser Connector → Screenshot Settings
+**Workflow:**
+```
+[Hold shortcut] → [Speak] → [Release] → [Transcribe voice] → [Screenshot tool opens] → [Capture region] → [Sent to ChatGPT]
+```
+
+**"Allow Without Voice" mode:** Can send screenshot with just a default prompt (e.g., "Look at this picture") — useful when you just want to share an image without speaking.
+
+**Setup:**
+- Settings → Browser Connector → Screenshot Settings
+- Configure your screenshot tool command (default: ShareX `-RectangleRegion`)
+- Set screenshot folder path where your tool saves images
 
 ---
 
