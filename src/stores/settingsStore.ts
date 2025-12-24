@@ -130,6 +130,12 @@ const settingUpdaters: {
     commands.changeAiReplaceUserPromptSetting(value as string),
   ai_replace_max_chars: (value) =>
     commands.changeAiReplaceMaxCharsSetting(value as number),
+  connector_send_system_prompt: (value) =>
+    commands.changeConnectorSendSystemPromptSetting(value as string),
+  connector_send_selection_system_prompt: (value) =>
+    commands.changeConnectorSendSelectionSystemPromptSetting(value as string),
+  connector_send_selection_user_prompt: (value) =>
+    commands.changeConnectorSendSelectionUserPromptSetting(value as string),
   mute_while_recording: (value) =>
     commands.changeMuteWhileRecordingSetting(value as boolean),
   append_trailing_space: (value) =>

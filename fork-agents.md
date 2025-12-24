@@ -178,6 +178,8 @@ pub fn windows_only_function() {
 
 ## Debugging Fork Features
 
+ALL DEBUG IS DONE BY USER!! NOT AUTOMATED TESTS!!
+NEVER Build ! User will build!
 ### Remote STT
 1. Enable debug logging: Settings → Advanced → Remote STT → Debug Capture (toggle on)
 2. Set mode to "Verbose" for full request/response logging

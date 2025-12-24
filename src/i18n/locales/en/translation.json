@@ -9,6 +9,8 @@
     "general": "General",
     "advanced": "Advanced",
     "postProcessing": "Post Process",
+    "aiReplace": "AI Replace",
+    "browserConnector": "Browser Connector",
     "history": "History",
     "debug": "Debug",
     "about": "About"
@@ -105,6 +107,14 @@
           "transcribe": {
             "name": "Transcribe",
             "description": "Converts your speech into text."
+          },
+          "send_to_extension": {
+            "name": "Send to Extension",
+            "description": "Send transcription to Handy Connector browser extension."
+          },
+          "send_to_extension_with_selection": {
+            "name": "Send + Selection to Extension",
+            "description": "Send transcription plus selected text to Handy Connector browser extension."
           },
           "ai_replace_selection": {
             "name": "AI Replace Selection",
@@ -464,6 +474,101 @@
           "title": "Whisper.cpp",
           "description": "High-performance inference of OpenAI's Whisper automatic speech recognition model",
           "details": "Handy uses Whisper.cpp for fast, local speech-to-text processing. Thanks to the amazing work by Georgi Gerganov and contributors."
+        }
+      }
+    },
+    "browserConnector": {
+      "help": {
+        "title": "What is Browser Connector?",
+        "description": "Browser Connector sends your voice transcriptions directly to AI chat interfaces (like ChatGPT, Claude) through the <link>Handy Connector</link> Chrome extension.",
+        "feature1": "Speak and send messages directly to ChatGPT or other AI chats",
+        "feature2": "Use \"Send + Selection\" to include selected text as context",
+        "feature3": "Optional LLM processing before sending (e.g., translate, reformat)"
+      },
+      "shortcuts": {
+        "title": "Shortcuts"
+      },
+      "sendPrompts": {
+        "title": "Send to Extension Prompts",
+        "description": "Optional: Process transcription through LLM before sending. Leave empty to send raw transcription.",
+        "systemPrompt": {
+          "title": "System Prompt",
+          "description": "System prompt for LLM processing. Leave empty to skip LLM and send raw transcription.",
+          "placeholder": "E.g.: Translate the following text to English and fix grammar errors."
+        }
+      },
+      "sendSelectionPrompts": {
+        "title": "Send + Selection Prompts",
+        "description": "Process voice instruction and selected text through LLM before sending.",
+        "systemPrompt": {
+          "title": "System Prompt",
+          "description": "System prompt for LLM that processes voice instruction and selected text."
+        },
+        "userPrompt": {
+          "title": "User Prompt Template",
+          "description": "Template for the user message sent to LLM."
+        },
+        "variables": "Available variables: ${instruction} (your voice), ${output} (selected text)"
+      },
+      "connection": {
+        "title": "Connection Settings",
+        "host": {
+          "title": "Host",
+          "description": "The host address of the Handy Connector server."
+        },
+        "port": {
+          "title": "Port",
+          "description": "The port number of the Handy Connector server."
+        },
+        "path": {
+          "title": "Path",
+          "description": "The endpoint path for sending messages."
+        },
+        "endpoint": {
+          "title": "Endpoint URL",
+          "description": "The full URL where transcriptions will be sent."
+        }
+      }
+    },
+    "aiReplace": {
+      "help": {
+        "title": "What is AI Replace Selection?",
+        "description": "Select text, speak an instruction, and let AI transform the selected text based on your voice command.",
+        "step1": "Select text in any application",
+        "step2": "Press the shortcut and speak your instruction (e.g., \"translate to French\")",
+        "step3": "AI replaces your selection with the transformed result"
+      },
+      "shortcuts": {
+        "title": "Shortcut"
+      },
+      "noSelection": {
+        "title": "Without Selection Mode",
+        "description": "When no text is selected, AI can generate new text based on your voice instruction.",
+        "allowToggle": {
+          "label": "Allow Without Selection",
+          "description": "Enable generating new text when nothing is selected."
+        },
+        "systemPrompt": {
+          "title": "System Prompt (No Selection)",
+          "description": "System prompt used when generating text from scratch."
+        }
+      },
+      "withSelection": {
+        "title": "With Selection Mode",
+        "description": "Configure how AI processes your selected text with voice instructions.",
+        "systemPrompt": {
+          "title": "System Prompt",
+          "description": "System prompt that guides AI to produce paste-ready output."
+        },
+        "userPrompt": {
+          "title": "User Prompt Template",
+          "description": "Template for the request. Use variables to include dynamic content."
+        },
+        "variables": "Available variables: ${instruction} (your voice), ${output} (selected text)",
+        "maxChars": {
+          "title": "Max Characters",
+          "description": "Maximum selection size before AI processing is skipped.",
+          "suffix": "characters"
         }
       }
     }

@@ -336,6 +336,12 @@ pub struct AppSettings {
     pub connector_port: u16,
     #[serde(default = "default_connector_path")]
     pub connector_path: String,
+    #[serde(default = "default_connector_send_system_prompt")]
+    pub connector_send_system_prompt: String,
+    #[serde(default = "default_connector_send_selection_system_prompt")]
+    pub connector_send_selection_system_prompt: String,
+    #[serde(default = "default_connector_send_selection_user_prompt")]
+    pub connector_send_selection_user_prompt: String,
     #[serde(default = "default_app_language")]
     pub app_language: String,
 }
@@ -444,6 +450,18 @@ fn default_connector_port() -> u16 {
 
 fn default_connector_path() -> String {
     "/messages".to_string()
+}
+
+fn default_connector_send_system_prompt() -> String {
+    "".to_string()
+}
+
+fn default_connector_send_selection_system_prompt() -> String {
+    "You are a text transformation engine.\nReturn ONLY the final transformed text that is ready to be sent to an AI chat.\nDo not include explanations, commentary, labels, headings, lists, markdown, code fences, or any surrounding quotes.\nPreserve the original language and keep the original formatting (line breaks, punctuation, and spacing) unless the instruction explicitly asks to change it.\nMake the smallest change that satisfies the instruction.\nIf the instruction conflicts with the text or is unclear, prefer minimal edits and do not invent new facts.".to_string()
+}
+
+fn default_connector_send_selection_user_prompt() -> String {
+    "INSTRUCTION:\n${instruction}\n\nTEXT:\n${output}".to_string()
 }
 
 fn default_post_process_provider_id() -> String {
@@ -722,6 +740,9 @@ pub fn get_default_settings() -> AppSettings {
         connector_host: default_connector_host(),
         connector_port: default_connector_port(),
         connector_path: default_connector_path(),
+        connector_send_system_prompt: default_connector_send_system_prompt(),
+        connector_send_selection_system_prompt: default_connector_send_selection_system_prompt(),
+        connector_send_selection_user_prompt: default_connector_send_selection_user_prompt(),
         app_language: default_app_language(),
     }
 }

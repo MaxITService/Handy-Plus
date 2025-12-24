@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Cog, FlaskConical, History, Info, Sparkles } from "lucide-react";
+import { Cog, FlaskConical, Globe, History, Info, Sparkles, Wand2 } from "lucide-react";
+import { type } from "@tauri-apps/plugin-os";
 import HandyTextLogo from "./icons/HandyTextLogo";
 import HandyHand from "./icons/HandyHand";
 import { useSettings } from "../hooks/useSettings";
@@ -11,6 +12,8 @@ import {
   DebugSettings,
   AboutSettings,
   PostProcessingSettings,
+  BrowserConnectorSettings,
+  AiReplaceSelectionSettings,
 } from "./settings";
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
@@ -30,6 +33,8 @@ interface SectionConfig {
   enabled: (settings: any) => boolean;
 }
 
+const isWindows = type() === "windows";
+
 export const SECTIONS_CONFIG = {
   general: {
     labelKey: "sidebar.general",
@@ -48,6 +53,18 @@ export const SECTIONS_CONFIG = {
     icon: Sparkles,
     component: PostProcessingSettings,
     enabled: (_) => true,
+  },
+  aiReplace: {
+    labelKey: "sidebar.aiReplace",
+    icon: Wand2,
+    component: AiReplaceSelectionSettings,
+    enabled: () => isWindows,
+  },
+  browserConnector: {
+    labelKey: "sidebar.browserConnector",
+    icon: Globe,
+    component: BrowserConnectorSettings,
+    enabled: () => true,
   },
   history: {
     labelKey: "sidebar.history",
