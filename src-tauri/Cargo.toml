@@ -72,6 +72,7 @@ transcribe-rs = "0.1.4"
 ferrous-opencc = "0.2.3"
 keyring = "2.3.3"
 tiny_http = "0.12"
+notify = { version = "6.1", default-features = false, features = ["macos_fsevent"] }
 specta = "=2.0.0-rc.22"
 specta-typescript = "0.0.9"
 tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
-import { Globe, Info, ExternalLink } from "lucide-react";
+import { Globe, Info, ExternalLink, Camera } from "lucide-react";
 import { useSettings } from "../../../hooks/useSettings";
 import { HandyShortcut } from "../HandyShortcut";
 import { Input } from "../../ui/Input";
@@ -17,6 +17,12 @@ const AUTO_OPEN_SITES = [
   { value: "https://claude.ai", label: "Claude" },
 ];
 
+// Default screenshot folder for Windows
+const getDefaultScreenshotFolder = () => {
+  // This matches the Rust default: ShareX default folder
+  return "%USERPROFILE%\\Documents\\ShareX\\Screenshots";
+};
+
 export const BrowserConnectorSettings: React.FC = () => {
   const { t } = useTranslation();
   const { settings, getSetting, updateSetting, isUpdating } = useSettings();
@@ -24,6 +30,17 @@ export const BrowserConnectorSettings: React.FC = () => {
   const [hostInput, setHostInput] = useState(settings?.connector_host ?? "127.0.0.1");
   const [portInput, setPortInput] = useState(String(settings?.connector_port ?? 63155));
   const [pathInput, setPathInput] = useState(settings?.connector_path ?? "/messages");
+
+  // Screenshot settings local state
+  const [screenshotCommandInput, setScreenshotCommandInput] = useState(
+    settings?.screenshot_capture_command ?? '"C:\\Program Files\\ShareX\\ShareX.exe" -RectangleRegion'
+  );
+  const [screenshotFolderInput, setScreenshotFolderInput] = useState(
+    settings?.screenshot_folder ?? getDefaultScreenshotFolder()
+  );
+  const [screenshotTimeoutInput, setScreenshotTimeoutInput] = useState(
+    String(settings?.screenshot_timeout_seconds ?? 5)
+  );
 
   // Connector prompt settings
   const sendSystemPrompt = getSetting("connector_send_system_prompt") ?? "";
@@ -41,6 +58,21 @@ export const BrowserConnectorSettings: React.FC = () => {
   useEffect(() => {
     setPathInput(settings?.connector_path ?? "/messages");
   }, [settings?.connector_path]);
+
+  // Screenshot settings sync with settings
+  useEffect(() => {
+    setScreenshotCommandInput(
+      settings?.screenshot_capture_command ?? '"C:\\Program Files\\ShareX\\ShareX.exe" -RectangleRegion'
+    );
+  }, [settings?.screenshot_capture_command]);
+
+  useEffect(() => {
+    setScreenshotFolderInput(settings?.screenshot_folder ?? getDefaultScreenshotFolder());
+  }, [settings?.screenshot_folder]);
+
+  useEffect(() => {
+    setScreenshotTimeoutInput(String(settings?.screenshot_timeout_seconds ?? 5));
+  }, [settings?.screenshot_timeout_seconds]);
 
   const handleHostBlur = () => {
     const trimmed = hostInput.trim();
@@ -85,6 +117,28 @@ export const BrowserConnectorSettings: React.FC = () => {
 
   const handleSendSelectionUserPromptChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     void updateSetting("connector_send_selection_user_prompt", event.target.value);
+  };
+
+  // Screenshot settings handlers
+  const handleScreenshotCommandBlur = () => {
+    const trimmed = screenshotCommandInput.trim();
+    if (trimmed !== (settings?.screenshot_capture_command ?? "")) {
+      void updateSetting("screenshot_capture_command", trimmed);
+    }
+  };
+
+  const handleScreenshotFolderBlur = () => {
+    const trimmed = screenshotFolderInput.trim();
+    if (trimmed !== (settings?.screenshot_folder ?? "")) {
+      void updateSetting("screenshot_folder", trimmed);
+    }
+  };
+
+  const handleScreenshotTimeoutBlur = () => {
+    const timeout = parseInt(screenshotTimeoutInput.trim(), 10);
+    if (!isNaN(timeout) && timeout > 0 && timeout !== settings?.screenshot_timeout_seconds) {
+      void updateSetting("screenshot_timeout_seconds", timeout);
+    }
   };
 
   const endpointUrl = `http://${hostInput}:${portInput}${pathInput}`;
@@ -158,6 +212,107 @@ export const BrowserConnectorSettings: React.FC = () => {
             disabled={isUpdating("send_to_extension_with_selection_push_to_talk")}
           />
         </SettingContainer>
+        <HandyShortcut shortcutId="send_screenshot_to_extension" grouped={true} />
+        <SettingContainer
+          title={t("settings.general.shortcut.bindings.send_screenshot_to_extension.pushToTalk.label")}
+          description={t("settings.general.shortcut.bindings.send_screenshot_to_extension.pushToTalk.description")}
+          descriptionMode="tooltip"
+          grouped={true}
+        >
+          <ToggleSwitch
+            checked={settings?.send_screenshot_to_extension_push_to_talk ?? true}
+            onChange={(enabled) => void updateSetting("send_screenshot_to_extension_push_to_talk", enabled)}
+            disabled={isUpdating("send_screenshot_to_extension_push_to_talk")}
+          />
+        </SettingContainer>
+      </SettingsGroup>
+
+      {/* Screenshot Settings */}
+      <SettingsGroup title={t("settings.browserConnector.screenshot.title")}>
+        <div className="text-sm text-text/60 mb-2 px-1">
+          {t("settings.browserConnector.screenshot.description")}
+        </div>
+        <SettingContainer
+          title={t("settings.browserConnector.screenshot.command.title")}
+          description={t("settings.browserConnector.screenshot.command.description")}
+          descriptionMode="inline"
+          grouped={true}
+          layout="stacked"
+        >
+          <Input
+            type="text"
+            value={screenshotCommandInput}
+            onChange={(event) => setScreenshotCommandInput(event.target.value)}
+            onBlur={handleScreenshotCommandBlur}
+            placeholder='"C:\Program Files\ShareX\ShareX.exe" -RectangleRegion'
+            className="w-full font-mono text-sm"
+          />
+        </SettingContainer>
+        <SettingContainer
+          title={t("settings.browserConnector.screenshot.folder.title")}
+          description={t("settings.browserConnector.screenshot.folder.description")}
+          descriptionMode="inline"
+          grouped={true}
+          layout="stacked"
+        >
+          <Input
+            type="text"
+            value={screenshotFolderInput}
+            onChange={(event) => setScreenshotFolderInput(event.target.value)}
+            onBlur={handleScreenshotFolderBlur}
+            placeholder="%USERPROFILE%\Documents\ShareX\Screenshots"
+            className="w-full font-mono text-sm"
+          />
+        </SettingContainer>
+        <SettingContainer
+          title={t("settings.browserConnector.screenshot.includeSubfolders.title")}
+          description={t("settings.browserConnector.screenshot.includeSubfolders.description")}
+          descriptionMode="tooltip"
+          grouped={true}
+        >
+          <ToggleSwitch
+            checked={settings?.screenshot_include_subfolders ?? false}
+            onChange={(enabled) => void updateSetting("screenshot_include_subfolders", enabled)}
+            disabled={isUpdating("screenshot_include_subfolders")}
+          />
+        </SettingContainer>
+        <SettingContainer
+          title={t("settings.browserConnector.screenshot.requireRecent.title")}
+          description={t("settings.browserConnector.screenshot.requireRecent.description")}
+          descriptionMode="tooltip"
+          grouped={true}
+        >
+          <ToggleSwitch
+            checked={settings?.screenshot_require_recent ?? true}
+            onChange={(enabled) => void updateSetting("screenshot_require_recent", enabled)}
+            disabled={isUpdating("screenshot_require_recent")}
+          />
+        </SettingContainer>
+        <div className={!settings?.screenshot_require_recent ? "opacity-50" : ""}>
+          <SettingContainer
+            title={t("settings.browserConnector.screenshot.timeout.title")}
+            description={t("settings.browserConnector.screenshot.timeout.description")}
+            descriptionMode="tooltip"
+            grouped={true}
+          >
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                value={screenshotTimeoutInput}
+                onChange={(event) => setScreenshotTimeoutInput(event.target.value)}
+                onBlur={handleScreenshotTimeoutBlur}
+                placeholder="5"
+                min={1}
+                max={60}
+                className="w-20"
+                disabled={!settings?.screenshot_require_recent}
+              />
+              <span className="text-sm text-text/60">
+                {t("settings.browserConnector.screenshot.timeout.unit")}
+              </span>
+            </div>
+          </SettingContainer>
+        </div>
       </SettingsGroup>
 
       {/* Send to Extension Prompts */}

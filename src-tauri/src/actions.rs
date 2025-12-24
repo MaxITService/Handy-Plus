@@ -19,9 +19,10 @@ use async_openai::types::{
     ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
 };
 use ferrous_opencc::{config::BuiltinConfig, OpenCC};
-use log::{debug, error};
+use log::{debug, error, info};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 use tauri::{AppHandle, Emitter, Manager};
@@ -39,6 +40,7 @@ struct AiReplaceSelectionAction;
 
 struct SendToExtensionAction;
 struct SendToExtensionWithSelectionAction;
+struct SendScreenshotToExtensionAction;
 
 async fn maybe_post_process_transcription(
     settings: &AppSettings,
@@ -1079,6 +1081,397 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
     }
 }
 
+fn emit_screenshot_error(app: &AppHandle, message: impl Into<String>) {
+    let _ = app.emit("screenshot-error", message.into());
+}
+
+/// Finds the most recently created image file in a directory (optionally recursive)
+fn find_recent_image(folder: &std::path::Path, max_age_secs: u64, recursive: bool) -> Option<PathBuf> {
+    let cutoff = std::time::SystemTime::now()
+        .checked_sub(std::time::Duration::from_secs(max_age_secs))
+        .unwrap_or(std::time::UNIX_EPOCH);
+
+    let mut newest: Option<(PathBuf, std::time::SystemTime)> = None;
+
+    fn scan_directory(
+        dir: &std::path::Path,
+        cutoff: std::time::SystemTime,
+        recursive: bool,
+        newest: &mut Option<(PathBuf, std::time::SystemTime)>,
+    ) {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                
+                // Recurse into subdirectories if enabled
+                if path.is_dir() && recursive {
+                    scan_directory(&path, cutoff, recursive, newest);
+                    continue;
+                }
+                
+                if !path.is_file() {
+                    continue;
+                }
+
+                // Check if it's an image file
+                let ext = path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .map(|e| e.to_lowercase());
+                let is_image = matches!(ext.as_deref(), Some("png") | Some("jpg") | Some("jpeg") | Some("gif") | Some("webp") | Some("bmp"));
+                if !is_image {
+                    continue;
+                }
+
+                // Check modification time
+                if let Ok(metadata) = entry.metadata() {
+                    if let Ok(modified) = metadata.modified() {
+                        if modified > cutoff {
+                            if newest.is_none() || modified > newest.as_ref().unwrap().1 {
+                                *newest = Some((path, modified));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    scan_directory(folder, cutoff, recursive, &mut newest);
+    newest.map(|(path, _)| path)
+}
+
+/// Watches a folder for new image files with timeout (optionally recursive)
+async fn watch_for_new_image(
+    folder: PathBuf,
+    timeout_secs: u64,
+    require_recent: bool,
+    recent_window_secs: u64,
+    recursive: bool,
+) -> Result<PathBuf, String> {
+    use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    let (tx, rx) = mpsc::channel();
+
+    // Create watcher
+    let mut watcher = RecommendedWatcher::new(
+        move |res: Result<notify::Event, notify::Error>| {
+            if let Ok(event) = res {
+                // Only interested in create/modify events
+                if matches!(
+                    event.kind,
+                    notify::EventKind::Create(_) | notify::EventKind::Modify(_)
+                ) {
+                    for path in event.paths {
+                        let ext = path
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .map(|e| e.to_lowercase());
+                        let is_image = matches!(
+                            ext.as_deref(),
+                            Some("png") | Some("jpg") | Some("jpeg") | Some("gif") | Some("webp") | Some("bmp")
+                        );
+                        if is_image && path.is_file() {
+                            let _ = tx.send(path);
+                        }
+                    }
+                }
+            }
+        },
+        Config::default(),
+    )
+    .map_err(|e| format!("Failed to create file watcher: {}", e))?;
+
+    // Start watching - use recursive mode if enabled
+    let watch_mode = if recursive {
+        RecursiveMode::Recursive
+    } else {
+        RecursiveMode::NonRecursive
+    };
+    watcher
+        .watch(&folder, watch_mode)
+        .map_err(|e| format!("Failed to watch folder: {}", e))?;
+
+    // Wait for new file or timeout
+    let deadline = std::time::Instant::now() + Duration::from_secs(timeout_secs);
+
+    loop {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        if remaining.is_zero() {
+            // Timeout - check for recent files if allowed
+            if !require_recent {
+                if let Some(recent) = find_recent_image(&folder, timeout_secs + 5, recursive) {
+                    return Ok(recent);
+                }
+            }
+            return Err("Screenshot timeout: no new image detected".to_string());
+        }
+
+        match rx.recv_timeout(remaining.min(Duration::from_millis(500))) {
+            Ok(path) => {
+                // Give the file system a moment to finish writing
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                if path.exists() {
+                    return Ok(path);
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                // Check if a recent file appeared (polling fallback)
+                if let Some(recent) = find_recent_image(&folder, recent_window_secs, recursive) {
+                    return Ok(recent);
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                return Err("File watcher disconnected".to_string());
+            }
+        }
+    }
+}
+
+impl ShortcutAction for SendScreenshotToExtensionAction {
+    fn start(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
+        let start_time = Instant::now();
+        debug!(
+            "SendScreenshotToExtensionAction::start called for binding: {}",
+            binding_id
+        );
+
+        let settings = get_settings(app);
+
+        // Load transcription model in the background
+        let tm = app.state::<Arc<TranscriptionManager>>();
+        if settings.transcription_provider == TranscriptionProvider::Local {
+            tm.initiate_model_load();
+        }
+
+        change_tray_icon(app, TrayIconState::Recording);
+        show_recording_overlay(app);
+
+        let rm = app.state::<Arc<AudioRecordingManager>>();
+        let is_always_on = settings.always_on_microphone;
+        debug!("Microphone mode - always_on: {}", is_always_on);
+
+        let mut recording_started = false;
+        if is_always_on {
+            debug!("Always-on mode: Playing audio feedback immediately");
+            let rm_clone = Arc::clone(&rm);
+            let app_clone = app.clone();
+            std::thread::spawn(move || {
+                play_feedback_sound_blocking(&app_clone, SoundType::Start);
+                rm_clone.apply_mute();
+            });
+
+            recording_started = rm.try_start_recording(binding_id);
+            debug!("Recording started: {}", recording_started);
+        } else {
+            debug!("On-demand mode: Starting recording first, then audio feedback");
+            let recording_start_time = Instant::now();
+            if rm.try_start_recording(binding_id) {
+                recording_started = true;
+                debug!("Recording started in {:?}", recording_start_time.elapsed());
+                let app_clone = app.clone();
+                let rm_clone = Arc::clone(&rm);
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    debug!("Handling delayed audio feedback/mute sequence");
+                    play_feedback_sound_blocking(&app_clone, SoundType::Start);
+                    rm_clone.apply_mute();
+                });
+            } else {
+                debug!("Failed to start recording");
+            }
+        }
+
+        if recording_started {
+            shortcut::register_cancel_shortcut(app);
+        }
+
+        debug!(
+            "SendScreenshotToExtensionAction::start completed in {:?}",
+            start_time.elapsed()
+        );
+    }
+
+    fn stop(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
+        shortcut::unregister_cancel_shortcut(app);
+
+        let stop_time = Instant::now();
+        debug!(
+            "SendScreenshotToExtensionAction::stop called for binding: {}",
+            binding_id
+        );
+
+        let ah = app.clone();
+        let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
+        let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
+        let cm = Arc::clone(&app.state::<Arc<ConnectorManager>>());
+
+        change_tray_icon(app, TrayIconState::Transcribing);
+        show_transcribing_overlay(app);
+
+        rm.remove_mute();
+        play_feedback_sound(app, SoundType::Stop);
+
+        let binding_id = binding_id.to_string();
+
+        tauri::async_runtime::spawn(async move {
+            debug!(
+                "Starting async screenshot+voice task for binding: {}",
+                binding_id
+            );
+
+            let settings = get_settings(&ah);
+
+            // Launch screenshot capture tool immediately
+            let capture_command = settings.screenshot_capture_command.clone();
+            if !capture_command.trim().is_empty() {
+                // Use powershell on Windows to handle paths with spaces and quotes properly
+                #[cfg(target_os = "windows")]
+                let launch_result = std::process::Command::new("powershell")
+                    .args(["-NoProfile", "-Command", &capture_command])
+                    .spawn();
+
+                #[cfg(not(target_os = "windows"))]
+                let launch_result = std::process::Command::new("sh")
+                    .args(["-c", &capture_command])
+                    .spawn();
+
+                match launch_result {
+                    Ok(child) => info!("Screenshot capture tool launched (pid {:?}): {}", child.id(), capture_command),
+                    Err(e) => {
+                        error!("Failed to launch screenshot tool '{}': {}", capture_command, e);
+                        emit_screenshot_error(&ah, format!("Failed to launch screenshot tool: {}", e));
+                        utils::hide_recording_overlay(&ah);
+                        change_tray_icon(&ah, TrayIconState::Idle);
+                        return;
+                    }
+                }
+            }
+
+            // Gate 1: Stop recording and transcribe
+            let stop_recording_time = Instant::now();
+            let voice_result = if let Some(samples) = rm.stop_recording(&binding_id) {
+                debug!(
+                    "Recording stopped and samples retrieved in {:?}, sample count: {}",
+                    stop_recording_time.elapsed(),
+                    samples.len()
+                );
+
+                let transcription_time = Instant::now();
+                let result = if settings.transcription_provider
+                    == TranscriptionProvider::RemoteOpenAiCompatible
+                {
+                    let remote_manager = ah.state::<Arc<RemoteSttManager>>();
+                    remote_manager
+                        .transcribe(&settings.remote_stt, &samples)
+                        .await
+                        .map(|text| {
+                            if settings.custom_words.is_empty() {
+                                text
+                            } else {
+                                apply_custom_words(
+                                    &text,
+                                    &settings.custom_words,
+                                    settings.word_correction_threshold,
+                                )
+                            }
+                        })
+                } else {
+                    tm.transcribe(samples)
+                };
+
+                match result {
+                    Ok(text) => {
+                        debug!(
+                            "Screenshot action transcription completed in {:?}: '{}'",
+                            transcription_time.elapsed(),
+                            text
+                        );
+                        Ok(text)
+                    }
+                    Err(e) => {
+                        if settings.transcription_provider
+                            == TranscriptionProvider::RemoteOpenAiCompatible
+                        {
+                            let _ = ah.emit("remote-stt-error", format!("{}", e));
+                        }
+                        Err(format!("Transcription failed: {}", e))
+                    }
+                }
+            } else {
+                debug!("No samples retrieved from recording stop");
+                Ok(String::new()) // Empty transcription is OK for screenshot action
+            };
+
+            // Check voice gate first - hide overlay immediately after transcription
+            let voice_text = match voice_result {
+                Ok(text) => {
+                    // Hide overlay immediately after successful transcription
+                    utils::hide_recording_overlay(&ah);
+                    change_tray_icon(&ah, TrayIconState::Idle);
+                    text
+                }
+                Err(e) => {
+                    error!("Voice transcription failed: {}", e);
+                    emit_screenshot_error(&ah, &e);
+                    utils::hide_recording_overlay(&ah);
+                    change_tray_icon(&ah, TrayIconState::Idle);
+                    return;
+                }
+            };
+
+            // Gate 2: Wait for screenshot (overlay already hidden)
+            let screenshot_folder = PathBuf::from(&settings.screenshot_folder);
+            let timeout_secs = settings.screenshot_timeout_seconds as u64;
+            let require_recent = settings.screenshot_require_recent;
+            let include_subfolders = settings.screenshot_include_subfolders;
+
+            let screenshot_result = watch_for_new_image(
+                screenshot_folder,
+                timeout_secs,
+                require_recent,
+                timeout_secs,
+                include_subfolders,
+            )
+            .await;
+
+            let screenshot_path = match screenshot_result {
+                Ok(path) => {
+                    info!("Screenshot detected: {:?}", path);
+                    path
+                }
+                Err(e) => {
+                    error!("Screenshot capture failed: {}", e);
+                    emit_screenshot_error(&ah, &e);
+                    // Overlay already hidden after transcription
+                    return;
+                }
+            };
+
+            // Send bundle message with image attachment
+            let send_time = Instant::now();
+            match cm.queue_bundle_message(&voice_text, &screenshot_path) {
+                Ok(()) => debug!(
+                    "Screenshot bundle message queued in {:?}",
+                    send_time.elapsed()
+                ),
+                Err(e) => {
+                    error!("Failed to queue screenshot bundle message: {}", e);
+                    emit_screenshot_error(&ah, format!("Failed to send message: {}", e));
+                }
+            }
+            // Overlay already hidden after transcription - no cleanup needed
+        });
+
+        debug!(
+            "SendScreenshotToExtensionAction::stop completed in {:?}",
+            stop_time.elapsed()
+        );
+    }
+}
+
 impl ShortcutAction for AiReplaceSelectionAction {
     fn start(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
         let start_time = Instant::now();
@@ -1396,6 +1789,10 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
     map.insert(
         "ai_replace_selection".to_string(),
         Arc::new(AiReplaceSelectionAction) as Arc<dyn ShortcutAction>,
+    );
+    map.insert(
+        "send_screenshot_to_extension".to_string(),
+        Arc::new(SendScreenshotToExtensionAction) as Arc<dyn ShortcutAction>,
     );
     map.insert(
         "cancel".to_string(),

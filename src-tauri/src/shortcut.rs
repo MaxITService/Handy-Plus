@@ -987,6 +987,75 @@ pub fn change_connector_path_setting(app: AppHandle, path: String) -> Result<(),
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_screenshot_capture_command_setting(
+    app: AppHandle,
+    command: String,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.screenshot_capture_command = command;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_screenshot_folder_setting(app: AppHandle, folder: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.screenshot_folder = folder;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_screenshot_require_recent_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.screenshot_require_recent = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_screenshot_timeout_seconds_setting(
+    app: AppHandle,
+    seconds: u32,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.screenshot_timeout_seconds = seconds;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_screenshot_include_subfolders_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.screenshot_include_subfolders = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_send_screenshot_to_extension_push_to_talk_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.send_screenshot_to_extension_push_to_talk = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_app_language_setting(app: AppHandle, language: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.app_language = language.clone();
@@ -1137,6 +1206,7 @@ pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<()
                         "send_to_extension" => settings.send_to_extension_push_to_talk,
                         "send_to_extension_with_selection" => settings.send_to_extension_with_selection_push_to_talk,
                         "ai_replace_selection" => settings.ai_replace_selection_push_to_talk,
+                        "send_screenshot_to_extension" => settings.send_screenshot_to_extension_push_to_talk,
                         _ => settings.push_to_talk,
                     };
                     

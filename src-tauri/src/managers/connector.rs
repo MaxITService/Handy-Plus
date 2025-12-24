@@ -7,8 +7,9 @@ use crate::settings::get_settings;
 use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::io::Read;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
@@ -24,6 +25,8 @@ const POLL_TIMEOUT_MS: i64 = 10_000;
 const KEEPALIVE_INTERVAL_MS: i64 = 15_000;
 /// Maximum messages to keep in queue
 const MAX_MESSAGES: usize = 100;
+/// How long to keep blobs available for download (5 minutes)
+const BLOB_EXPIRY_MS: i64 = 300_000;
 
 /// Extension connection status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -57,6 +60,43 @@ pub struct QueuedMessage {
     pub msg_type: String,
     pub text: String,
     pub ts: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attachments: Option<Vec<BundleAttachment>>,
+}
+
+/// Attachment info for bundle messages
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BundleAttachment {
+    #[serde(rename = "attId")]
+    pub att_id: String,
+    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub filename: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mime: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<u64>,
+    pub fetch: BundleFetch,
+}
+
+/// Fetch info for attachments
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BundleFetch {
+    pub url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub method: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub headers: Option<HashMap<String, String>>,
+    #[serde(rename = "expiresAt", skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<i64>,
+}
+
+/// A blob stored for serving to extension
+#[derive(Debug, Clone)]
+pub struct PendingBlob {
+    pub data: Vec<u8>,
+    pub mime_type: String,
+    pub expires_at: i64,
 }
 
 /// Configuration sent to extension
@@ -90,6 +130,8 @@ struct ConnectorState {
     messages: VecDeque<QueuedMessage>,
     /// Timestamp of last keepalive sent
     last_keepalive: i64,
+    /// Blobs stored for extension to download (attId -> blob data)
+    blobs: HashMap<String, PendingBlob>,
 }
 
 pub struct ConnectorManager {
@@ -123,6 +165,7 @@ impl ConnectorManager {
             state: Arc::new(Mutex::new(ConnectorState {
                 messages: VecDeque::new(),
                 last_keepalive: 0,
+                blobs: HashMap::new(),
             })),
             stop_flag: Arc::new(AtomicBool::new(false)),
         };
@@ -374,6 +417,47 @@ impl ConnectorManager {
                 let _ = request.respond(response);
             }
 
+            (Method::Get, path) if path.starts_with("/blob/") => {
+                // Serve blob data for attachments
+                let att_id = path.strip_prefix("/blob/").unwrap_or("");
+                
+                let blob_data = {
+                    let mut state_guard = state.lock().unwrap();
+                    let now = now_ms();
+                    
+                    // Clean up expired blobs
+                    state_guard.blobs.retain(|_, blob| blob.expires_at > now);
+                    
+                    // Get the requested blob
+                    state_guard.blobs.get(att_id).cloned()
+                };
+                
+                match blob_data {
+                    Some(blob) => {
+                        debug!("Serving blob {} ({} bytes, {})", att_id, blob.data.len(), blob.mime_type);
+                        let mut response = Response::from_data(blob.data);
+                        response.add_header(
+                            Header::from_bytes(
+                                &b"Content-Type"[..],
+                                blob.mime_type.as_bytes()
+                            ).unwrap(),
+                        );
+                        for header in cors_headers {
+                            response.add_header(header);
+                        }
+                        let _ = request.respond(response);
+                    }
+                    None => {
+                        debug!("Blob not found or expired: {}", att_id);
+                        let mut response = Response::from_string("Blob not found").with_status_code(404);
+                        for header in cors_headers {
+                            response.add_header(header);
+                        }
+                        let _ = request.respond(response);
+                    }
+                }
+            }
+
             _ => {
                 // 404 for unknown paths
                 let mut response = Response::from_string("Not Found").with_status_code(404);
@@ -397,6 +481,7 @@ impl ConnectorManager {
                 msg_type: "keepalive".to_string(),
                 text: "keepalive".to_string(),
                 ts: now_ms,
+                attachments: None,
             };
 
             state_guard.messages.push_back(keepalive);
@@ -425,6 +510,7 @@ impl ConnectorManager {
             msg_type: "text".to_string(),
             text: trimmed.to_string(),
             ts: now_ms(),
+            attachments: None,
         };
 
         let mut state = self.state.lock().map_err(|e| e.to_string())?;
@@ -435,6 +521,93 @@ impl ConnectorManager {
             state.messages.pop_front();
         }
 
+        Ok(())
+    }
+
+    /// Queue a bundle message with an image attachment
+    pub fn queue_bundle_message(&self, text: &str, image_path: &PathBuf) -> Result<(), String> {
+        // Read the image file
+        let data = std::fs::read(image_path)
+            .map_err(|e| format!("Failed to read image file: {}", e))?;
+        
+        // Determine MIME type from extension
+        let extension = image_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("png")
+            .to_lowercase();
+        let mime_type = match extension.as_str() {
+            "jpg" | "jpeg" => "image/jpeg",
+            "png" => "image/png",
+            "gif" => "image/gif",
+            "webp" => "image/webp",
+            "bmp" => "image/bmp",
+            _ => "image/png",
+        };
+        
+        let filename = image_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|s| s.to_string());
+        
+        let file_size = data.len() as u64;
+        let att_id = uuid_simple();
+        let now = now_ms();
+        let expires_at = now + BLOB_EXPIRY_MS;
+        
+        // Get the port for constructing the URL
+        let port = *self.port.read().unwrap();
+        let fetch_url = format!("http://127.0.0.1:{}/blob/{}", port, att_id);
+        
+        // Create the attachment
+        let attachment = BundleAttachment {
+            att_id: att_id.clone(),
+            kind: "image".to_string(),
+            filename,
+            mime: Some(mime_type.to_string()),
+            size: Some(file_size),
+            fetch: BundleFetch {
+                url: fetch_url,
+                method: Some("GET".to_string()),
+                headers: Some(HashMap::new()),
+                expires_at: Some(expires_at),
+            },
+        };
+        
+        // Store the blob
+        let pending_blob = PendingBlob {
+            data,
+            mime_type: mime_type.to_string(),
+            expires_at,
+        };
+        
+        // Create the bundle message
+        let msg = QueuedMessage {
+            id: uuid_simple(),
+            msg_type: "bundle".to_string(),
+            text: text.trim().to_string(),
+            ts: now,
+            attachments: Some(vec![attachment]),
+        };
+        
+        let mut state = self.state.lock().map_err(|e| e.to_string())?;
+        
+        // Store the blob for later retrieval
+        state.blobs.insert(att_id, pending_blob);
+        
+        // Queue the message
+        state.messages.push_back(msg);
+        
+        // Trim old messages
+        while state.messages.len() > MAX_MESSAGES {
+            state.messages.pop_front();
+        }
+        
+        // Clean up expired blobs
+        let now = now_ms();
+        state.blobs.retain(|_, blob| blob.expires_at > now);
+        
+        debug!("Queued bundle message with image attachment ({} bytes)", file_size);
         Ok(())
     }
 

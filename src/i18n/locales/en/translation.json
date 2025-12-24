@@ -102,6 +102,7 @@
         "loading": "Loading shortcuts...",
         "none": "No shortcuts configured",
         "notFound": "Shortcut not found",
+        "notSet": "Click to set",
         "pressKeys": "Press keys...",
         "bindings": {
           "transcribe": {
@@ -127,6 +128,14 @@
           "ai_replace_selection": {
             "name": "AI Replace Selection",
             "description": "Cut selected text, speak an instruction, replace selection with AI output",
+            "pushToTalk": {
+              "label": "Push To Talk",
+              "description": "Hold to record, release to stop"
+            }
+          },
+          "send_screenshot_to_extension": {
+            "name": "Send Screenshot to Extension",
+            "description": "Capture a screenshot region and send it with voice instruction to the browser extension.",
             "pushToTalk": {
               "label": "Push To Talk",
               "description": "Hold to record, release to stop"
@@ -554,6 +563,31 @@
             "chatgpt": "ChatGPT",
             "claude": "Claude"
           }
+        }
+      },
+      "screenshot": {
+        "title": "Screenshot Settings",
+        "description": "Configure screenshot capture for sending images with voice instructions to the extension.",
+        "command": {
+          "title": "Capture Command",
+          "description": "Command to run for capturing a screenshot region. ShareX is recommended on Windows."
+        },
+        "folder": {
+          "title": "Screenshots Folder",
+          "description": "Folder where screenshots are saved. Environment variables like %USERPROFILE% are supported."
+        },
+        "includeSubfolders": {
+          "title": "Include Subfolders",
+          "description": "Also search for screenshots in subfolders. Useful when your screenshot app creates monthly folders."
+        },
+        "requireRecent": {
+          "title": "Require Recent Screenshot",
+          "description": "Only pick up screenshots that appeared within the timeout period."
+        },
+        "timeout": {
+          "title": "Screenshot Timeout",
+          "description": "Maximum time to wait for a screenshot to appear.",
+          "unit": "seconds"
         }
       },
       "connection": {

@@ -28,10 +28,10 @@ Files that differentiate this fork from the original [cjpais/Handy](https://gith
 
 | File | Changes |
 |------|---------|
-| `src-tauri/src/actions.rs` | Added new shortcut actions: `AiReplaceSelectionAction`, `SendToExtensionAction`, `SendToExtensionWithSelectionAction`. These handle the new voice-to-LLM and connector workflows. |
-| `src-tauri/src/settings.rs` | Extended `AppSettings` with: `transcription_provider`, `remote_stt` settings, `ai_replace_*` fields, `connector_*` fields, individual push-to-talk settings (`send_to_extension_push_to_talk`, `send_to_extension_with_selection_push_to_talk`, `ai_replace_selection_push_to_talk`). Added `RemoteSttSettings`, `TranscriptionProvider` enum, `default_true()` helper. |
-| `src-tauri/src/lib.rs` | Registered new managers (`RemoteSttManager`, `ConnectorManager`) and commands including individual push-to-talk commands. Starts connector server on app init. |
-| `src-tauri/src/shortcut.rs` | Added shortcut bindings for new actions (AI Replace, Send to Extension). Added commands for individual push-to-talk settings and logic to use per-binding push-to-talk instead of global setting for fork-specific actions. |
+| `src-tauri/src/actions.rs` | Added new shortcut actions: `AiReplaceSelectionAction`, `SendToExtensionAction`, `SendToExtensionWithSelectionAction`, `SendScreenshotToExtensionAction`. These handle the new voice-to-LLM, connector, and screenshot workflows. |
+| `src-tauri/src/settings.rs` | Extended `AppSettings` with: `transcription_provider`, `remote_stt` settings, `ai_replace_*` fields, `connector_*` fields, `screenshot_*` fields, individual push-to-talk settings (`send_to_extension_push_to_talk`, `send_to_extension_with_selection_push_to_talk`, `ai_replace_selection_push_to_talk`, `send_screenshot_to_extension_push_to_talk`). Added `RemoteSttSettings`, `TranscriptionProvider` enum, `default_true()` helper. |
+| `src-tauri/src/lib.rs` | Registered new managers (`RemoteSttManager`, `ConnectorManager`) and commands including individual push-to-talk commands and screenshot settings commands. Starts connector server on app init. |
+| `src-tauri/src/shortcut.rs` | Added shortcut bindings for new actions (AI Replace, Send to Extension, Send Screenshot to Extension). Added commands for individual push-to-talk settings and screenshot settings, plus logic to use per-binding push-to-talk instead of global setting for fork-specific actions. |
 | `src-tauri/src/clipboard.rs` | Enhanced clipboard handling for AI Replace selection capture. |
 | `src-tauri/src/input.rs` | Added selection capture utilities for Windows. |
 
@@ -43,7 +43,7 @@ Files that differentiate this fork from the original [cjpais/Handy](https://gith
 | `src-tauri/src/managers/mod.rs` | Exported `remote_stt` and `connector` manager modules. |
 | `src-tauri/src/audio_toolkit/mod.rs` | Added `encode_wav_bytes()` for Remote STT API. |
 | `src-tauri/src/audio_toolkit/audio/utils.rs` | WAV encoding utilities. |
-| `src-tauri/Cargo.toml` | Added dependencies: `keyring` (credential storage), `reqwest` features, `tiny_http` (HTTP server for connector). |
+| `src-tauri/Cargo.toml` | Added dependencies: `keyring` (credential storage), `reqwest` features, `tiny_http` (HTTP server for connector), `notify` (file system watching for screenshots). |
 | `src-tauri/resources/default_settings.json` | Default values for new settings. |
 
 ### Frontend Settings UI
@@ -51,7 +51,7 @@ Files that differentiate this fork from the original [cjpais/Handy](https://gith
 | File | Changes |
 |------|---------|
 | `src/components/settings/advanced/AdvancedSettings.tsx` | Added Remote STT and AI Replace settings sections. |
-| `src/components/settings/browser-connector/BrowserConnectorSettings.tsx` | Added extension status indicator section. |
+| `src/components/settings/browser-connector/BrowserConnectorSettings.tsx` | Added extension status indicator section and screenshot settings (capture command, folder, timeout). |
 | `src/components/settings/general/GeneralSettings.tsx` | Minor adjustments for new settings layout. |
 | `src/components/Sidebar.tsx` | Navigation for new settings sections. |
 | `src/hooks/useSettings.ts` | Hooks for new settings: `setTranscriptionProvider`, `updateRemoteStt*`, `updateAiReplace*`. |
@@ -63,7 +63,7 @@ Files that differentiate this fork from the original [cjpais/Handy](https://gith
 
 | File | Changes |
 |------|---------|
-| `src/App.tsx` | Event listeners for new features (remote-stt-error, ai-replace-error). |
+| `src/App.tsx` | Event listeners for new features (remote-stt-error, ai-replace-error, screenshot-error). |
 | `src/components/model-selector/*` | Adjusted for transcription provider switching. |
 | `src/components/onboarding/Onboarding.tsx` | Updated for Remote STT option. |
 

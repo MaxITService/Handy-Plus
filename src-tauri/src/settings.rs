@@ -352,6 +352,18 @@ pub struct AppSettings {
     pub connector_send_selection_system_prompt: String,
     #[serde(default = "default_connector_send_selection_user_prompt")]
     pub connector_send_selection_user_prompt: String,
+    #[serde(default = "default_screenshot_capture_command")]
+    pub screenshot_capture_command: String,
+    #[serde(default = "default_screenshot_folder")]
+    pub screenshot_folder: String,
+    #[serde(default = "default_true")]
+    pub screenshot_require_recent: bool,
+    #[serde(default = "default_screenshot_timeout_seconds")]
+    pub screenshot_timeout_seconds: u32,
+    #[serde(default)]
+    pub screenshot_include_subfolders: bool,
+    #[serde(default = "default_true")]
+    pub send_screenshot_to_extension_push_to_talk: bool,
     #[serde(default = "default_app_language")]
     pub app_language: String,
 }
@@ -480,6 +492,22 @@ fn default_connector_send_selection_system_prompt() -> String {
 
 fn default_connector_send_selection_user_prompt() -> String {
     "INSTRUCTION:\n${instruction}\n\nTEXT:\n${output}".to_string()
+}
+
+fn default_screenshot_capture_command() -> String {
+    r#"& "C:\Program Files\ShareX\ShareX.exe" -RectangleRegion"#.to_string()
+}
+
+fn default_screenshot_folder() -> String {
+    // Use %USERPROFILE%\Documents\ShareX\Screenshots as default (ShareX default location)
+    // This will be expanded at runtime
+    std::env::var("USERPROFILE")
+        .map(|home| format!("{}\\Documents\\ShareX\\Screenshots", home))
+        .unwrap_or_else(|_| "Documents\\ShareX\\Screenshots".to_string())
+}
+
+fn default_screenshot_timeout_seconds() -> u32 {
+    5
 }
 
 fn default_post_process_provider_id() -> String {
@@ -706,6 +734,19 @@ pub fn get_default_settings() -> AppSettings {
             current_binding: "ctrl+shift+space".to_string(),
         },
     );
+    #[cfg(target_os = "windows")]
+    bindings.insert(
+        "send_screenshot_to_extension".to_string(),
+        ShortcutBinding {
+            id: "send_screenshot_to_extension".to_string(),
+            name: "Send Screenshot to Extension".to_string(),
+            description:
+                "Capture screenshot with voice instruction and send to Handy Connector."
+                    .to_string(),
+            default_binding: "".to_string(),
+            current_binding: "".to_string(),
+        },
+    );
     bindings.insert(
         "cancel".to_string(),
         ShortcutBinding {
@@ -770,6 +811,12 @@ pub fn get_default_settings() -> AppSettings {
         connector_send_system_prompt: default_connector_send_system_prompt(),
         connector_send_selection_system_prompt: default_connector_send_selection_system_prompt(),
         connector_send_selection_user_prompt: default_connector_send_selection_user_prompt(),
+        screenshot_capture_command: default_screenshot_capture_command(),
+        screenshot_folder: default_screenshot_folder(),
+        screenshot_require_recent: true,
+        screenshot_timeout_seconds: default_screenshot_timeout_seconds(),
+        screenshot_include_subfolders: false,
+        send_screenshot_to_extension_push_to_talk: true,
         app_language: default_app_language(),
     }
 }

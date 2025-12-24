@@ -152,6 +152,18 @@ const settingUpdaters: {
     commands.changeConnectorPortSetting(value as number),
   connector_path: (value) =>
     commands.changeConnectorPathSetting(value as string),
+  screenshot_capture_command: (value) =>
+    commands.changeScreenshotCaptureCommandSetting(value as string),
+  screenshot_folder: (value) =>
+    commands.changeScreenshotFolderSetting(value as string),
+  screenshot_require_recent: (value) =>
+    commands.changeScreenshotRequireRecentSetting(value as boolean),
+  screenshot_timeout_seconds: (value) =>
+    commands.changeScreenshotTimeoutSecondsSetting(value as number),
+  screenshot_include_subfolders: (value) =>
+    commands.changeScreenshotIncludeSubfoldersSetting(value as boolean),
+  send_screenshot_to_extension_push_to_talk: (value) =>
+    commands.changeSendScreenshotToExtensionPushToTalkSetting(value as boolean),
   mute_while_recording: (value) =>
     commands.changeMuteWhileRecordingSetting(value as boolean),
   append_trailing_space: (value) =>

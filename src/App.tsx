@@ -32,10 +32,14 @@ function App() {
     const unlistenAiReplace = listen<string>("ai-replace-error", (event) => {
       toast.error(event.payload);
     });
+    const unlistenScreenshot = listen<string>("screenshot-error", (event) => {
+      toast.error(event.payload, { duration: 5000 });
+    });
 
     return () => {
       unlistenRemote.then((unlisten) => unlisten());
       unlistenAiReplace.then((unlisten) => unlisten());
+      unlistenScreenshot.then((unlisten) => unlisten());
     };
   }, []);
 

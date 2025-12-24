@@ -36,6 +36,14 @@ When adding new features, please prefer adding them in new files instead of edit
 - HTTP POST to local server (default `http://127.0.0.1:63155/messages`)
 - Designed to work with [Handy Connector](https://github.com/user/handy-connector) Chrome extension
 
+### 4. Send Screenshot to Extension (Windows only)
+- Files: `src-tauri/src/actions.rs` (SendScreenshotToExtensionAction), `src-tauri/src/managers/connector.rs` (blob serving)
+- Launches external screenshot tool (default: ShareX with `-RectangleRegion`)
+- Watches screenshot folder for new images using `notify` crate
+- Sends bundle message with image attachment and voice instruction to extension
+- Configurable: capture command, folder path, timeout, "require recent" filter
+- Settings: `screenshot_capture_command`, `screenshot_folder`, `screenshot_require_recent`, `screenshot_timeout_seconds`
+
 ## Guidelines for Agents
 
 ### When Modifying Fork Features
@@ -84,7 +92,7 @@ When merging upstream changes, these files will likely have conflicts. Here's ho
 **Our additions (MUST KEEP):**
 - `TranscriptionProvider` enum (`Local`, `RemoteOpenAiCompatible`)
 - `RemoteSttSettings` struct (base_url, model_id, debug_mode, debug_capture)
-- Fields in `AppSettings`: `transcription_provider`, `remote_stt`, `ai_replace_*`, `connector_*`
+- Fields in `AppSettings`: `transcription_provider`, `remote_stt`, `ai_replace_*`, `connector_*`, `screenshot_*`
 
 **Merge strategy:** Keep all our additions. Accept upstream changes to other fields. If upstream adds new settings, add them alongside ours.
 
@@ -93,10 +101,13 @@ When merging upstream changes, these files will likely have conflicts. Here's ho
 - `AiReplaceSelectionAction` struct and impl (~260 lines)
 - `SendToExtensionAction` struct and impl (~240 lines)
 - `SendToExtensionWithSelectionAction` struct and impl (~200 lines)
+- `SendScreenshotToExtensionAction` struct and impl (~300 lines)
 - `build_extension_message()` function
 - `ai_replace_with_llm()` async function
 - `emit_ai_replace_error()` helper
-- Entries in `ACTION_MAP` for: `ai_replace_selection`, `send_to_extension`, `send_to_extension_with_selection`
+- `emit_screenshot_error()` helper
+- `find_recent_image()`, `watch_for_new_image()` functions
+- Entries in `ACTION_MAP` for: `ai_replace_selection`, `send_to_extension`, `send_to_extension_with_selection`, `send_screenshot_to_extension`
 
 **Merge strategy:** Keep all our actions intact. If upstream changes `TranscribeAction`, review changes but preserve our modifications to it (remote STT support). Accept upstream additions to `ACTION_MAP`.
 
@@ -111,14 +122,15 @@ When merging upstream changes, these files will likely have conflicts. Here's ho
 
 #### `src-tauri/src/shortcut.rs`
 **Our additions (MUST KEEP):**
-- Shortcut bindings for `ai_replace_selection`, `send_to_extension`, `send_to_extension_with_selection`
+- Shortcut bindings for `ai_replace_selection`, `send_to_extension`, `send_to_extension_with_selection`, `send_screenshot_to_extension`
+- Commands for screenshot settings: `change_screenshot_*_setting`
 
 **Merge strategy:** Keep our bindings. Accept upstream changes to other shortcuts.
 
 ### Medium-Conflict Files
 
 #### `src-tauri/Cargo.toml`
-**Our additions:** `keyring` dependency
+**Our additions:** `keyring`, `notify` dependencies
 **Merge strategy:** Keep our dependencies, accept upstream dependency updates.
 
 #### `src/hooks/useSettings.ts`
@@ -126,11 +138,11 @@ When merging upstream changes, these files will likely have conflicts. Here's ho
 **Merge strategy:** Keep our hooks, accept upstream hook changes.
 
 #### `src/App.tsx`
-**Our additions:** Event listeners for `remote-stt-error`, `ai-replace-error`
+**Our additions:** Event listeners for `remote-stt-error`, `ai-replace-error`, `screenshot-error`
 **Merge strategy:** Keep our listeners, accept upstream UI changes.
 
 #### `src-tauri/resources/default_settings.json`
-**Our additions:** Default values for `ai_replace_*` settings, `bindings.ai_replace_selection`
+**Our additions:** Default values for `ai_replace_*` settings, `screenshot_*` settings, `bindings.ai_replace_selection`, `bindings.send_screenshot_to_extension`
 **Merge strategy:** Keep our defaults, add new upstream defaults.
 
 ### Fork-Only Files (No Conflict Expected)
@@ -148,8 +160,9 @@ These files are 100% ours — upstream won't have them:
 2. [ ] Test Remote STT connection
 3. [ ] Test AI Replace with selection
 4. [ ] Test Send to Extension (both modes)
-5. [ ] Verify settings UI loads without errors
-6. [ ] Check all fork settings persist after restart
+5. [ ] Test Send Screenshot to Extension
+6. [ ] Verify settings UI loads without errors
+7. [ ] Check all fork settings persist after restart
 
 ---
 
@@ -197,6 +210,13 @@ NEVER Build ! User will build!
 1. Ensure Handy Connector extension is installed and bound to a tab
 2. Test server manually: `curl http://127.0.0.1:63155/messages`
 3. Check console for "Connector message sent" or error logs
+
+### Send Screenshot to Extension
+1. Listen to `screenshot-error` event in `App.tsx` — errors display for 5 seconds
+2. Ensure ShareX (or configured tool) saves to the configured folder
+3. Check "Require Recent Screenshot" is enabled to filter old files
+4. Test screenshot tool manually: `"C:\Program Files\ShareX\ShareX.exe" -RectangleRegion`
+5. Verify blob endpoint works: `curl http://127.0.0.1:63155/blob/{attId}`
 
 ### Selection Capture (Windows)
 1. If selection capture fails, check Windows accessibility permissions
