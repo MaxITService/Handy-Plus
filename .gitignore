@@ -28,3 +28,4 @@ dist-ssr
 recording_*
 .crush/
 WARP.MD
+src/bindings.ts
