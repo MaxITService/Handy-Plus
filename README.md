@@ -70,18 +70,6 @@ Capture a screenshot region and send it with voice instruction to ChatGPT/Claude
 
 ---
 
-## Keyboard Shortcuts
-
-| Action | Default Shortcut |
-|--------|-----------------|
-| Transcribe | `Ctrl+Space` (Win/Linux), `Alt+Space` (macOS) |
-| AI Replace Selection | `Ctrl+Shift+Space` |
-| Send to Extension | Configure in Settings → Shortcuts |
-| Send with Selection | Configure in Settings → Shortcuts |
-| Send Screenshot | Configure in Settings → Shortcuts |
-
----
-
 ## Configuration
 
 ### LLM Provider (Required for AI Replace)
@@ -115,7 +103,7 @@ ${output}
 1. Install [Handy Connector](https://github.com/user/handy-connector) Chrome extension
 2. Open ChatGPT or Perplexity in a browser tab
 3. Click extension icon → "Bind to this tab"
-4. Extension polls `http://127.0.0.1:63155` for messages from Handy
+4. Extension polls `http://127.0.0.1:63155` by default for messages from Handy. Port must match in extension and in Handy settings.
 
 ---
 
