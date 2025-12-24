@@ -748,6 +748,46 @@ async updateRecordingRetentionPeriod(period: string) : Promise<Result<null, stri
 }
 },
 /**
+ * Get current connector/extension status
+ */
+async connectorGetStatus() : Promise<ConnectorStatus> {
+    return await TAURI_INVOKE("connector_get_status");
+},
+/**
+ * Check if extension is currently online
+ */
+async connectorIsOnline() : Promise<boolean> {
+    return await TAURI_INVOKE("connector_is_online");
+},
+/**
+ * Start the connector server
+ */
+async connectorStartServer() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("connector_start_server") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Stop the connector server
+ */
+async connectorStopServer() : Promise<void> {
+    await TAURI_INVOKE("connector_stop_server");
+},
+/**
+ * Queue a message to be sent to the extension
+ */
+async connectorQueueMessage(text: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("connector_queue_message", { text }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Stub implementation for non-macOS platforms
  * Always returns false since laptop detection is macOS-specific
  */
@@ -771,12 +811,44 @@ async isLaptop() : Promise<Result<boolean, string>> {
 
 /** user-defined types **/
 
-export type AppSettings = { bindings: Partial<{ [key in string]: ShortcutBinding }>; push_to_talk: boolean; audio_feedback: boolean; audio_feedback_volume?: number; sound_theme?: SoundTheme; start_hidden?: boolean; autostart_enabled?: boolean; update_checks_enabled?: boolean; selected_model?: string; transcription_provider?: TranscriptionProvider; remote_stt?: RemoteSttSettings; always_on_microphone?: boolean; selected_microphone?: string | null; clamshell_microphone?: string | null; selected_output_device?: string | null; translate_to_english?: boolean; selected_language?: string; overlay_position?: OverlayPosition; debug_mode?: boolean; log_level?: LogLevel; custom_words?: string[]; model_unload_timeout?: ModelUnloadTimeout; word_correction_threshold?: number; history_limit?: number; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; post_process_enabled?: boolean; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: Partial<{ [key in string]: string }>; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; ai_replace_system_prompt?: string; ai_replace_user_prompt?: string; ai_replace_max_chars?: number; ai_replace_allow_no_selection?: boolean; ai_replace_no_selection_system_prompt?: string; mute_while_recording?: boolean; append_trailing_space?: boolean; connector_host?: string; connector_port?: number; connector_path?: string; connector_send_system_prompt?: string; connector_send_selection_system_prompt?: string; connector_send_selection_user_prompt?: string; app_language?: string }
+export type AppSettings = { bindings: Partial<{ [key in string]: ShortcutBinding }>; push_to_talk: boolean; audio_feedback: boolean; audio_feedback_volume?: number; sound_theme?: SoundTheme; start_hidden?: boolean; autostart_enabled?: boolean; update_checks_enabled?: boolean; selected_model?: string; transcription_provider?: TranscriptionProvider; remote_stt?: RemoteSttSettings; always_on_microphone?: boolean; selected_microphone?: string | null; clamshell_microphone?: string | null; selected_output_device?: string | null; translate_to_english?: boolean; selected_language?: string; overlay_position?: OverlayPosition; debug_mode?: boolean; log_level?: LogLevel; custom_words?: string[]; model_unload_timeout?: ModelUnloadTimeout; word_correction_threshold?: number; history_limit?: number; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; post_process_enabled?: boolean; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: Partial<{ [key in string]: string }>; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; ai_replace_system_prompt?: string; ai_replace_user_prompt?: string; ai_replace_max_chars?: number; ai_replace_allow_no_selection?: boolean; ai_replace_no_selection_system_prompt?: string; mute_while_recording?: boolean; append_trailing_space?: boolean; connector_host?: string; connector_port?: number; connector_path?: string; connector_auto_open_enabled?: boolean; connector_auto_open_url?: string; connector_send_system_prompt?: string; connector_send_selection_system_prompt?: string; connector_send_selection_user_prompt?: string; app_language?: string }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type BindingResponse = { success: boolean; binding: ShortcutBinding | null; error: string | null }
 export type ClipboardHandling = "dont_modify" | "copy_to_clipboard"
+/**
+ * Status info returned to frontend
+ */
+export type ConnectorStatus = { status: ExtensionStatus; 
+/**
+ * Last time extension polled (Unix timestamp in ms), 0 if never
+ */
+last_poll_at: number; 
+/**
+ * Server is running
+ */
+server_running: boolean; 
+/**
+ * Port server is listening on
+ */
+port: number }
 export type CustomSounds = { start: boolean; stop: boolean }
 export type EngineType = "Whisper" | "Parakeet"
+/**
+ * Extension connection status
+ */
+export type ExtensionStatus = 
+/**
+ * Extension is actively polling
+ */
+"online" | 
+/**
+ * Extension has not polled recently
+ */
+"offline" | 
+/**
+ * Server is starting up, status unknown
+ */
+"unknown"
 export type HistoryEntry = { id: number; file_name: string; timestamp: number; saved: boolean; title: string; transcription_text: string; post_processed_text: string | null; post_process_prompt: string | null }
 export type LLMPrompt = { id: string; name: string; prompt: string }
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error"

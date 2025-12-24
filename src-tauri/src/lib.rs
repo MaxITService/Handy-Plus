@@ -22,6 +22,7 @@ use tauri_specta::{collect_commands, Builder};
 
 use env_filter::Builder as EnvFilterBuilder;
 use managers::audio::AudioRecordingManager;
+use managers::connector::ConnectorManager;
 use managers::history::HistoryManager;
 use managers::model::ModelManager;
 use managers::remote_stt::RemoteSttManager;
@@ -130,6 +131,9 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         Arc::new(RemoteSttManager::new(app_handle).expect("Failed to initialize remote STT"));
     let history_manager =
         Arc::new(HistoryManager::new(app_handle).expect("Failed to initialize history manager"));
+    let connector_manager = Arc::new(
+        ConnectorManager::new(app_handle).expect("Failed to initialize connector manager"),
+    );
 
     // Add managers to Tauri's managed state
     app_handle.manage(recording_manager.clone());
@@ -137,6 +141,12 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(transcription_manager.clone());
     app_handle.manage(remote_stt_manager.clone());
     app_handle.manage(history_manager.clone());
+    app_handle.manage(connector_manager.clone());
+
+    // Start the connector server for extension communication
+    if let Err(e) = connector_manager.start_server() {
+        log::error!("Failed to start connector server: {}", e);
+    }
 
     // Initialize the shortcuts
     shortcut::init_shortcuts(app_handle);
@@ -332,6 +342,11 @@ pub fn run() {
         commands::history::delete_history_entry,
         commands::history::update_history_limit,
         commands::history::update_recording_retention_period,
+        commands::connector::connector_get_status,
+        commands::connector::connector_is_online,
+        commands::connector::connector_start_server,
+        commands::connector::connector_stop_server,
+        commands::connector::connector_queue_message,
         helpers::clamshell::is_laptop,
     ]);
 

@@ -2,8 +2,8 @@
 use crate::apple_intelligence;
 use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, SoundType};
 use crate::audio_toolkit::apply_custom_words;
-use crate::connector;
 use crate::managers::audio::AudioRecordingManager;
+use crate::managers::connector::ConnectorManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::remote_stt::RemoteSttManager;
 use crate::managers::transcription::TranscriptionManager;
@@ -717,6 +717,7 @@ impl ShortcutAction for SendToExtensionAction {
         let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
         let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
         let hm = Arc::clone(&app.state::<Arc<HistoryManager>>());
+        let cm = Arc::clone(&app.state::<Arc<ConnectorManager>>());
 
         change_tray_icon(app, TrayIconState::Transcribing);
         show_transcribing_overlay(app);
@@ -825,12 +826,12 @@ impl ShortcutAction for SendToExtensionAction {
                             });
 
                             let send_time = Instant::now();
-                            match connector::send_message(&settings, &final_text).await {
+                            match cm.queue_message(&final_text) {
                                 Ok(()) => debug!(
-                                    "Connector message sent in {:?}",
+                                    "Connector message queued in {:?}",
                                     send_time.elapsed()
                                 ),
-                                Err(e) => error!("Failed to send connector message: {}", e),
+                                Err(e) => error!("Failed to queue connector message: {}", e),
                             }
 
                             let ah_clone = ah.clone();
@@ -949,6 +950,7 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
         let ah = app.clone();
         let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
         let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
+        let cm = Arc::clone(&app.state::<Arc<ConnectorManager>>());
 
         change_tray_icon(app, TrayIconState::Transcribing);
         show_transcribing_overlay(app);
@@ -1033,12 +1035,12 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
                         }
 
                         let send_time = Instant::now();
-                        match connector::send_message(&settings, &message).await {
+                        match cm.queue_message(&message) {
                             Ok(()) => debug!(
-                                "Connector message sent in {:?}",
+                                "Connector message queued in {:?}",
                                 send_time.elapsed()
                             ),
-                            Err(e) => error!("Failed to send connector message: {}", e),
+                            Err(e) => error!("Failed to queue connector message: {}", e),
                         }
 
                         let ah_clone = ah.clone();

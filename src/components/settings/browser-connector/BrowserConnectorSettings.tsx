@@ -4,9 +4,18 @@ import { Globe, Info, ExternalLink } from "lucide-react";
 import { useSettings } from "../../../hooks/useSettings";
 import { HandyShortcut } from "../HandyShortcut";
 import { Input } from "../../ui/Input";
+import { Select } from "../../ui/Select";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { Textarea } from "../../ui/Textarea";
+import { ToggleSwitch } from "../../ui/ToggleSwitch";
+import { ConnectorStatusIndicator } from "./ConnectorStatus";
+
+// Preset sites for auto-open dropdown
+const AUTO_OPEN_SITES = [
+  { value: "https://chatgpt.com", label: "ChatGPT" },
+  { value: "https://claude.ai", label: "Claude" },
+];
 
 export const BrowserConnectorSettings: React.FC = () => {
   const { t } = useTranslation();
@@ -52,6 +61,14 @@ export const BrowserConnectorSettings: React.FC = () => {
     if (trimmed !== (settings?.connector_path ?? "")) {
       void updateSetting("connector_path", trimmed);
     }
+  };
+
+  const handleAutoOpenEnabledChange = (enabled: boolean) => {
+    void updateSetting("connector_auto_open_enabled", enabled);
+  };
+
+  const handleAutoOpenSiteChange = (url: string) => {
+    void updateSetting("connector_auto_open_url", url);
   };
 
   const handleSendSystemPromptChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -104,6 +121,11 @@ export const BrowserConnectorSettings: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Extension Status */}
+      <SettingsGroup title={t("settings.browserConnector.status.sectionTitle")}>
+        <ConnectorStatusIndicator grouped={true} descriptionMode="tooltip" />
+      </SettingsGroup>
 
       <SettingsGroup title={t("settings.browserConnector.shortcuts.title")}>
         <HandyShortcut shortcutId="send_to_extension" grouped={true} />
@@ -170,6 +192,41 @@ export const BrowserConnectorSettings: React.FC = () => {
           <div className="text-xs text-text/50 mt-1">
             {t("settings.browserConnector.sendSelectionPrompts.variables")}
           </div>
+        </SettingContainer>
+      </SettingsGroup>
+
+      {/* Auto-Open Tab Settings */}
+      <SettingsGroup title={t("settings.browserConnector.autoOpen.title")}>
+        <div className="text-sm text-text/60 mb-2 px-1">
+          {t("settings.browserConnector.autoOpen.description")}
+        </div>
+        <SettingContainer
+          title={t("settings.browserConnector.autoOpen.enabled.label")}
+          description={t("settings.browserConnector.autoOpen.enabled.description")}
+          descriptionMode="tooltip"
+          grouped={true}
+        >
+          <ToggleSwitch
+            checked={settings?.connector_auto_open_enabled ?? false}
+            onChange={handleAutoOpenEnabledChange}
+            disabled={isUpdating("connector_auto_open_enabled")}
+          />
+        </SettingContainer>
+        <SettingContainer
+          title={t("settings.browserConnector.autoOpen.site.title")}
+          description={t("settings.browserConnector.autoOpen.site.description")}
+          descriptionMode="tooltip"
+          grouped={true}
+        >
+          <Select
+            value={settings?.connector_auto_open_url ?? null}
+            options={AUTO_OPEN_SITES}
+            onChange={(value) => handleAutoOpenSiteChange(value ?? "")}
+            disabled={!settings?.connector_auto_open_enabled || isUpdating("connector_auto_open_url")}
+            placeholder={t("settings.browserConnector.autoOpen.site.placeholder")}
+            isClearable={false}
+            className="w-48"
+          />
         </SettingContainer>
       </SettingsGroup>
 

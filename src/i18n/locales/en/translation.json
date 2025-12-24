@@ -485,6 +485,23 @@
         "feature2": "Use \"Send + Selection\" to include selected text as context",
         "feature3": "Optional LLM processing before sending (e.g., translate, reformat)"
       },
+      "status": {
+        "sectionTitle": "Extension Status",
+        "title": "Extension Connection",
+        "description": "Real-time connection status with the browser extension.",
+        "online": "Online",
+        "offline": "Offline",
+        "waiting": "Waiting...",
+        "loading": "Loading...",
+        "serverStopped": "Server Stopped",
+        "never": "Never",
+        "justNow": "Just now",
+        "secondsAgo": "{{count}}s ago",
+        "minutesAgo": "{{count}}m ago",
+        "hoursAgo": "{{count}}h ago",
+        "lastSeen": "Last seen: {{time}}",
+        "port": "Port {{port}}"
+      },
       "shortcuts": {
         "title": "Shortcuts"
       },
@@ -509,6 +526,23 @@
           "description": "Template for the user message sent to LLM."
         },
         "variables": "Available variables: ${instruction} (your voice), ${output} (selected text)"
+      },
+      "autoOpen": {
+        "title": "Auto-Open Tab",
+        "description": "Automatically open a new browser tab when no tab is bound to the extension. This allows seamless hands-free sending without manually selecting a tab first.",
+        "enabled": {
+          "label": "Enable Auto-Open",
+          "description": "When enabled, automatically opens the selected site if no browser tab is bound."
+        },
+        "site": {
+          "title": "Target Site",
+          "description": "Choose which AI chat site to open automatically.",
+          "placeholder": "Select a site...",
+          "options": {
+            "chatgpt": "ChatGPT",
+            "claude": "Claude"
+          }
+        }
       },
       "connection": {
         "title": "Connection Settings",

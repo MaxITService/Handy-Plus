@@ -336,6 +336,10 @@ pub struct AppSettings {
     pub connector_port: u16,
     #[serde(default = "default_connector_path")]
     pub connector_path: String,
+    #[serde(default = "default_connector_auto_open_enabled")]
+    pub connector_auto_open_enabled: bool,
+    #[serde(default = "default_connector_auto_open_url")]
+    pub connector_auto_open_url: String,
     #[serde(default = "default_connector_send_system_prompt")]
     pub connector_send_system_prompt: String,
     #[serde(default = "default_connector_send_selection_system_prompt")]
@@ -450,6 +454,14 @@ fn default_connector_port() -> u16 {
 
 fn default_connector_path() -> String {
     "/messages".to_string()
+}
+
+fn default_connector_auto_open_enabled() -> bool {
+    false
+}
+
+fn default_connector_auto_open_url() -> String {
+    "".to_string()
 }
 
 fn default_connector_send_system_prompt() -> String {
@@ -740,6 +752,8 @@ pub fn get_default_settings() -> AppSettings {
         connector_host: default_connector_host(),
         connector_port: default_connector_port(),
         connector_path: default_connector_path(),
+        connector_auto_open_enabled: default_connector_auto_open_enabled(),
+        connector_auto_open_url: default_connector_auto_open_url(),
         connector_send_system_prompt: default_connector_send_system_prompt(),
         connector_send_selection_system_prompt: default_connector_send_selection_system_prompt(),
         connector_send_selection_user_prompt: default_connector_send_selection_user_prompt(),

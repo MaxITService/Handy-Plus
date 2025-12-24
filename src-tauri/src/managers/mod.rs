@@ -1,4 +1,5 @@
 pub mod audio;
+pub mod connector;
 pub mod history;
 pub mod model;
 pub mod remote_stt;
