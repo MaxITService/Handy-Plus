@@ -17,6 +17,8 @@ This repository is a **fork** of [cjpais/Handy](https://github.com/cjpais/Handy)
 | [`AGENTS.md`](AGENTS.md) | Original development commands and architecture (applies to both upstream and fork) |
 | [`README.md`](README.md) | Fork features overview |
 
+When adding new features, please prefer adding them in new files instead of editing originals unless these are already fork-specific files. 
+
 ## Fork-Specific Features
 
 ### 1. Remote STT API (Windows only)
