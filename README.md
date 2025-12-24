@@ -1,41 +1,103 @@
-# Handy (Fork)
+# Handy Pro Plus (Fork)
 
-A fork of [cjpais/Handy](https://github.com/cjpais/Handy) with additional features for Windows users.
+A fork of [cjpais/Handy](https://github.com/cjpais/Handy) with additional features for Windows.
 
 ## Fork Features
 
-### 🌐 Remote STT API Support
-Use any OpenAI-compatible speech-to-text API instead of local Whisper model. Useful when:
-- You want faster transcription via cloud services (Groq, Deepgram, etc.)
-- Your machine lacks GPU acceleration
-- You prefer a hosted STT solution
+### 🌐 Remote STT API
+Use any OpenAI-compatible speech-to-text API instead of local Whisper model.
+- No need to download 1GB+ models
+- Use fast cloud services (Groq, Deepgram, etc.)
+- Great for machines without GPU
+
+**Setup:** Settings → Advanced → Transcription Provider → Remote OpenAI Compatible
 
 ### 🤖 AI Replace Selection (Windows only)
-Voice-controlled text transformation:
+Voice-controlled text editing:
 1. Select text in any application
-2. Hold the AI Replace shortcut
-3. Speak your instruction (e.g., "translate to French", "fix grammar", "summarize")
-4. Release — selected text is replaced with AI-processed result
+2. Hold the AI Replace shortcut, speak your instruction
+3. Release — selected text is replaced with AI result
 
-Uses your configured LLM provider (OpenAI, Anthropic, etc.) with customizable prompts.
+**Examples:**
+- Select code → say "add error handling" → get improved code
+- Select paragraph → say "make it shorter" → get condensed version
+- Empty field + "no selection" mode → say "write a greeting email" → get generated text
 
-### 📤 Send to Extension (ChatGPT/Perplexity integration)
-Send transcribed voice directly to AI chat interfaces via [Handy Connector](https://github.com/user/handy-connector) Chrome extension:
-- **Voice to ChatGPT**: Speak and send directly to ChatGPT conversation
-- **Voice + Selection**: Combine voice instruction with selected text context
-- **File attachments**: Images and files support (planned)
+**Setup:** Settings → Advanced → AI Replace Settings
 
-### ⚙️ Additional Settings
-- Customizable AI Replace prompts (system prompt, user template)
-- "No selection" mode for AI Replace without selected text
-- Remote STT debug logging
+### 📤 Send to Extension
+Send voice to ChatGPT/Perplexity via **Handy Connector** Chrome extension.
+
+> ⚠️ **Requires:** [Handy Connector](https://github.com/user/handy-connector) Chrome extension must be installed and running. Without it, "Send to Extension" features won't work.
+
+**Two modes:**
+
+| Action | Input | Output to ChatGPT |
+|--------|-------|-------------------|
+| **Send to Extension** | Voice only | Just your question |
+| **Send with Selection** | Voice + selected text | Question with context |
+
+**Examples:**
+- Press shortcut, say "what is recursion" → ChatGPT gets your question
+- Select error log, say "why is this failing" → ChatGPT gets question + the log
+- Select article, say "summarize this" → ChatGPT gets instruction + full text
+
+---
+
+## Keyboard Shortcuts
+
+| Action | Default Shortcut |
+|--------|-----------------|
+| Transcribe | `Ctrl+Space` (Win/Linux), `Alt+Space` (macOS) |
+| AI Replace Selection | `Ctrl+Shift+Space` |
+| Send to Extension | Configure in Settings → Shortcuts |
+| Send with Selection | Configure in Settings → Shortcuts |
+
+---
+
+## Configuration
+
+### LLM Provider (Required for AI Replace)
+Settings → Post-Processing → Configure your LLM provider (OpenAI, Anthropic, etc.)
+
+AI Replace uses the same LLM provider configured for post-processing.
+
+### AI Replace Prompts
+Settings → Advanced → AI Replace Settings
+
+| Setting | Description |
+|---------|-------------|
+| **System Prompt** | Instructions for the LLM (e.g., "return only transformed text") |
+| **User Prompt Template** | Template with `${instruction}` (your voice) and `${output}` (selected text) |
+| **No Selection System Prompt** | Alternative prompt when no text is selected |
+| **Max Characters** | Limit for selected text (default: 20000) |
+
+Default user template:
+```
+INSTRUCTION:
+${instruction}
+
+TEXT:
+${output}
+```
+
+### Send to Extension Prompts
+"Send with Selection" uses the same AI Replace prompt templates to format the message before sending to ChatGPT.
+
+### Handy Connector Setup
+1. Install [Handy Connector](https://github.com/user/handy-connector) Chrome extension
+2. Open ChatGPT or Perplexity in a browser tab
+3. Click extension icon → "Bind to this tab"
+4. Extension polls `http://127.0.0.1:63155` for messages from Handy
+
+---
 
 ## Limitations
 - **AI Replace Selection**: Windows only
-- **Remote STT**: API keys stored in Windows Credential Manager
+- **Remote STT**: Windows only (API keys in Windows Credential Manager)
 
 ## Original Features
-All original Handy features: local Whisper (Small/Medium/Turbo/Large), VAD, global shortcuts, push-to-talk, LLM post-processing, transcription history.
+All original Handy features remain: local Whisper, VAD, global shortcuts, push-to-talk, LLM post-processing, transcription history.
 
 ## License
 MIT License — NO WARRANTIES.
