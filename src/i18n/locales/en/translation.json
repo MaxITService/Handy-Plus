@@ -8,7 +8,7 @@
   "sidebar": {
     "general": "General",
     "advanced": "Advanced",
-    "postProcessing": "Post Process",
+    "postProcessing": "API Post Processing",
     "aiReplace": "AI Replace",
     "browserConnector": "Browser Connector",
     "history": "History",
@@ -114,7 +114,7 @@
             "description": "Send transcription to Handy Connector browser extension.",
             "pushToTalk": {
               "label": "Push To Talk",
-              "description": "Hold to record, release to stop"
+              "description": "When ON: hold key to record. When OFF: tap once to start, tap again to stop."
             }
           },
           "send_to_extension_with_selection": {
@@ -122,7 +122,7 @@
             "description": "Send transcription plus selected text to Handy Connector browser extension.",
             "pushToTalk": {
               "label": "Push To Talk",
-              "description": "Hold to record, release to stop"
+              "description": "When ON: hold key to record. When OFF: tap once to start, tap again to stop."
             }
           },
           "ai_replace_selection": {
@@ -130,7 +130,7 @@
             "description": "Cut selected text, speak an instruction, replace selection with AI output",
             "pushToTalk": {
               "label": "Push To Talk",
-              "description": "Hold to record, release to stop"
+              "description": "When ON: hold key to record. When OFF: tap once to start, tap again to stop."
             }
           },
           "send_screenshot_to_extension": {
@@ -138,7 +138,7 @@
             "description": "Capture a screenshot region and send it with voice instruction to the browser extension.",
             "pushToTalk": {
               "label": "Push To Talk",
-              "description": "Hold to record, release to stop"
+              "description": "When ON: hold key to record. When OFF: tap once to start, tap again to stop."
             }
           },
           "cancel": {
@@ -162,7 +162,7 @@
       },
       "pushToTalk": {
         "label": "Push To Talk",
-        "description": "Hold to record, release to stop"
+        "description": "When ON: hold key to record. When OFF: tap once to start, tap again to stop."
       }
     },
     "sound": {
@@ -553,7 +553,7 @@
         "description": "Automatically open a new browser tab when no tab is bound to the extension. This allows seamless hands-free sending without manually selecting a tab first.",
         "enabled": {
           "label": "Enable Auto-Open",
-          "description": "When enabled, automatically opens the selected site if no browser tab is bound."
+          "description": "Opens ChatGPT/Claude automatically if no tab has the Handy Connector extension active."
         },
         "site": {
           "title": "Target Site",
@@ -578,20 +578,20 @@
         },
         "includeSubfolders": {
           "title": "Include Subfolders",
-          "description": "Also search for screenshots in subfolders. Useful when your screenshot app creates monthly folders."
+          "description": "Enable if ShareX organizes screenshots by date folders (e.g., 2024-01/)."
         },
         "requireRecent": {
           "title": "Require Recent Screenshot",
-          "description": "Only pick up screenshots that appeared within the timeout period."
+          "description": "Ignore old screenshots. Disable to use the newest file in folder even if capture fails."
         },
         "timeout": {
           "title": "Screenshot Timeout",
-          "description": "Maximum time to wait for a screenshot to appear.",
+          "description": "How long to wait for ShareX to save. Increase for slow drives or network folders.",
           "unit": "seconds"
         },
         "allowNoVoice": {
           "title": "Allow Without Voice",
-          "description": "Send screenshot with a default prompt when no voice instruction is recorded."
+          "description": "Send screenshots without speaking. Uses the default prompt below for quick queries."
         },
         "noVoiceDefaultPrompt": {
           "title": "Default Prompt (No Voice)",
@@ -622,7 +622,7 @@
     "aiReplace": {
       "help": {
         "title": "What is AI Replace Selection?",
-        "description": "Select text, speak an instruction, and let AI transform the selected text based on your voice command.",
+        "description": "Select text, speak an instruction, and let AI transform the selected text based on your voice command. Requires an API key configured in the API Post Processing section.",
         "step1": "Select text in any application",
         "step2": "Press the shortcut and speak your instruction (e.g., \"translate to French\")",
         "step3": "AI replaces your selection with the transformed result"
@@ -635,7 +635,7 @@
         "description": "When no text is selected, AI can generate new text based on your voice instruction.",
         "allowToggle": {
           "label": "Allow Without Selection",
-          "description": "Enable generating new text when nothing is selected."
+          "description": "Generate new text from voice alone, without selecting anything first."
         },
         "systemPrompt": {
           "title": "System Prompt (No Selection)",
@@ -651,12 +651,12 @@
         },
         "userPrompt": {
           "title": "User Prompt Template",
-          "description": "Template for the request. Use variables to include dynamic content."
+          "description": "How your voice + selected text are sent to AI. Edit to customize the format."
         },
         "variables": "Available variables: ${instruction} (your voice), ${output} (selected text)",
         "maxChars": {
           "title": "Max Characters",
-          "description": "Maximum selection size before AI processing is skipped.",
+          "description": "Limit selection size to avoid high API costs. Skips processing if exceeded.",
           "suffix": "characters"
         }
       }

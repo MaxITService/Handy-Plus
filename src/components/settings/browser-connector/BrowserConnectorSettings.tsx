@@ -159,7 +159,7 @@ export const BrowserConnectorSettings: React.FC = () => {
                 components={{
                   link: (
                     <a
-                      href="https://github.com/nicekid1/Handy-Connector"
+                      href="https://github.com/MaxITService/Handy-connector"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-400 hover:underline inline-flex items-center gap-1"
