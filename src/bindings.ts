@@ -444,6 +444,14 @@ async changeConnectorPathSetting(path: string) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async changeConnectorPasswordSetting(password: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_connector_password_setting", { password }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeScreenshotCaptureCommandSetting(command: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_screenshot_capture_command_setting", { command }) };
@@ -963,7 +971,15 @@ async isLaptop() : Promise<Result<boolean, string>> {
 
 /** user-defined types **/
 
-export type AppSettings = { bindings: Partial<{ [key in string]: ShortcutBinding }>; push_to_talk: boolean; audio_feedback: boolean; audio_feedback_volume?: number; sound_theme?: SoundTheme; start_hidden?: boolean; autostart_enabled?: boolean; update_checks_enabled?: boolean; selected_model?: string; transcription_provider?: TranscriptionProvider; remote_stt?: RemoteSttSettings; always_on_microphone?: boolean; selected_microphone?: string | null; clamshell_microphone?: string | null; selected_output_device?: string | null; translate_to_english?: boolean; selected_language?: string; overlay_position?: OverlayPosition; debug_mode?: boolean; log_level?: LogLevel; custom_words?: string[]; model_unload_timeout?: ModelUnloadTimeout; word_correction_threshold?: number; history_limit?: number; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; post_process_enabled?: boolean; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: Partial<{ [key in string]: string }>; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; ai_replace_system_prompt?: string; ai_replace_user_prompt?: string; ai_replace_max_chars?: number; ai_replace_allow_no_selection?: boolean; ai_replace_no_selection_system_prompt?: string; ai_replace_allow_quick_tap?: boolean; ai_replace_quick_tap_threshold_ms?: number; ai_replace_quick_tap_system_prompt?: string; send_to_extension_push_to_talk?: boolean; send_to_extension_with_selection_push_to_talk?: boolean; ai_replace_selection_push_to_talk?: boolean; mute_while_recording?: boolean; append_trailing_space?: boolean; connector_host?: string; connector_port?: number; connector_path?: string; connector_auto_open_enabled?: boolean; connector_auto_open_url?: string; connector_send_system_prompt?: string; connector_send_selection_system_prompt?: string; connector_send_selection_user_prompt?: string; screenshot_capture_command?: string; screenshot_folder?: string; screenshot_require_recent?: boolean; screenshot_timeout_seconds?: number; screenshot_include_subfolders?: boolean; screenshot_allow_no_voice?: boolean; screenshot_no_voice_default_prompt?: string; send_screenshot_to_extension_push_to_talk?: boolean; app_language?: string; connector_password?: string }
+export type AppSettings = { bindings: Partial<{ [key in string]: ShortcutBinding }>; push_to_talk: boolean; audio_feedback: boolean; audio_feedback_volume?: number; sound_theme?: SoundTheme; start_hidden?: boolean; autostart_enabled?: boolean; update_checks_enabled?: boolean; selected_model?: string; transcription_provider?: TranscriptionProvider; remote_stt?: RemoteSttSettings; always_on_microphone?: boolean; selected_microphone?: string | null; clamshell_microphone?: string | null; selected_output_device?: string | null; translate_to_english?: boolean; selected_language?: string; overlay_position?: OverlayPosition; debug_mode?: boolean; log_level?: LogLevel; custom_words?: string[]; model_unload_timeout?: ModelUnloadTimeout; word_correction_threshold?: number; history_limit?: number; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; post_process_enabled?: boolean; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: Partial<{ [key in string]: string }>; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; ai_replace_system_prompt?: string; ai_replace_user_prompt?: string; ai_replace_max_chars?: number; ai_replace_allow_no_selection?: boolean; ai_replace_no_selection_system_prompt?: string; ai_replace_allow_quick_tap?: boolean; ai_replace_quick_tap_threshold_ms?: number; ai_replace_quick_tap_system_prompt?: string; send_to_extension_push_to_talk?: boolean; send_to_extension_with_selection_push_to_talk?: boolean; ai_replace_selection_push_to_talk?: boolean; mute_while_recording?: boolean; append_trailing_space?: boolean; connector_host?: string; connector_port?: number; connector_path?: string; connector_auto_open_enabled?: boolean; connector_auto_open_url?: string; connector_send_system_prompt?: string; connector_send_selection_system_prompt?: string; connector_send_selection_user_prompt?: string; screenshot_capture_command?: string; screenshot_folder?: string; screenshot_require_recent?: boolean; screenshot_timeout_seconds?: number; screenshot_include_subfolders?: boolean; screenshot_allow_no_voice?: boolean; screenshot_no_voice_default_prompt?: string; send_screenshot_to_extension_push_to_talk?: boolean; app_language?: string; connector_password?: string; 
+/**
+ * Whether the user explicitly set the connector password (disables auto-generation)
+ */
+connector_password_user_set?: boolean; 
+/**
+ * Pending password awaiting acknowledgement from extension (two-phase commit)
+ */
+connector_pending_password?: string | null }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type BindingResponse = { success: boolean; binding: ShortcutBinding | null; error: string | null }
 export type ClipboardHandling = "dont_modify" | "copy_to_clipboard"

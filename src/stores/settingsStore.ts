@@ -152,6 +152,8 @@ const settingUpdaters: {
     commands.changeConnectorPortSetting(value as number),
   connector_path: (value) =>
     commands.changeConnectorPathSetting(value as string),
+  connector_password: (value) =>
+    commands.changeConnectorPasswordSetting(value as string),
   screenshot_capture_command: (value) =>
     commands.changeScreenshotCaptureCommandSetting(value as string),
   screenshot_folder: (value) =>
@@ -304,7 +306,15 @@ export const useSettingsStore = create<SettingsStore>()(
 
         const updater = settingUpdaters[key];
         if (updater) {
-          await updater(value);
+          const result = await updater(value);
+          if (
+            result &&
+            typeof result === "object" &&
+            "status" in result &&
+            (result as any).status === "error"
+          ) {
+            throw new Error(String((result as any).error));
+          }
         } else if (key !== "bindings" && key !== "selected_model") {
           console.warn(`No handler for setting: ${String(key)}`);
         }

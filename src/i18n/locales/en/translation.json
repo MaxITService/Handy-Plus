@@ -504,7 +504,8 @@
         "description": "Browser Connector sends your voice transcriptions directly to AI chat interfaces (like ChatGPT, Claude) through the <link>Handy Connector</link> Chrome extension.",
         "feature1": "Speak and send messages directly to ChatGPT or other AI chats",
         "feature2": "Use \"Send + Selection\" to include selected text as context",
-        "feature3": "Optional LLM processing before sending (e.g., translate, reformat)"
+        "feature3": "Optional LLM processing before sending (e.g., translate, reformat)",
+        "feature4": "YOU MUST CHANGE PASSWORD IN SETTINGS - SAME PASSWORD HERE AND IN EXTENSION. OTHERWISE YOUR MESSAGES ARE AT RISK OF BEING SPYED ON BY ANY WEBSITE WHICH KNOWS DEFAULT PASSWORD!"
       },
       "status": {
         "sectionTitle": "Extension Status",
@@ -704,7 +705,8 @@
     "off": "Off",
     "yes": "Yes",
     "no": "No",
-    "noOptionsFound": "No options found"
+    "noOptionsFound": "No options found",
+    "copied": "Copied!"
   },
   "accessibility": {
     "permissionsRequired": "Accessibility Permissions Required",

@@ -32,6 +32,7 @@ export const BrowserConnectorSettings: React.FC = () => {
   const [pathInput, setPathInput] = useState(settings?.connector_path ?? "/messages");
   const [passwordInput, setPasswordInput] = useState(settings?.connector_password ?? "");
   const [showPassword, setShowPassword] = useState(false);
+  const [showCopiedTooltip, setShowCopiedTooltip] = useState(false);
 
   // Screenshot settings local state
   const [screenshotCommandInput, setScreenshotCommandInput] = useState(
@@ -110,6 +111,8 @@ export const BrowserConnectorSettings: React.FC = () => {
 
   const handleCopyPassword = () => {
     void navigator.clipboard.writeText(passwordInput);
+    setShowCopiedTooltip(true);
+    setTimeout(() => setShowCopiedTooltip(false), 1500);
   };
 
   // Check if using default password
@@ -540,14 +543,21 @@ export const BrowserConnectorSettings: React.FC = () => {
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
-            <button
-              type="button"
-              onClick={handleCopyPassword}
-              className="p-2 rounded hover:bg-mid-gray/20 text-text/60 hover:text-text"
-              title="Copy password"
-            >
-              <Copy className="w-4 h-4" />
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={handleCopyPassword}
+                className="p-2 rounded hover:bg-mid-gray/20 text-text/60 hover:text-text"
+                title="Copy password"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+              {showCopiedTooltip && (
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-green-600 text-white text-xs rounded whitespace-nowrap">
+                  {t("common.copied")}
+                </div>
+              )}
+            </div>
           </div>
           {isDefaultPassword && (
             <div className="mt-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3">

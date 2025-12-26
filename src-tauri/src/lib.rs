@@ -310,6 +310,7 @@ pub fn run() {
         shortcut::change_connector_host_setting,
         shortcut::change_connector_port_setting,
         shortcut::change_connector_path_setting,
+        shortcut::change_connector_password_setting,
         shortcut::change_screenshot_capture_command_setting,
         shortcut::change_screenshot_folder_setting,
         shortcut::change_screenshot_require_recent_setting,

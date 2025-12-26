@@ -378,6 +378,12 @@ pub struct AppSettings {
     pub app_language: String,
     #[serde(default = "default_connector_password")]
     pub connector_password: String,
+    /// Whether the user explicitly set the connector password (disables auto-generation)
+    #[serde(default)]
+    pub connector_password_user_set: bool,
+    /// Pending password awaiting acknowledgement from extension (two-phase commit)
+    #[serde(default)]
+    pub connector_pending_password: Option<String>,
 }
 
 fn default_model() -> String {
@@ -526,7 +532,8 @@ fn default_screenshot_no_voice_default_prompt() -> String {
     "Look at this picture and provide a helpful response.".to_string()
 }
 
-fn default_connector_password() -> String {
+/// Default connector password - used for initial mutual authentication
+pub fn default_connector_password() -> String {
     "fklejqwhfiu342lhk3".to_string()
 }
 
@@ -856,6 +863,8 @@ pub fn get_default_settings() -> AppSettings {
         send_screenshot_to_extension_push_to_talk: true,
         app_language: default_app_language(),
         connector_password: default_connector_password(),
+        connector_password_user_set: false,
+        connector_pending_password: None,
     }
 }
 

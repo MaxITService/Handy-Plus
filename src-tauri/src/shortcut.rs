@@ -984,10 +984,7 @@ pub fn change_connector_auto_open_enabled_setting(
 
 #[tauri::command]
 #[specta::specta]
-pub fn change_connector_auto_open_url_setting(
-    app: AppHandle,
-    url: String,
-) -> Result<(), String> {
+pub fn change_connector_auto_open_url_setting(app: AppHandle, url: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.connector_auto_open_url = url;
     settings::write_settings(&app, settings);
@@ -1017,6 +1014,22 @@ pub fn change_connector_port_setting(app: AppHandle, port: u16) -> Result<(), St
 pub fn change_connector_path_setting(app: AppHandle, path: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.connector_path = path;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_connector_password_setting(app: AppHandle, password: String) -> Result<(), String> {
+    let trimmed = password.trim().to_string();
+    if trimmed.is_empty() {
+        return Err("Connector password cannot be empty".to_string());
+    }
+
+    let mut settings = settings::get_settings(&app);
+    settings.connector_password = trimmed;
+    settings.connector_password_user_set = true;
+    settings.connector_pending_password = None;
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -1260,7 +1273,7 @@ pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<()
                         }
                         return;
                     }
-                    
+
                     // Determine push-to-talk setting based on binding
                     let use_push_to_talk = match binding_id_for_closure.as_str() {
                         "send_to_extension" => settings.send_to_extension_push_to_talk,
@@ -1269,7 +1282,7 @@ pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<()
                         "send_screenshot_to_extension" => settings.send_screenshot_to_extension_push_to_talk,
                         _ => settings.push_to_talk,
                     };
-                    
+
                     if use_push_to_talk {
                         if event.state == ShortcutState::Pressed {
                             action.start(ah, &binding_id_for_closure, &shortcut_string);
