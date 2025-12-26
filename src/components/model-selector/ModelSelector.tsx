@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
 import { commands, type ModelInfo } from "@/bindings";
@@ -44,7 +44,7 @@ interface ModelSelectorProps {
 
 const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
   const { t } = useTranslation();
-  const { getSetting } = useSettings();
+  const { getSetting, setTranscriptionProvider } = useSettings();
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [currentModelId, setCurrentModelId] = useState<string>("");
   const [modelStatus, setModelStatus] = useState<ModelStatus>("unloaded");
@@ -253,12 +253,6 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     };
   }, []);
 
-  useEffect(() => {
-    if (isRemoteProvider) {
-      setShowModelDropdown(false);
-    }
-  }, [isRemoteProvider]);
-
   const loadModels = async () => {
     try {
       const result = await commands.getAvailableModels();
@@ -300,8 +294,11 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
   };
 
   const handleModelSelect = async (modelId: string) => {
-    if (isRemoteProvider) return;
     try {
+      // If we're in remote mode and selecting a local model, switch to local provider first
+      if (isRemoteProvider) {
+        await setTranscriptionProvider("local");
+      }
       setCurrentModelId(modelId); // Set optimistically so loading text shows correct model
       setModelError(null);
       setShowModelDropdown(false);
@@ -321,8 +318,11 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
   };
 
   const handleModelDownload = async (modelId: string) => {
-    if (isRemoteProvider) return;
     try {
+      // If we're in remote mode and downloading a model, switch to local provider first
+      if (isRemoteProvider) {
+        await setTranscriptionProvider("local");
+      }
       setModelError(null);
       const result = await commands.downloadModel(modelId);
       if (result.status === "error") {
@@ -412,8 +412,17 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     }
   };
 
+  const handleRemoteSttSelect = useCallback(async () => {
+    try {
+      setShowModelDropdown(false);
+      await setTranscriptionProvider("remote_openai_compatible");
+    } catch (err) {
+      const errorMsg = `Failed to switch to Remote STT: ${err}`;
+      onError?.(errorMsg);
+    }
+  }, [setTranscriptionProvider, onError]);
+
   const handleModelDelete = async (modelId: string) => {
-    if (isRemoteProvider) return;
     const result = await commands.deleteModel(modelId);
     if (result.status === "ok") {
       await loadModels();
@@ -426,15 +435,16 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
       {/* Model Status and Switcher */}
       <div className="relative" ref={dropdownRef}>
         <ModelStatusButton
-          status={modelStatus}
+          status={isRemoteProvider ? "ready" : modelStatus}
           displayText={getModelDisplayText()}
           isDropdownOpen={showModelDropdown}
           onClick={() => setShowModelDropdown(!showModelDropdown)}
-          disabled={isRemoteProvider}
+          disabled={false}
+          isRemote={isRemoteProvider}
         />
 
         {/* Model Dropdown */}
-        {showModelDropdown && !isRemoteProvider && (
+        {showModelDropdown && (
           <ModelDropdown
             models={models}
             currentModelId={currentModelId}
@@ -443,6 +453,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             onModelDownload={handleModelDownload}
             onModelDelete={handleModelDelete}
             onError={onError}
+            isRemoteProvider={isRemoteProvider}
+            onRemoteSttSelect={handleRemoteSttSelect}
           />
         )}
       </div>

@@ -16,6 +16,7 @@ interface ModelStatusButtonProps {
   onClick: () => void;
   disabled?: boolean;
   className?: string;
+  isRemote?: boolean;
 }
 
 const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
@@ -25,8 +26,12 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
   onClick,
   disabled = false,
   className = "",
+  isRemote = false,
 }) => {
-  const getStatusColor = (status: ModelStatus): string => {
+  const getStatusColor = (status: ModelStatus, isRemote: boolean): string => {
+    if (isRemote) {
+      return "bg-blue-400"; // Blue for remote/cloud mode
+    }
     switch (status) {
       case "ready":
         return "bg-green-400";
@@ -54,7 +59,7 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
       className={`flex items-center gap-2 transition-colors ${disabled ? "opacity-60 cursor-not-allowed" : "hover:text-text/80"} ${className}`}
       title={`Model status: ${displayText}`}
     >
-      <div className={`w-2 h-2 rounded-full ${getStatusColor(status)}`} />
+      <div className={`w-2 h-2 rounded-full ${getStatusColor(status, isRemote)}`} />
       <span className="max-w-28 truncate">{displayText}</span>
       <svg
         className={`w-3 h-3 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}

@@ -91,6 +91,7 @@
     "modelUnloaded": "Model Unloaded",
     "noModelDownloadRequired": "No Model - Download Required",
     "remoteMode": "Remote STT",
+    "remoteModeDescription": "Uses cloud API for transcription",
     "deleteModel": "Delete {{modelName}}"
   },
   "settings": {

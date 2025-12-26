@@ -23,6 +23,8 @@ interface ModelDropdownProps {
   onModelDownload: (modelId: string) => void;
   onModelDelete: (modelId: string) => Promise<void>;
   onError?: (error: string) => void;
+  isRemoteProvider?: boolean;
+  onRemoteSttSelect?: () => void;
 }
 
 const ModelDropdown: React.FC<ModelDropdownProps> = ({
@@ -33,6 +35,8 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
   onModelDownload,
   onModelDelete,
   onError,
+  isRemoteProvider = false,
+  onRemoteSttSelect,
 }) => {
   const { t } = useTranslation();
   const availableModels = models.filter((m) => m.is_downloaded);
@@ -67,6 +71,59 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
 
   return (
     <div className="absolute bottom-full left-0 mb-2 w-64 bg-background border border-mid-gray/20 rounded-lg shadow-lg py-2 z-50">
+      {/* Remote STT Option */}
+      {onRemoteSttSelect && (
+        <div>
+          <div
+            onClick={onRemoteSttSelect}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onRemoteSttSelect();
+              }
+            }}
+            tabIndex={0}
+            role="button"
+            className={`w-full px-3 py-2 text-left hover:bg-mid-gray/10 transition-colors cursor-pointer focus:outline-none ${
+              isRemoteProvider
+                ? "bg-blue-500/10 text-blue-400"
+                : ""
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {/* Cloud icon */}
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
+                  />
+                </svg>
+                <div>
+                  <div className="text-sm">{t("modelSelector.remoteMode")}</div>
+                  <div className="text-xs text-text/40 italic">
+                    {t("modelSelector.remoteModeDescription")}
+                  </div>
+                </div>
+              </div>
+              {isRemoteProvider && (
+                <div className="text-xs text-blue-400">
+                  {t("modelSelector.active")}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="border-t border-mid-gray/10 my-1" />
+        </div>
+      )}
+
       {/* First Run Welcome */}
       {isFirstRun && (
         <div className="px-3 py-2 bg-logo-primary/10 border-b border-logo-primary/20">
