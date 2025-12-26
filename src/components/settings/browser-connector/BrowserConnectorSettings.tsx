@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
-import { Globe, Info, ExternalLink, Camera, Eye, EyeOff, Copy, AlertTriangle } from "lucide-react";
+import { Globe, Info, ExternalLink, Eye, EyeOff, Copy, AlertTriangle } from "lucide-react";
 import { useSettings } from "../../../hooks/useSettings";
 import { HandyShortcut } from "../HandyShortcut";
 import { Input } from "../../ui/Input";
@@ -27,9 +27,7 @@ export const BrowserConnectorSettings: React.FC = () => {
   const { t } = useTranslation();
   const { settings, getSetting, updateSetting, isUpdating } = useSettings();
 
-  const [hostInput, setHostInput] = useState(settings?.connector_host ?? "127.0.0.1");
   const [portInput, setPortInput] = useState(String(settings?.connector_port ?? 63155));
-  const [pathInput, setPathInput] = useState(settings?.connector_path ?? "/messages");
   const [passwordInput, setPasswordInput] = useState(settings?.connector_password ?? "");
   const [showPassword, setShowPassword] = useState(false);
   const [showCopiedTooltip, setShowCopiedTooltip] = useState(false);
@@ -51,16 +49,8 @@ export const BrowserConnectorSettings: React.FC = () => {
   const sendSelectionUserPrompt = getSetting("connector_send_selection_user_prompt") ?? "";
 
   useEffect(() => {
-    setHostInput(settings?.connector_host ?? "127.0.0.1");
-  }, [settings?.connector_host]);
-
-  useEffect(() => {
     setPortInput(String(settings?.connector_port ?? 63155));
   }, [settings?.connector_port]);
-
-  useEffect(() => {
-    setPathInput(settings?.connector_path ?? "/messages");
-  }, [settings?.connector_path]);
 
   useEffect(() => {
     setPasswordInput(settings?.connector_password ?? "");
@@ -81,24 +71,10 @@ export const BrowserConnectorSettings: React.FC = () => {
     setScreenshotTimeoutInput(String(settings?.screenshot_timeout_seconds ?? 5));
   }, [settings?.screenshot_timeout_seconds]);
 
-  const handleHostBlur = () => {
-    const trimmed = hostInput.trim();
-    if (trimmed !== (settings?.connector_host ?? "")) {
-      void updateSetting("connector_host", trimmed);
-    }
-  };
-
   const handlePortBlur = () => {
     const port = parseInt(portInput.trim(), 10);
     if (!isNaN(port) && port > 0 && port <= 65535 && port !== settings?.connector_port) {
       void updateSetting("connector_port", port);
-    }
-  };
-
-  const handlePathBlur = () => {
-    const trimmed = pathInput.trim();
-    if (trimmed !== (settings?.connector_path ?? "")) {
-      void updateSetting("connector_path", trimmed);
     }
   };
 
@@ -164,7 +140,8 @@ export const BrowserConnectorSettings: React.FC = () => {
     }
   };
 
-  const endpointUrl = `http://${hostInput}:${portInput}${pathInput}`;
+  // Server always binds to 127.0.0.1 and serves /messages
+  const endpointUrl = `http://127.0.0.1:${portInput}/messages`;
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
@@ -470,22 +447,6 @@ export const BrowserConnectorSettings: React.FC = () => {
 
       <SettingsGroup title={t("settings.browserConnector.connection.title")}>
         <SettingContainer
-          title={t("settings.browserConnector.connection.host.title")}
-          description={t("settings.browserConnector.connection.host.description")}
-          descriptionMode="tooltip"
-          grouped={true}
-        >
-          <Input
-            type="text"
-            value={hostInput}
-            onChange={(event) => setHostInput(event.target.value)}
-            onBlur={handleHostBlur}
-            placeholder="127.0.0.1"
-            className="w-40"
-          />
-        </SettingContainer>
-
-        <SettingContainer
           title={t("settings.browserConnector.connection.port.title")}
           description={t("settings.browserConnector.connection.port.description")}
           descriptionMode="tooltip"
@@ -500,22 +461,6 @@ export const BrowserConnectorSettings: React.FC = () => {
             min={1}
             max={65535}
             className="w-28"
-          />
-        </SettingContainer>
-
-        <SettingContainer
-          title={t("settings.browserConnector.connection.path.title")}
-          description={t("settings.browserConnector.connection.path.description")}
-          descriptionMode="tooltip"
-          grouped={true}
-        >
-          <Input
-            type="text"
-            value={pathInput}
-            onChange={(event) => setPathInput(event.target.value)}
-            onBlur={handlePathBlur}
-            placeholder="/messages"
-            className="w-40"
           />
         </SettingContainer>
 
