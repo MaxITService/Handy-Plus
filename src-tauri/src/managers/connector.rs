@@ -544,6 +544,38 @@ impl ConnectorManager {
         self.stop_flag.store(true, Ordering::SeqCst);
     }
 
+    /// Update the port and restart the server if it's running
+    pub fn restart_on_port(&self, new_port: u16) -> Result<(), String> {
+        // Update the stored port
+        {
+            let mut port = self.port.write().unwrap();
+            *port = new_port;
+        }
+
+        // If server is running, restart it on the new port
+        if self.server_running.load(Ordering::SeqCst) {
+            info!("Restarting connector server on new port {}", new_port);
+            self.stop_server();
+
+            // Wait for server to stop (with timeout)
+            let start = std::time::Instant::now();
+            while self.server_running.load(Ordering::SeqCst) {
+                if start.elapsed() > Duration::from_secs(2) {
+                    return Err("Timeout waiting for server to stop".to_string());
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+
+            // Reset last poll so status goes to Unknown
+            self.last_poll_at.store(0, Ordering::SeqCst);
+
+            // Start on new port
+            self.start_server()?;
+        }
+
+        Ok(())
+    }
+
     /// Queue a message to be sent to the extension
     pub fn queue_message(&self, text: &str) -> Result<(), String> {
         let trimmed = text.trim();

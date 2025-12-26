@@ -8,8 +8,8 @@ Files that differentiate this fork from the original [cjpais/Handy](https://gith
 
 | File | Purpose |
 |------|---------|
-| `src-tauri/src/connector.rs` | HTTP client for sending transcriptions to external services (Handy Connector). Sends JSON payload `{text, ts}` to configurable endpoint. |
-| `src-tauri/src/managers/connector.rs` | Connector Manager with HTTP server for extension communication. Tracks extension online/offline status via polling, handles keepalive messages. **Includes Bearer token authentication** to prevent data exfiltration by malicious webpages. |
+| `src-tauri/src/connector.rs` | Legacy HTTP client (unused) — was for sending transcriptions to external endpoints. |
+| `src-tauri/src/managers/connector.rs` | **Main connector module**: HTTP server (port 63155) for extension communication. Extension polls `GET /messages` with Bearer auth, Handy returns `{cursor, messages[], config, passwordUpdate?}`. Handles text messages, bundle (with image attachments via `/blob/*`), and keepalive messages. **Includes two-phase password rotation** for security. |
 | `src-tauri/src/commands/connector.rs` | Tauri commands for connector: `connector_get_status`, `connector_is_online`, `connector_start_server`, `connector_stop_server`, `connector_queue_message`. |
 | `src-tauri/src/managers/remote_stt.rs` | Remote Speech-to-Text manager. Handles OpenAI-compatible API calls, WAV encoding, API key storage (Windows Credential Manager), debug logging. |
 | `src-tauri/src/commands/remote_stt.rs` | Tauri commands exposing Remote STT functionality to frontend: `remote_stt_has_api_key`, `remote_stt_set_api_key`, `remote_stt_test_connection`, etc. |
@@ -97,18 +97,21 @@ User presses shortcut + speaks instruction
 User presses shortcut + speaks
     └─► shortcut.rs → actions.rs (SendToExtensionAction)
             └─► transcription
-            └─► connector.rs → HTTP POST to Handy Connector
+            └─► managers/connector.rs → queue_message() or queue_bundle_message()
+                    └─► message added to queue with {id, type, text, ts, attachments?}
+
+Extension polls server
+    └─► GET http://127.0.0.1:63155/messages?since=<cursor>
+            └─► Authorization: Bearer <password>
+            └─► Returns {cursor, messages[], config, passwordUpdate?}
+    └─► GET /blob/<attId> for image attachments (also requires auth)
 ```
 
-### Extension Status Tracking
-```
-Extension polls Handy server
-    └─► managers/connector.rs (HTTP server on port 63155)
-            └─► tracks lastPoll timestamp
-            └─► emits "extension-status-changed" event
-                    └─► ConnectorStatus.tsx updates UI
-                            └─► Shows 🟢 Online / 🔴 Offline + "Last seen"
-```
+### Extension Protocol Notes
+- **Message types**: `text`, `bundle` (with attachments), `keepalive`
+- **Keepalive**: Extension should filter `msg_type === "keepalive"` to avoid pasting "keepalive" into pages
+- **Password rotation**: On first connect, server sends `passwordUpdate`; extension must POST `{"type":"password_ack"}` to commit
+- **Blob auth**: `/blob/*` endpoint requires Bearer auth (headers included in attachment metadata)
 
 ## Entry Points for Common Tasks
 
@@ -144,7 +147,8 @@ Extension polls Handy server
 | `AppSettings` fields | `default_settings.json`, `useSettings.ts`, `settingsStore.ts` |
 | Tauri commands | Run `bun run tauri dev` to regenerate `bindings.ts` |
 | Remote STT API format | `encode_wav_bytes()` in audio_toolkit |
-| Connector message format | Handy Connector extension expects `{text, ts}` |
+| Connector message format | Extension expects `{id, type, text, ts, attachments?}` from polling server |
+| Connector auth | Extension uses `Authorization: Bearer <password>` header |
 | Prompt templates | Variables: `${instruction}` (voice), `${output}` (selected text) |
 
 ## Platform Limitations

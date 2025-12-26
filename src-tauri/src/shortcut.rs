@@ -1002,10 +1002,18 @@ pub fn change_connector_host_setting(app: AppHandle, host: String) -> Result<(),
 
 #[tauri::command]
 #[specta::specta]
-pub fn change_connector_port_setting(app: AppHandle, port: u16) -> Result<(), String> {
+pub fn change_connector_port_setting(
+    app: AppHandle,
+    port: u16,
+    connector_manager: State<'_, Arc<crate::managers::connector::ConnectorManager>>,
+) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.connector_port = port;
     settings::write_settings(&app, settings);
+
+    // Restart server on new port if it's running
+    connector_manager.restart_on_port(port)?;
+
     Ok(())
 }
 
