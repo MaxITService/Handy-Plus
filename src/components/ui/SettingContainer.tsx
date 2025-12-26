@@ -4,7 +4,8 @@ interface SettingContainerProps {
   title: string;
   description: string;
   children: React.ReactNode;
-  descriptionMode?: "inline" | "tooltip";
+  descriptionMode?: "inline" | "tooltip" | "none";
+
   grouped?: boolean;
   layout?: "horizontal" | "stacked";
   disabled?: boolean;
@@ -110,9 +111,11 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
           <h3 className={`text-sm font-medium ${disabled ? "opacity-50" : ""}`}>
             {title}
           </h3>
-          <p className={`text-sm ${disabled ? "opacity-50" : ""}`}>
-            {description}
-          </p>
+          {descriptionMode !== "none" && (
+            <p className={`text-sm ${disabled ? "opacity-50" : ""}`}>
+              {description}
+            </p>
+          )}
         </div>
         <div className="w-full">{children}</div>
       </div>
@@ -189,9 +192,11 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
         <h3 className={`text-sm font-medium ${disabled ? "opacity-50" : ""}`}>
           {title}
         </h3>
-        <p className={`text-sm ${disabled ? "opacity-50" : ""}`}>
-          {description}
-        </p>
+        {descriptionMode !== "none" && (
+          <p className={`text-sm ${disabled ? "opacity-50" : ""}`}>
+            {description}
+          </p>
+        )}
       </div>
       <div className="relative">{children}</div>
     </div>
