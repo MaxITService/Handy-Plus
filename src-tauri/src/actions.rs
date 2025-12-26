@@ -267,6 +267,278 @@ fn emit_ai_replace_error(app: &AppHandle, message: impl Into<String>) {
     let _ = app.emit("ai-replace-error", message.into());
 }
 
+// ============================================================================
+// Shared Recording Helpers - Reduces duplication across action implementations
+// ============================================================================
+
+/// Starts recording with proper audio feedback handling.
+/// Handles both always-on and on-demand microphone modes.
+/// Returns true if recording was successfully started.
+fn start_recording_with_feedback(app: &AppHandle, binding_id: &str) -> bool {
+    let settings = get_settings(app);
+
+    // Load model in the background if using local transcription
+    let tm = app.state::<Arc<TranscriptionManager>>();
+    if settings.transcription_provider == TranscriptionProvider::Local {
+        tm.initiate_model_load();
+    }
+
+    change_tray_icon(app, TrayIconState::Recording);
+    show_recording_overlay(app);
+
+    let rm = app.state::<Arc<AudioRecordingManager>>();
+    let is_always_on = settings.always_on_microphone;
+    debug!("Microphone mode - always_on: {}", is_always_on);
+
+    let mut recording_started = false;
+    if is_always_on {
+        // Always-on mode: Play audio feedback immediately, then apply mute after sound finishes
+        debug!("Always-on mode: Playing audio feedback immediately");
+        let rm_clone = Arc::clone(&rm);
+        let app_clone = app.clone();
+        std::thread::spawn(move || {
+            play_feedback_sound_blocking(&app_clone, SoundType::Start);
+            rm_clone.apply_mute();
+        });
+
+        recording_started = rm.try_start_recording(binding_id);
+        debug!("Recording started: {}", recording_started);
+    } else {
+        // On-demand mode: Start recording first, then play audio feedback, then apply mute
+        debug!("On-demand mode: Starting recording first, then audio feedback");
+        let recording_start_time = Instant::now();
+        if rm.try_start_recording(binding_id) {
+            recording_started = true;
+            debug!("Recording started in {:?}", recording_start_time.elapsed());
+            let app_clone = app.clone();
+            let rm_clone = Arc::clone(&rm);
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                debug!("Handling delayed audio feedback/mute sequence");
+                play_feedback_sound_blocking(&app_clone, SoundType::Start);
+                rm_clone.apply_mute();
+            });
+        } else {
+            debug!("Failed to start recording");
+        }
+    }
+
+    if recording_started {
+        shortcut::register_cancel_shortcut(app);
+    }
+
+    recording_started
+}
+
+/// Prepares for stopping a recording: unregisters cancel shortcut, changes UI state,
+/// removes mute, and plays stop feedback. Call this before the async transcription task.
+fn prepare_recording_stop(app: &AppHandle) {
+    shortcut::unregister_cancel_shortcut(app);
+    change_tray_icon(app, TrayIconState::Transcribing);
+    show_transcribing_overlay(app);
+
+    let rm = app.state::<Arc<AudioRecordingManager>>();
+    rm.remove_mute();
+    play_feedback_sound(app, SoundType::Stop);
+}
+
+/// Resets UI to idle state (hides overlay, changes tray icon).
+fn reset_ui_to_idle(app: &AppHandle) {
+    utils::hide_recording_overlay(app);
+    change_tray_icon(app, TrayIconState::Idle);
+}
+
+/// Result of transcription operation
+pub enum TranscriptionOutcome {
+    /// Successful transcription with the text
+    Success(String),
+    /// Transcription was cancelled
+    Cancelled,
+    /// Error with error message
+    Error(String),
+    /// No samples were available
+    NoSamples,
+}
+
+/// Performs transcription using either local or remote provider.
+/// Handles cancellation tracking for remote operations.
+/// Returns the transcription result with custom words applied if configured.
+async fn perform_transcription(
+    app: &AppHandle,
+    binding_id: &str,
+    rm: &Arc<AudioRecordingManager>,
+    tm: &Arc<TranscriptionManager>,
+) -> TranscriptionOutcome {
+    let stop_recording_time = Instant::now();
+    let samples = match rm.stop_recording(binding_id) {
+        Some(s) => s,
+        None => {
+            debug!("No samples retrieved from recording stop");
+            return TranscriptionOutcome::NoSamples;
+        }
+    };
+
+    debug!(
+        "Recording stopped and samples retrieved in {:?}, sample count: {}",
+        stop_recording_time.elapsed(),
+        samples.len()
+    );
+
+    let transcription_time = Instant::now();
+    let settings = get_settings(app);
+
+    // Get operation ID for cancellation tracking (Remote STT only)
+    let remote_manager = app.state::<Arc<RemoteSttManager>>();
+    let operation_id =
+        if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible {
+            remote_manager.start_operation()
+        } else {
+            0 // Not used for local transcription
+        };
+
+    let transcription_result =
+        if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible {
+            remote_manager
+                .transcribe(&settings.remote_stt, &samples)
+                .await
+                .map(|text| {
+                    if settings.custom_words.is_empty() {
+                        text
+                    } else {
+                        apply_custom_words(
+                            &text,
+                            &settings.custom_words,
+                            settings.word_correction_threshold,
+                        )
+                    }
+                })
+        } else {
+            tm.transcribe(samples)
+        };
+
+    // Check if operation was cancelled while we were waiting
+    if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible
+        && remote_manager.is_cancelled(operation_id)
+    {
+        debug!(
+            "Transcription operation {} was cancelled, discarding result",
+            operation_id
+        );
+        return TranscriptionOutcome::Cancelled;
+    }
+
+    match transcription_result {
+        Ok(transcription) => {
+            debug!(
+                "Transcription completed in {:?}: '{}'",
+                transcription_time.elapsed(),
+                transcription
+            );
+            TranscriptionOutcome::Success(transcription)
+        }
+        Err(err) => {
+            let err_str = format!("{}", err);
+            if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible {
+                let _ = app.emit("remote-stt-error", err_str.clone());
+                crate::plus_overlay_state::handle_transcription_error(app, &err_str);
+            }
+            TranscriptionOutcome::Error(err_str)
+        }
+    }
+}
+
+/// Performs transcription and returns samples along with the result for history saving.
+/// Use this variant when you need to save to history.
+async fn perform_transcription_with_samples(
+    app: &AppHandle,
+    binding_id: &str,
+    rm: &Arc<AudioRecordingManager>,
+    tm: &Arc<TranscriptionManager>,
+) -> (TranscriptionOutcome, Option<Vec<f32>>) {
+    let stop_recording_time = Instant::now();
+    let samples = match rm.stop_recording(binding_id) {
+        Some(s) => s,
+        None => {
+            debug!("No samples retrieved from recording stop");
+            return (TranscriptionOutcome::NoSamples, None);
+        }
+    };
+
+    debug!(
+        "Recording stopped and samples retrieved in {:?}, sample count: {}",
+        stop_recording_time.elapsed(),
+        samples.len()
+    );
+
+    let samples_clone = samples.clone();
+    let transcription_time = Instant::now();
+    let settings = get_settings(app);
+
+    // Get operation ID for cancellation tracking (Remote STT only)
+    let remote_manager = app.state::<Arc<RemoteSttManager>>();
+    let operation_id =
+        if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible {
+            remote_manager.start_operation()
+        } else {
+            0 // Not used for local transcription
+        };
+
+    let transcription_result =
+        if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible {
+            remote_manager
+                .transcribe(&settings.remote_stt, &samples)
+                .await
+                .map(|text| {
+                    if settings.custom_words.is_empty() {
+                        text
+                    } else {
+                        apply_custom_words(
+                            &text,
+                            &settings.custom_words,
+                            settings.word_correction_threshold,
+                        )
+                    }
+                })
+        } else {
+            tm.transcribe(samples)
+        };
+
+    // Check if operation was cancelled while we were waiting
+    if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible
+        && remote_manager.is_cancelled(operation_id)
+    {
+        debug!(
+            "Transcription operation {} was cancelled, discarding result",
+            operation_id
+        );
+        return (TranscriptionOutcome::Cancelled, None);
+    }
+
+    match transcription_result {
+        Ok(transcription) => {
+            debug!(
+                "Transcription completed in {:?}: '{}'",
+                transcription_time.elapsed(),
+                transcription
+            );
+            (
+                TranscriptionOutcome::Success(transcription),
+                Some(samples_clone),
+            )
+        }
+        Err(err) => {
+            let err_str = format!("{}", err);
+            if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible {
+                let _ = app.emit("remote-stt-error", err_str.clone());
+                crate::plus_overlay_state::handle_transcription_error(app, &err_str);
+            }
+            (TranscriptionOutcome::Error(err_str), Some(samples_clone))
+        }
+    }
+}
+
+// ============================================================================
+
 fn build_extension_message(settings: &AppSettings, instruction: &str, selection: &str) -> String {
     let instruction_trimmed = instruction.trim();
     let selection_trimmed = selection.trim();
@@ -281,7 +553,10 @@ fn build_extension_message(settings: &AppSettings, instruction: &str, selection:
 
     let user_template = settings.ai_replace_user_prompt.trim();
     let user_message = if user_template.is_empty() {
-        format!("INSTRUCTION:\n{}\n\nTEXT:\n{}", instruction_trimmed, selection)
+        format!(
+            "INSTRUCTION:\n{}\n\nTEXT:\n{}",
+            instruction_trimmed, selection
+        )
     } else {
         user_template
             .replace("${instruction}", instruction_trimmed)
@@ -395,66 +670,7 @@ impl ShortcutAction for TranscribeAction {
         let start_time = Instant::now();
         debug!("TranscribeAction::start called for binding: {}", binding_id);
 
-        // Load model in the background
-        let tm = app.state::<Arc<TranscriptionManager>>();
-        let settings = get_settings(app);
-        if settings.transcription_provider == TranscriptionProvider::Local {
-            tm.initiate_model_load();
-        }
-
-        let binding_id = binding_id.to_string();
-        change_tray_icon(app, TrayIconState::Recording);
-        show_recording_overlay(app);
-
-        let rm = app.state::<Arc<AudioRecordingManager>>();
-
-        // Get the microphone mode to determine audio feedback timing
-        let is_always_on = settings.always_on_microphone;
-        debug!("Microphone mode - always_on: {}", is_always_on);
-
-        let mut recording_started = false;
-        if is_always_on {
-            // Always-on mode: Play audio feedback immediately, then apply mute after sound finishes
-            debug!("Always-on mode: Playing audio feedback immediately");
-            let rm_clone = Arc::clone(&rm);
-            let app_clone = app.clone();
-            // The blocking helper exits immediately if audio feedback is disabled,
-            // so we can always reuse this thread to ensure mute happens right after playback.
-            std::thread::spawn(move || {
-                play_feedback_sound_blocking(&app_clone, SoundType::Start);
-                rm_clone.apply_mute();
-            });
-
-            recording_started = rm.try_start_recording(&binding_id);
-            debug!("Recording started: {}", recording_started);
-        } else {
-            // On-demand mode: Start recording first, then play audio feedback, then apply mute
-            // This allows the microphone to be activated before playing the sound
-            debug!("On-demand mode: Starting recording first, then audio feedback");
-            let recording_start_time = Instant::now();
-            if rm.try_start_recording(&binding_id) {
-                recording_started = true;
-                debug!("Recording started in {:?}", recording_start_time.elapsed());
-                // Small delay to ensure microphone stream is active
-                let app_clone = app.clone();
-                let rm_clone = Arc::clone(&rm);
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                    debug!("Handling delayed audio feedback/mute sequence");
-                    // Helper handles disabled audio feedback by returning early, so we reuse it
-                    // to keep mute sequencing consistent in every mode.
-                    play_feedback_sound_blocking(&app_clone, SoundType::Start);
-                    rm_clone.apply_mute();
-                });
-            } else {
-                debug!("Failed to start recording");
-            }
-        }
-
-        if recording_started {
-            // Dynamically register the cancel shortcut in a separate task to avoid deadlock
-            shortcut::register_cancel_shortcut(app);
-        }
+        start_recording_with_feedback(app, binding_id);
 
         debug!(
             "TranscribeAction::start completed in {:?}",
@@ -503,7 +719,7 @@ impl ShortcutAction for TranscribeAction {
                 let transcription_time = Instant::now();
                 let samples_clone = samples.clone(); // Clone for history saving
                 let settings = get_settings(&ah);
-                
+
                 // Get operation ID for cancellation tracking (Remote STT only)
                 let remote_manager = ah.state::<Arc<RemoteSttManager>>();
                 let operation_id = if settings.transcription_provider
@@ -513,7 +729,7 @@ impl ShortcutAction for TranscribeAction {
                 } else {
                     0 // Not used for local transcription
                 };
-                
+
                 let transcription_result = if settings.transcription_provider
                     == TranscriptionProvider::RemoteOpenAiCompatible
                 {
@@ -539,7 +755,10 @@ impl ShortcutAction for TranscribeAction {
                 if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible
                     && remote_manager.is_cancelled(operation_id)
                 {
-                    debug!("Transcription operation {} was cancelled, discarding result", operation_id);
+                    debug!(
+                        "Transcription operation {} was cancelled, discarding result",
+                        operation_id
+                    );
                     return;
                 }
 
@@ -660,66 +879,7 @@ impl ShortcutAction for SendToExtensionAction {
             binding_id
         );
 
-        // Load model in the background
-        let tm = app.state::<Arc<TranscriptionManager>>();
-        let settings = get_settings(app);
-        if settings.transcription_provider == TranscriptionProvider::Local {
-            tm.initiate_model_load();
-        }
-
-        let binding_id = binding_id.to_string();
-        change_tray_icon(app, TrayIconState::Recording);
-        show_recording_overlay(app);
-
-        let rm = app.state::<Arc<AudioRecordingManager>>();
-
-        // Get the microphone mode to determine audio feedback timing
-        let is_always_on = settings.always_on_microphone;
-        debug!("Microphone mode - always_on: {}", is_always_on);
-
-        let mut recording_started = false;
-        if is_always_on {
-            // Always-on mode: Play audio feedback immediately, then apply mute after sound finishes
-            debug!("Always-on mode: Playing audio feedback immediately");
-            let rm_clone = Arc::clone(&rm);
-            let app_clone = app.clone();
-            // The blocking helper exits immediately if audio feedback is disabled,
-            // so we can always reuse this thread to ensure mute happens right after playback.
-            std::thread::spawn(move || {
-                play_feedback_sound_blocking(&app_clone, SoundType::Start);
-                rm_clone.apply_mute();
-            });
-
-            recording_started = rm.try_start_recording(&binding_id);
-            debug!("Recording started: {}", recording_started);
-        } else {
-            // On-demand mode: Start recording first, then play audio feedback, then apply mute
-            // This allows the microphone to be activated before playing the sound
-            debug!("On-demand mode: Starting recording first, then audio feedback");
-            let recording_start_time = Instant::now();
-            if rm.try_start_recording(&binding_id) {
-                recording_started = true;
-                debug!("Recording started in {:?}", recording_start_time.elapsed());
-                // Small delay to ensure microphone stream is active
-                let app_clone = app.clone();
-                let rm_clone = Arc::clone(&rm);
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                    debug!("Handling delayed audio feedback/mute sequence");
-                    // Helper handles disabled audio feedback by returning early, so we reuse it
-                    // to keep mute sequencing consistent in every mode.
-                    play_feedback_sound_blocking(&app_clone, SoundType::Start);
-                    rm_clone.apply_mute();
-                });
-            } else {
-                debug!("Failed to start recording");
-            }
-        }
-
-        if recording_started {
-            // Dynamically register the cancel shortcut in a separate task to avoid deadlock
-            shortcut::register_cancel_shortcut(app);
-        }
+        start_recording_with_feedback(app, binding_id);
 
         debug!(
             "SendToExtensionAction::start completed in {:?}",
@@ -772,7 +932,7 @@ impl ShortcutAction for SendToExtensionAction {
                 let transcription_time = Instant::now();
                 let samples_clone = samples.clone(); // Clone for history saving
                 let settings = get_settings(&ah);
-                
+
                 // Get operation ID for cancellation tracking (Remote STT only)
                 let remote_manager = ah.state::<Arc<RemoteSttManager>>();
                 let operation_id = if settings.transcription_provider
@@ -782,7 +942,7 @@ impl ShortcutAction for SendToExtensionAction {
                 } else {
                     0 // Not used for local transcription
                 };
-                
+
                 let transcription_result = if settings.transcription_provider
                     == TranscriptionProvider::RemoteOpenAiCompatible
                 {
@@ -808,7 +968,10 @@ impl ShortcutAction for SendToExtensionAction {
                 if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible
                     && remote_manager.is_cancelled(operation_id)
                 {
-                    debug!("Connector transcription operation {} was cancelled, discarding result", operation_id);
+                    debug!(
+                        "Connector transcription operation {} was cancelled, discarding result",
+                        operation_id
+                    );
                     return;
                 }
 
@@ -869,10 +1032,9 @@ impl ShortcutAction for SendToExtensionAction {
 
                             let send_time = Instant::now();
                             match cm.queue_message(&final_text) {
-                                Ok(()) => debug!(
-                                    "Connector message queued in {:?}",
-                                    send_time.elapsed()
-                                ),
+                                Ok(()) => {
+                                    debug!("Connector message queued in {:?}", send_time.elapsed())
+                                }
                                 Err(e) => error!("Failed to queue connector message: {}", e),
                             }
 
@@ -928,55 +1090,7 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
             binding_id
         );
 
-        let settings = get_settings(app);
-
-        // Load model in the background
-        let tm = app.state::<Arc<TranscriptionManager>>();
-        if settings.transcription_provider == TranscriptionProvider::Local {
-            tm.initiate_model_load();
-        }
-
-        change_tray_icon(app, TrayIconState::Recording);
-        show_recording_overlay(app);
-
-        let rm = app.state::<Arc<AudioRecordingManager>>();
-        let is_always_on = settings.always_on_microphone;
-        debug!("Microphone mode - always_on: {}", is_always_on);
-
-        let mut recording_started = false;
-        if is_always_on {
-            debug!("Always-on mode: Playing audio feedback immediately");
-            let rm_clone = Arc::clone(&rm);
-            let app_clone = app.clone();
-            std::thread::spawn(move || {
-                play_feedback_sound_blocking(&app_clone, SoundType::Start);
-                rm_clone.apply_mute();
-            });
-
-            recording_started = rm.try_start_recording(binding_id);
-            debug!("Recording started: {}", recording_started);
-        } else {
-            debug!("On-demand mode: Starting recording first, then audio feedback");
-            let recording_start_time = Instant::now();
-            if rm.try_start_recording(binding_id) {
-                recording_started = true;
-                debug!("Recording started in {:?}", recording_start_time.elapsed());
-                let app_clone = app.clone();
-                let rm_clone = Arc::clone(&rm);
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                    debug!("Handling delayed audio feedback/mute sequence");
-                    play_feedback_sound_blocking(&app_clone, SoundType::Start);
-                    rm_clone.apply_mute();
-                });
-            } else {
-                debug!("Failed to start recording");
-            }
-        }
-
-        if recording_started {
-            shortcut::register_cancel_shortcut(app);
-        }
+        start_recording_with_feedback(app, binding_id);
 
         debug!(
             "SendToExtensionWithSelectionAction::start completed in {:?}",
@@ -1022,7 +1136,7 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
 
                 let transcription_time = Instant::now();
                 let settings = get_settings(&ah);
-                
+
                 // Get operation ID for cancellation tracking (Remote STT only)
                 let remote_manager = ah.state::<Arc<RemoteSttManager>>();
                 let operation_id = if settings.transcription_provider
@@ -1032,7 +1146,7 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
                 } else {
                     0 // Not used for local transcription
                 };
-                
+
                 let transcription_result = if settings.transcription_provider
                     == TranscriptionProvider::RemoteOpenAiCompatible
                 {
@@ -1100,10 +1214,9 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
 
                         let send_time = Instant::now();
                         match cm.queue_message(&message) {
-                            Ok(()) => debug!(
-                                "Connector message queued in {:?}",
-                                send_time.elapsed()
-                            ),
+                            Ok(()) => {
+                                debug!("Connector message queued in {:?}", send_time.elapsed())
+                            }
                             Err(e) => error!("Failed to queue connector message: {}", e),
                         }
 
@@ -1152,7 +1265,11 @@ fn emit_screenshot_error(app: &AppHandle, message: impl Into<String>) {
 }
 
 /// Finds the most recently created image file in a directory (optionally recursive)
-fn find_recent_image(folder: &std::path::Path, max_age_secs: u64, recursive: bool) -> Option<PathBuf> {
+fn find_recent_image(
+    folder: &std::path::Path,
+    max_age_secs: u64,
+    recursive: bool,
+) -> Option<PathBuf> {
     let cutoff = std::time::SystemTime::now()
         .checked_sub(std::time::Duration::from_secs(max_age_secs))
         .unwrap_or(std::time::UNIX_EPOCH);
@@ -1168,13 +1285,13 @@ fn find_recent_image(folder: &std::path::Path, max_age_secs: u64, recursive: boo
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                
+
                 // Recurse into subdirectories if enabled
                 if path.is_dir() && recursive {
                     scan_directory(&path, cutoff, recursive, newest);
                     continue;
                 }
-                
+
                 if !path.is_file() {
                     continue;
                 }
@@ -1184,7 +1301,15 @@ fn find_recent_image(folder: &std::path::Path, max_age_secs: u64, recursive: boo
                     .extension()
                     .and_then(|e| e.to_str())
                     .map(|e| e.to_lowercase());
-                let is_image = matches!(ext.as_deref(), Some("png") | Some("jpg") | Some("jpeg") | Some("gif") | Some("webp") | Some("bmp"));
+                let is_image = matches!(
+                    ext.as_deref(),
+                    Some("png")
+                        | Some("jpg")
+                        | Some("jpeg")
+                        | Some("gif")
+                        | Some("webp")
+                        | Some("bmp")
+                );
                 if !is_image {
                     continue;
                 }
@@ -1237,7 +1362,12 @@ async fn watch_for_new_image(
                             .map(|e| e.to_lowercase());
                         let is_image = matches!(
                             ext.as_deref(),
-                            Some("png") | Some("jpg") | Some("jpeg") | Some("gif") | Some("webp") | Some("bmp")
+                            Some("png")
+                                | Some("jpg")
+                                | Some("jpeg")
+                                | Some("gif")
+                                | Some("webp")
+                                | Some("bmp")
                         );
                         if is_image && path.is_file() {
                             let _ = tx.send(path);
@@ -1304,55 +1434,7 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
             binding_id
         );
 
-        let settings = get_settings(app);
-
-        // Load transcription model in the background
-        let tm = app.state::<Arc<TranscriptionManager>>();
-        if settings.transcription_provider == TranscriptionProvider::Local {
-            tm.initiate_model_load();
-        }
-
-        change_tray_icon(app, TrayIconState::Recording);
-        show_recording_overlay(app);
-
-        let rm = app.state::<Arc<AudioRecordingManager>>();
-        let is_always_on = settings.always_on_microphone;
-        debug!("Microphone mode - always_on: {}", is_always_on);
-
-        let mut recording_started = false;
-        if is_always_on {
-            debug!("Always-on mode: Playing audio feedback immediately");
-            let rm_clone = Arc::clone(&rm);
-            let app_clone = app.clone();
-            std::thread::spawn(move || {
-                play_feedback_sound_blocking(&app_clone, SoundType::Start);
-                rm_clone.apply_mute();
-            });
-
-            recording_started = rm.try_start_recording(binding_id);
-            debug!("Recording started: {}", recording_started);
-        } else {
-            debug!("On-demand mode: Starting recording first, then audio feedback");
-            let recording_start_time = Instant::now();
-            if rm.try_start_recording(binding_id) {
-                recording_started = true;
-                debug!("Recording started in {:?}", recording_start_time.elapsed());
-                let app_clone = app.clone();
-                let rm_clone = Arc::clone(&rm);
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                    debug!("Handling delayed audio feedback/mute sequence");
-                    play_feedback_sound_blocking(&app_clone, SoundType::Start);
-                    rm_clone.apply_mute();
-                });
-            } else {
-                debug!("Failed to start recording");
-            }
-        }
-
-        if recording_started {
-            shortcut::register_cancel_shortcut(app);
-        }
+        start_recording_with_feedback(app, binding_id);
 
         debug!(
             "SendScreenshotToExtensionAction::start completed in {:?}",
@@ -1401,7 +1483,7 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
                 );
 
                 let transcription_time = Instant::now();
-                
+
                 // Get operation ID for cancellation tracking (Remote STT only)
                 let remote_manager = ah.state::<Arc<RemoteSttManager>>();
                 let operation_id = if settings.transcription_provider
@@ -1411,7 +1493,7 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
                 } else {
                     0 // Not used for local transcription
                 };
-                
+
                 let result = if settings.transcription_provider
                     == TranscriptionProvider::RemoteOpenAiCompatible
                 {
@@ -1437,7 +1519,10 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
                 if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible
                     && remote_manager.is_cancelled(operation_id)
                 {
-                    debug!("Screenshot transcription operation {} was cancelled, discarding result", operation_id);
+                    debug!(
+                        "Screenshot transcription operation {} was cancelled, discarding result",
+                        operation_id
+                    );
                     return;
                 }
 
@@ -1505,10 +1590,20 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
                     .spawn();
 
                 match launch_result {
-                    Ok(child) => info!("Screenshot capture tool launched (pid {:?}): {}", child.id(), capture_command),
+                    Ok(child) => info!(
+                        "Screenshot capture tool launched (pid {:?}): {}",
+                        child.id(),
+                        capture_command
+                    ),
                     Err(e) => {
-                        error!("Failed to launch screenshot tool '{}': {}", capture_command, e);
-                        emit_screenshot_error(&ah, format!("Failed to launch screenshot tool: {}", e));
+                        error!(
+                            "Failed to launch screenshot tool '{}': {}",
+                            capture_command, e
+                        );
+                        emit_screenshot_error(
+                            &ah,
+                            format!("Failed to launch screenshot tool: {}", e),
+                        );
                         // Don't return here - we already have the transcription, continue waiting for screenshot
                     }
                 }
@@ -1578,55 +1673,7 @@ impl ShortcutAction for AiReplaceSelectionAction {
             return;
         }
 
-        let settings = get_settings(app);
-
-        // Load model in the background
-        let tm = app.state::<Arc<TranscriptionManager>>();
-        if settings.transcription_provider == TranscriptionProvider::Local {
-            tm.initiate_model_load();
-        }
-
-        change_tray_icon(app, TrayIconState::Recording);
-        show_recording_overlay(app);
-
-        let rm = app.state::<Arc<AudioRecordingManager>>();
-        let is_always_on = settings.always_on_microphone;
-        debug!("Microphone mode - always_on: {}", is_always_on);
-
-        let mut recording_started = false;
-        if is_always_on {
-            debug!("Always-on mode: Playing audio feedback immediately");
-            let rm_clone = Arc::clone(&rm);
-            let app_clone = app.clone();
-            std::thread::spawn(move || {
-                play_feedback_sound_blocking(&app_clone, SoundType::Start);
-                rm_clone.apply_mute();
-            });
-
-            recording_started = rm.try_start_recording(binding_id);
-            debug!("Recording started: {}", recording_started);
-        } else {
-            debug!("On-demand mode: Starting recording first, then audio feedback");
-            let recording_start_time = Instant::now();
-            if rm.try_start_recording(binding_id) {
-                recording_started = true;
-                debug!("Recording started in {:?}", recording_start_time.elapsed());
-                let app_clone = app.clone();
-                let rm_clone = Arc::clone(&rm);
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                    debug!("Handling delayed audio feedback/mute sequence");
-                    play_feedback_sound_blocking(&app_clone, SoundType::Start);
-                    rm_clone.apply_mute();
-                });
-            } else {
-                debug!("Failed to start recording");
-            }
-        }
-
-        if recording_started {
-            shortcut::register_cancel_shortcut(app);
-        }
+        start_recording_with_feedback(app, binding_id);
 
         debug!(
             "AiReplaceSelectionAction::start completed in {:?}",
@@ -1671,7 +1718,7 @@ impl ShortcutAction for AiReplaceSelectionAction {
 
                 let transcription_time = Instant::now();
                 let settings = get_settings(&ah);
-                
+
                 // Get operation ID for cancellation tracking (Remote STT only)
                 let remote_manager = ah.state::<Arc<RemoteSttManager>>();
                 let operation_id = if settings.transcription_provider
@@ -1681,7 +1728,7 @@ impl ShortcutAction for AiReplaceSelectionAction {
                 } else {
                     0 // Not used for local transcription
                 };
-                
+
                 let transcription_result = if settings.transcription_provider
                     == TranscriptionProvider::RemoteOpenAiCompatible
                 {
@@ -1707,7 +1754,10 @@ impl ShortcutAction for AiReplaceSelectionAction {
                 if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible
                     && remote_manager.is_cancelled(operation_id)
                 {
-                    debug!("AI replace transcription operation {} was cancelled, discarding result", operation_id);
+                    debug!(
+                        "AI replace transcription operation {} was cancelled, discarding result",
+                        operation_id
+                    );
                     return;
                 }
 
@@ -1736,13 +1786,21 @@ impl ShortcutAction for AiReplaceSelectionAction {
                             Ok(text) => text,
                             Err(err) => {
                                 debug!("AI replace selection capture failed: {}", err);
-                                emit_ai_replace_error(
-                                    &ah,
-                                    "Could not capture selection. Please select editable text.",
-                                );
-                                utils::hide_recording_overlay(&ah);
-                                change_tray_icon(&ah, TrayIconState::Idle);
-                                return;
+                                // If "no selection" mode is allowed, fall back to empty string
+                                // instead of aborting. This lets users use AI Replace in apps
+                                // where accessibility/selection APIs don't work.
+                                if settings.ai_replace_allow_no_selection {
+                                    debug!("Falling back to empty selection (ai_replace_allow_no_selection is enabled)");
+                                    String::new()
+                                } else {
+                                    emit_ai_replace_error(
+                                        &ah,
+                                        "Could not capture selection. Please select editable text.",
+                                    );
+                                    utils::hide_recording_overlay(&ah);
+                                    change_tray_icon(&ah, TrayIconState::Idle);
+                                    return;
+                                }
                             }
                         };
 
