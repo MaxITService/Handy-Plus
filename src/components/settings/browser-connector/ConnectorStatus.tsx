@@ -23,7 +23,7 @@ interface ConnectorStatusIndicatorProps {
 /**
  * Format a timestamp into a human-readable "time ago" string
  */
-function formatTimeAgo(timestamp: number, t: (key: string) => string): string {
+function formatTimeAgo(timestamp: number, t: (key: string, options?: any) => string): string {
   if (timestamp === 0) {
     return t("settings.browserConnector.status.never");
   }
