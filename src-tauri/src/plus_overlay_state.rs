@@ -1,8 +1,8 @@
-//! Extended overlay states for Remote STT API
+//! Error overlay handling for Remote STT API
 //! Fork-specific file: Provides error categorization and overlay control for transcription errors.
 //!
-//! This module adds "sending" and "error" states to the overlay,
-//! with automatic error categorization (TLS, timeout, network, etc.).
+//! This module handles error states with automatic categorization (TLS, timeout, network, etc.).
+//! Note: The "sending" state is handled by overlay.rs for consistency with other overlay states.
 
 use crate::overlay;
 use crate::tray::{change_tray_icon, TrayIconState};
@@ -91,50 +91,6 @@ pub fn categorize_error(err_string: &str) -> OverlayErrorCategory {
     }
 }
 
-/// Show the "sending" overlay state
-pub fn show_sending_overlay(app: &AppHandle) {
-    let settings = crate::settings::get_settings(app);
-    if settings.overlay_position == crate::settings::OverlayPosition::None {
-        return;
-    }
-
-    overlay::update_overlay_position(app);
-
-    if let Some(overlay_window) = app.get_webview_window("recording_overlay") {
-        let _ = overlay_window.show();
-
-        #[cfg(target_os = "windows")]
-        {
-            use windows::Win32::UI::WindowsAndMessaging::{
-                SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW,
-            };
-            let overlay_clone = overlay_window.clone();
-            let _ = overlay_clone.clone().run_on_main_thread(move || {
-                if let Ok(hwnd) = overlay_clone.hwnd() {
-                    unsafe {
-                        let _ = SetWindowPos(
-                            hwnd,
-                            Some(HWND_TOPMOST),
-                            0,
-                            0,
-                            0,
-                            0,
-                            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW,
-                        );
-                    }
-                }
-            });
-        }
-
-        let payload = OverlayPayload {
-            state: "sending".to_string(),
-            error_category: None,
-            error_message: None,
-        };
-        let _ = overlay_window.emit("show-overlay", payload);
-    }
-}
-
 /// Show the error overlay state with category and auto-hide after 3 seconds
 pub fn show_error_overlay(app: &AppHandle, category: OverlayErrorCategory) {
     let settings = crate::settings::get_settings(app);
@@ -144,31 +100,14 @@ pub fn show_error_overlay(app: &AppHandle, category: OverlayErrorCategory) {
         return;
     }
 
+    overlay::update_overlay_position(app);
+
     if let Some(overlay_window) = app.get_webview_window("recording_overlay") {
         let _ = overlay_window.show();
 
+        // On Windows, aggressively re-assert "topmost" in the native Z-order after showing
         #[cfg(target_os = "windows")]
-        {
-            use windows::Win32::UI::WindowsAndMessaging::{
-                SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW,
-            };
-            let overlay_clone = overlay_window.clone();
-            let _ = overlay_clone.clone().run_on_main_thread(move || {
-                if let Ok(hwnd) = overlay_clone.hwnd() {
-                    unsafe {
-                        let _ = SetWindowPos(
-                            hwnd,
-                            Some(HWND_TOPMOST),
-                            0,
-                            0,
-                            0,
-                            0,
-                            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW,
-                        );
-                    }
-                }
-            });
-        }
+        overlay::force_overlay_topmost(&overlay_window);
 
         let display_text = category.display_text().to_string();
         let payload = OverlayPayload {

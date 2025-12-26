@@ -42,7 +42,7 @@ const OVERLAY_BOTTOM_OFFSET: f64 = 40.0;
 /// Forces a window to be topmost using Win32 API (Windows only)
 /// This is more reliable than Tauri's set_always_on_top which can be overridden
 #[cfg(target_os = "windows")]
-fn force_overlay_topmost(overlay_window: &tauri::webview::WebviewWindow) {
+pub fn force_overlay_topmost(overlay_window: &tauri::webview::WebviewWindow) {
     use windows::Win32::UI::WindowsAndMessaging::{
         SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW,
     };
@@ -249,6 +249,28 @@ pub fn show_transcribing_overlay(app_handle: &AppHandle) {
 
         // Emit event to switch to transcribing state
         let _ = overlay_window.emit("show-overlay", "transcribing");
+    }
+}
+
+/// Shows the sending overlay window (for remote API calls)
+pub fn show_sending_overlay(app_handle: &AppHandle) {
+    // Check if overlay should be shown based on position setting
+    let settings = settings::get_settings(app_handle);
+    if settings.overlay_position == OverlayPosition::None {
+        return;
+    }
+
+    update_overlay_position(app_handle);
+
+    if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        let _ = overlay_window.show();
+
+        // On Windows, aggressively re-assert "topmost" in the native Z-order after showing
+        #[cfg(target_os = "windows")]
+        force_overlay_topmost(&overlay_window);
+
+        // Emit event to switch to sending state
+        let _ = overlay_window.emit("show-overlay", "sending");
     }
 }
 

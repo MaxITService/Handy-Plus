@@ -22,6 +22,7 @@ Files that differentiate this fork from the original [cjpais/Handy](https://gith
 | `src/components/settings/remote-stt/RemoteSttSettings.tsx` | UI for Remote STT configuration: base URL, model ID, API key management, connection testing, debug log viewer. |
 | `src/components/settings/advanced/AiReplaceSettings.tsx` | UI for AI Replace feature: system/user prompts, max chars limit, "no selection" mode toggle. |
 | `src/components/settings/browser-connector/ConnectorStatus.tsx` | Extension status indicator component showing online/offline status with "last seen" time when offline. |
+| `src/components/icons/SendingIcon.tsx` | Monochrome SVG icon (upload arrow) for "sending" overlay state. Matches pink style (`#FAA2CA`) of other icons. |
 | `src/overlay/plus_overlay_states.ts` | TypeScript types for extended overlay states (`error`, `sending`). Error category enum and display text mapping. |
 
 ## Modified Files
@@ -30,7 +31,8 @@ Files that differentiate this fork from the original [cjpais/Handy](https://gith
 
 | File | Changes |
 |------|---------|
-| `src-tauri/src/actions.rs` | Added new shortcut actions: `AiReplaceSelectionAction`, `SendToExtensionAction`, `SendToExtensionWithSelectionAction`, `SendScreenshotToExtensionAction`. These handle the new voice-to-LLM, connector, and screenshot workflows. |
+| `src-tauri/src/actions.rs` | Added new shortcut actions: `AiReplaceSelectionAction`, `SendToExtensionAction`, `SendToExtensionWithSelectionAction`, `SendScreenshotToExtensionAction`. These handle the new voice-to-LLM, connector, and screenshot workflows. **Uses `show_sending_overlay()` for Remote STT instead of `show_transcribing_overlay()`.** |
+| `src-tauri/src/overlay.rs` | Added `show_sending_overlay()` function, made `force_overlay_topmost()` public for reuse. |
 | `src-tauri/src/settings.rs` | Extended `AppSettings` with: `transcription_provider`, `remote_stt` settings, `ai_replace_*` fields, `connector_*` fields (including `connector_password` for auth), `screenshot_*` fields, individual push-to-talk settings (`send_to_extension_push_to_talk`, `send_to_extension_with_selection_push_to_talk`, `ai_replace_selection_push_to_talk`, `send_screenshot_to_extension_push_to_talk`). Added `RemoteSttSettings`, `TranscriptionProvider` enum, `default_true()` helper, `default_connector_password()`. |
 | `src-tauri/src/lib.rs` | Registered new managers (`RemoteSttManager`, `ConnectorManager`) and commands including individual push-to-talk commands and screenshot settings commands. Starts connector server on app init. |
 | `src-tauri/src/shortcut.rs` | Added shortcut bindings for new actions (AI Replace, Send to Extension, Send Screenshot to Extension). Added commands for individual push-to-talk settings and screenshot settings, plus logic to use per-binding push-to-talk instead of global setting for fork-specific actions. |
@@ -52,6 +54,7 @@ Files that differentiate this fork from the original [cjpais/Handy](https://gith
 
 | File | Changes |
 |------|---------|
+| `src/components/icons/index.ts` | Exports `SendingIcon` component. |
 | `src/components/settings/advanced/AdvancedSettings.tsx` | Added Remote STT and AI Replace settings sections. |
 | `src/components/settings/browser-connector/BrowserConnectorSettings.tsx` | Added extension status indicator section and screenshot settings (capture command, folder, timeout). |
 | `src/components/settings/general/GeneralSettings.tsx` | Minor adjustments for new settings layout. |
@@ -68,7 +71,7 @@ Files that differentiate this fork from the original [cjpais/Handy](https://gith
 | `src/App.tsx` | Event listeners for new features (remote-stt-error, ai-replace-error, screenshot-error). |
 | `src/components/model-selector/*` | Adjusted for transcription provider switching. |
 | `src/components/onboarding/Onboarding.tsx` | Updated for Remote STT option. |
-| `src/overlay/RecordingOverlay.tsx` | Extended to handle `error` state with categorized error messages. Accepts extended payload object instead of string-only state. |
+| `src/overlay/RecordingOverlay.tsx` | Extended to handle `error` and `sending` states with categorized error messages. Uses `SendingIcon` for "sending" state. Accepts extended payload object instead of string-only state. |
 | `src/overlay/RecordingOverlay.css` | Added `.error-text` and `.overlay-error` styles for error state display. |
 
 ## Feature → File Mapping

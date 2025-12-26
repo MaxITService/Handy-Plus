@@ -5,6 +5,7 @@ import {
   MicrophoneIcon,
   TranscriptionIcon,
   CancelIcon,
+  SendingIcon,
 } from "../components/icons";
 import "./RecordingOverlay.css";
 import { commands } from "@/bindings";
@@ -82,7 +83,7 @@ const RecordingOverlay: React.FC = () => {
       case "recording":
         return <MicrophoneIcon />;
       case "sending":
-        return <span className="overlay-icon-emoji">⬆️</span>;
+        return <SendingIcon />;
       case "error":
         return <span className="overlay-icon-emoji">❌</span>;
       case "transcribing":

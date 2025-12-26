@@ -12,7 +12,7 @@ use crate::settings::{
 };
 use crate::shortcut;
 use crate::tray::{change_tray_icon, TrayIconState};
-use crate::utils::{self, show_recording_overlay, show_transcribing_overlay};
+use crate::utils::{self, show_recording_overlay, show_sending_overlay, show_transcribing_overlay};
 use crate::ManagedToggleState;
 use async_openai::types::{
     ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
@@ -690,8 +690,14 @@ impl ShortcutAction for TranscribeAction {
         let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
         let hm = Arc::clone(&app.state::<Arc<HistoryManager>>());
 
+        // Get settings early to determine overlay type
+        let settings = get_settings(app);
         change_tray_icon(app, TrayIconState::Transcribing);
-        show_transcribing_overlay(app);
+        if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible {
+            show_sending_overlay(app);
+        } else {
+            show_transcribing_overlay(app);
+        }
 
         // Unmute before playing audio feedback so the stop sound is audible
         rm.remove_mute();
@@ -903,8 +909,14 @@ impl ShortcutAction for SendToExtensionAction {
         let hm = Arc::clone(&app.state::<Arc<HistoryManager>>());
         let cm = Arc::clone(&app.state::<Arc<ConnectorManager>>());
 
+        // Get settings early to determine overlay type
+        let settings = get_settings(app);
         change_tray_icon(app, TrayIconState::Transcribing);
-        show_transcribing_overlay(app);
+        if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible {
+            show_sending_overlay(app);
+        } else {
+            show_transcribing_overlay(app);
+        }
 
         // Unmute before playing audio feedback so the stop sound is audible
         rm.remove_mute();
@@ -1112,8 +1124,14 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
         let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
         let cm = Arc::clone(&app.state::<Arc<ConnectorManager>>());
 
+        // Get settings early to determine overlay type
+        let settings = get_settings(app);
         change_tray_icon(app, TrayIconState::Transcribing);
-        show_transcribing_overlay(app);
+        if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible {
+            show_sending_overlay(app);
+        } else {
+            show_transcribing_overlay(app);
+        }
 
         rm.remove_mute();
         play_feedback_sound(app, SoundType::Stop);
@@ -1456,8 +1474,14 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
         let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
         let cm = Arc::clone(&app.state::<Arc<ConnectorManager>>());
 
+        // Get settings early to determine overlay type
+        let settings = get_settings(app);
         change_tray_icon(app, TrayIconState::Transcribing);
-        show_transcribing_overlay(app);
+        if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible {
+            show_sending_overlay(app);
+        } else {
+            show_transcribing_overlay(app);
+        }
 
         rm.remove_mute();
         play_feedback_sound(app, SoundType::Stop);
@@ -1694,8 +1718,14 @@ impl ShortcutAction for AiReplaceSelectionAction {
         let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
         let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
 
+        // Get settings early to determine overlay type
+        let settings = get_settings(app);
         change_tray_icon(app, TrayIconState::Transcribing);
-        show_transcribing_overlay(app);
+        if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible {
+            show_sending_overlay(app);
+        } else {
+            show_transcribing_overlay(app);
+        }
 
         rm.remove_mute();
         play_feedback_sound(app, SoundType::Stop);
