@@ -1,6 +1,7 @@
 # Fork Agents Guide
 > **Agent rule:** all debugging/build verification is done by the user (do not run automated tests/builds unless explicitly requested).
-This file provides guidance for AI code agents working with this fork.
+This file provides guidance for AI code agents working with this fork. Do not run cargo check
+
 
 ## ⚠️ Important: This is a Fork
 
