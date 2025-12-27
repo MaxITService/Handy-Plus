@@ -299,6 +299,8 @@ pub fn run() {
         shortcut::change_ai_replace_quick_tap_threshold_ms_setting,
         shortcut::change_ai_replace_quick_tap_system_prompt_setting,
         shortcut::change_send_to_extension_push_to_talk_setting,
+        shortcut::change_send_to_extension_with_selection_system_prompt_setting,
+        shortcut::change_send_to_extension_with_selection_user_prompt_setting,
         shortcut::change_send_to_extension_with_selection_push_to_talk_setting,
         shortcut::change_ai_replace_selection_push_to_talk_setting,
         shortcut::change_connector_auto_open_enabled_setting,

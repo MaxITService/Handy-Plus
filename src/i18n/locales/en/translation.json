@@ -606,6 +606,18 @@
           "title": "Endpoint URL",
           "description": "The full URL where transcriptions will be sent."
         }
+      },
+      "prompts": {
+        "title": "Send + Selection Prompts",
+        "description": "Customize how selected text and voice instructions are formatted when using \"Send + Selection to Extension\".",
+        "systemPrompt": {
+          "title": "System Prompt",
+          "description": "System prompt used for formatting the message."
+        },
+        "userPrompt": {
+          "title": "User Prompt Template",
+          "description": "Template for combining instruction and selection. Supports ${instruction} and ${output}."
+        }
       }
     },
     "aiReplace": {

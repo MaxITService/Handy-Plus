@@ -332,6 +332,10 @@ pub struct AppSettings {
     pub ai_replace_quick_tap_threshold_ms: u32,
     #[serde(default = "default_ai_replace_quick_tap_system_prompt")]
     pub ai_replace_quick_tap_system_prompt: String,
+    #[serde(default = "default_send_to_extension_with_selection_system_prompt")]
+    pub send_to_extension_with_selection_system_prompt: String,
+    #[serde(default = "default_send_to_extension_with_selection_user_prompt")]
+    pub send_to_extension_with_selection_user_prompt: String,
     #[serde(default = "default_true")]
     pub send_to_extension_push_to_talk: bool,
     #[serde(default = "default_true")]
@@ -557,6 +561,14 @@ fn default_ai_replace_quick_tap_threshold_ms() -> u32 {
 
 fn default_ai_replace_quick_tap_system_prompt() -> String {
     "You are a text improvement engine.\nImprove the provided text while preserving its original meaning and intent.\nFix any grammar, spelling, or punctuation errors.\nEnhance clarity and readability where possible.\nReturn ONLY the improved text without any explanations or commentary.\nPreserve the original language and formatting unless fixing errors requires changes.".to_string()
+}
+
+fn default_send_to_extension_with_selection_system_prompt() -> String {
+    default_ai_replace_system_prompt()
+}
+
+fn default_send_to_extension_with_selection_user_prompt() -> String {
+    default_ai_replace_user_prompt()
 }
 
 fn default_post_process_providers() -> Vec<PostProcessProvider> {
@@ -820,6 +832,10 @@ pub fn get_default_settings() -> AppSettings {
         ai_replace_allow_quick_tap: default_ai_replace_allow_quick_tap(),
         ai_replace_quick_tap_threshold_ms: default_ai_replace_quick_tap_threshold_ms(),
         ai_replace_quick_tap_system_prompt: default_ai_replace_quick_tap_system_prompt(),
+        send_to_extension_with_selection_system_prompt:
+            default_send_to_extension_with_selection_system_prompt(),
+        send_to_extension_with_selection_user_prompt:
+            default_send_to_extension_with_selection_user_prompt(),
         send_to_extension_push_to_talk: true,
         send_to_extension_with_selection_push_to_talk: true,
         ai_replace_selection_push_to_talk: true,

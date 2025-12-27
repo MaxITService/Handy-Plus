@@ -530,7 +530,7 @@ fn build_extension_message(settings: &AppSettings, instruction: &str, selection:
         return instruction_trimmed.to_string();
     }
 
-    let user_template = settings.ai_replace_user_prompt.trim();
+    let user_template = settings.send_to_extension_with_selection_user_prompt.trim();
     let user_message = if user_template.is_empty() {
         format!(
             "INSTRUCTION:\n{}\n\nTEXT:\n{}",
@@ -542,7 +542,9 @@ fn build_extension_message(settings: &AppSettings, instruction: &str, selection:
             .replace("${output}", selection)
     };
 
-    let system_prompt = settings.ai_replace_system_prompt.trim();
+    let system_prompt = settings
+        .send_to_extension_with_selection_system_prompt
+        .trim();
     if system_prompt.is_empty() {
         user_message
     } else {

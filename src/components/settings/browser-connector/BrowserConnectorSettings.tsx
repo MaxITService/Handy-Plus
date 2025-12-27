@@ -353,6 +353,46 @@ export const BrowserConnectorSettings: React.FC = () => {
         </div>
       </SettingsGroup>
 
+      {/* Prompt Templates */}
+      <SettingsGroup title={t("settings.browserConnector.prompts.title")}>
+        <div className="text-sm text-text/60 mb-2 px-1">
+          {t("settings.browserConnector.prompts.description")}
+        </div>
+        <SettingContainer
+          title={t("settings.browserConnector.prompts.systemPrompt.title")}
+          description={t("settings.browserConnector.prompts.systemPrompt.description")}
+          descriptionMode="inline"
+          grouped={true}
+          layout="stacked"
+        >
+          <Textarea
+            value={settings?.send_to_extension_with_selection_system_prompt ?? ""}
+            onChange={(event) => void updateSetting("send_to_extension_with_selection_system_prompt", event.target.value)}
+            disabled={isUpdating("send_to_extension_with_selection_system_prompt")}
+            className="w-full"
+            rows={4}
+          />
+        </SettingContainer>
+        <SettingContainer
+          title={t("settings.browserConnector.prompts.userPrompt.title")}
+          description={t("settings.browserConnector.prompts.userPrompt.description")}
+          descriptionMode="inline"
+          grouped={true}
+          layout="stacked"
+        >
+          <Textarea
+            value={settings?.send_to_extension_with_selection_user_prompt ?? ""}
+            onChange={(event) => void updateSetting("send_to_extension_with_selection_user_prompt", event.target.value)}
+            disabled={isUpdating("send_to_extension_with_selection_user_prompt")}
+            className="w-full"
+            rows={3}
+          />
+          <div className="text-xs text-text/50 mt-1">
+            {t("settings.aiReplace.withSelection.variables")}
+          </div>
+        </SettingContainer>
+      </SettingsGroup>
+
       {/* Auto-Open Tab Settings */}
       <SettingsGroup title={t("settings.browserConnector.autoOpen.title")}>
         <div className="text-sm text-text/60 mb-2 px-1">

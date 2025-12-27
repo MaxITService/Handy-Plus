@@ -912,6 +912,30 @@ pub fn change_send_to_extension_push_to_talk_setting(
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_send_to_extension_with_selection_system_prompt_setting(
+    app: AppHandle,
+    prompt: String,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.send_to_extension_with_selection_system_prompt = prompt;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_send_to_extension_with_selection_user_prompt_setting(
+    app: AppHandle,
+    prompt: String,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.send_to_extension_with_selection_user_prompt = prompt;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_send_to_extension_with_selection_push_to_talk_setting(
     app: AppHandle,
     enabled: bool,
