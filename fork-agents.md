@@ -92,15 +92,8 @@ When using Remote STT API, the **Recording Overlay** (`recording_overlay` window
 2. Fork features are mostly Windows-only — use `#[cfg(target_os = "windows")]` guards
 3. Settings are in `src-tauri/src/settings.rs` (look for `remote_stt`, `ai_replace_*`, `connector_*` fields)
 
-### Testing Fork Features
-```bash
-# Remote STT requires Windows + API key configured
-# AI Replace requires Windows + LLM provider configured
-# Connector requires Handy running (it starts the local HTTP server for the extension)
-```
-
 ### Adding New Fork Features
-1. Add new files when possible (cleaner separation from upstream)
+1. Add new files when possible (cleaner separation from upstream) ! So original code "is left alone" and can be merged easily, but we have like copy, which is fully custom: less code to merge.
 2. Document in `code-notes.md`
 3. Add translations in `src/i18n/locales/en/translation.json`
 4. Consider platform guards if Windows-specific
@@ -109,12 +102,7 @@ When using Remote STT API, the **Recording Overlay** (`recording_overlay` window
 
 See [`fork-merge-guide.md`](fork-merge-guide.md) for upstream tracking and the merge/conflict-resolution checklist.
 
-## Debugging Fork Features
-### Remote STT
-1. Enable debug logging: Settings → Advanced → Remote STT → Debug Capture (toggle on)
-2. Set mode to "Verbose" for full request/response logging
-3. Check debug output textarea in settings for errors
-4. Listen to `remote-stt-error` event in frontend
+
 
 ### AI Replace
 1. Listen to `ai-replace-error` event in `App.tsx` for error messages
