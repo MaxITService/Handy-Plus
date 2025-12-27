@@ -936,42 +936,6 @@ pub fn change_ai_replace_selection_push_to_talk_setting(
 
 #[tauri::command]
 #[specta::specta]
-pub fn change_connector_send_system_prompt_setting(
-    app: AppHandle,
-    prompt: String,
-) -> Result<(), String> {
-    let mut settings = settings::get_settings(&app);
-    settings.connector_send_system_prompt = prompt;
-    settings::write_settings(&app, settings);
-    Ok(())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn change_connector_send_selection_system_prompt_setting(
-    app: AppHandle,
-    prompt: String,
-) -> Result<(), String> {
-    let mut settings = settings::get_settings(&app);
-    settings.connector_send_selection_system_prompt = prompt;
-    settings::write_settings(&app, settings);
-    Ok(())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn change_connector_send_selection_user_prompt_setting(
-    app: AppHandle,
-    prompt: String,
-) -> Result<(), String> {
-    let mut settings = settings::get_settings(&app);
-    settings.connector_send_selection_user_prompt = prompt;
-    settings::write_settings(&app, settings);
-    Ok(())
-}
-
-#[tauri::command]
-#[specta::specta]
 pub fn change_connector_auto_open_enabled_setting(
     app: AppHandle,
     enabled: bool,

@@ -800,10 +800,11 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
         let binding_id = binding_id.to_string();
 
         tauri::async_runtime::spawn(async move {
-            let (transcription, _) = match get_transcription_or_cleanup(&ah, &binding_id).await {
-                Some(res) => res,
-                None => return,
-            };
+            let (transcription, samples) =
+                match get_transcription_or_cleanup(&ah, &binding_id).await {
+                    Some(res) => res,
+                    None => return,
+                };
 
             if transcription.trim().is_empty() {
                 utils::hide_recording_overlay(&ah);
@@ -811,9 +812,12 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
                 return;
             }
 
+            let final_transcription =
+                apply_post_processing_and_history(&ah, transcription, samples).await;
+
             let settings = get_settings(&ah);
             let selected_text = utils::capture_selection_text_copy(&ah).unwrap_or_default();
-            let message = build_extension_message(&settings, &transcription, &selected_text);
+            let message = build_extension_message(&settings, &final_transcription, &selected_text);
 
             if !message.trim().is_empty() {
                 let _ = cm.queue_message(&message);

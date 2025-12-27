@@ -528,28 +528,6 @@
       "shortcuts": {
         "title": "Shortcuts"
       },
-      "sendPrompts": {
-        "title": "Send to Extension Prompts",
-        "description": "Optional: Process transcription through LLM before sending. Leave empty to send raw transcription.",
-        "systemPrompt": {
-          "title": "System Prompt",
-          "description": "System prompt for LLM processing. Leave empty to skip LLM and send raw transcription.",
-          "placeholder": "E.g.: Translate the following text to English and fix grammar errors."
-        }
-      },
-      "sendSelectionPrompts": {
-        "title": "Send + Selection Prompts",
-        "description": "Process voice instruction and selected text through LLM before sending.",
-        "systemPrompt": {
-          "title": "System Prompt",
-          "description": "System prompt for LLM that processes voice instruction and selected text."
-        },
-        "userPrompt": {
-          "title": "User Prompt Template",
-          "description": "Template for the user message sent to LLM."
-        },
-        "variables": "Available variables: ${instruction} (your voice), ${output} (selected text)"
-      },
       "autoOpen": {
         "title": "Auto-Open Tab",
         "description": "Automatically open a new browser tab when no tab is bound to the extension. This allows seamless hands-free sending without manually selecting a tab first.",

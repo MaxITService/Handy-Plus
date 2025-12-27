@@ -45,11 +45,6 @@ export const BrowserConnectorSettings: React.FC = () => {
     String(settings?.screenshot_timeout_seconds ?? 5)
   );
 
-  // Connector prompt settings
-  const sendSystemPrompt = getSetting("connector_send_system_prompt") ?? "";
-  const sendSelectionSystemPrompt = getSetting("connector_send_selection_system_prompt") ?? "";
-  const sendSelectionUserPrompt = getSetting("connector_send_selection_user_prompt") ?? "";
-
   useEffect(() => {
     setPortInput(String(settings?.connector_port ?? 63155));
     setPortError(null); // Clear error when port updates successfully
@@ -129,18 +124,6 @@ export const BrowserConnectorSettings: React.FC = () => {
 
   const handleAutoOpenSiteChange = (url: string) => {
     void updateSetting("connector_auto_open_url", url);
-  };
-
-  const handleSendSystemPromptChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    void updateSetting("connector_send_system_prompt", event.target.value);
-  };
-
-  const handleSendSelectionSystemPromptChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    void updateSetting("connector_send_selection_system_prompt", event.target.value);
-  };
-
-  const handleSendSelectionUserPromptChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    void updateSetting("connector_send_selection_user_prompt", event.target.value);
   };
 
   // Screenshot settings handlers
@@ -368,69 +351,6 @@ export const BrowserConnectorSettings: React.FC = () => {
             />
           </SettingContainer>
         </div>
-      </SettingsGroup>
-
-      {/* Send to Extension Prompts */}
-      <SettingsGroup title={t("settings.browserConnector.sendPrompts.title")}>
-        <div className="text-sm text-text/60 mb-2 px-1">
-          {t("settings.browserConnector.sendPrompts.description")}
-        </div>
-        <SettingContainer
-          title={t("settings.browserConnector.sendPrompts.systemPrompt.title")}
-          description={t("settings.browserConnector.sendPrompts.systemPrompt.description")}
-          descriptionMode="inline"
-          grouped={true}
-          layout="stacked"
-        >
-          <Textarea
-            value={sendSystemPrompt}
-            onChange={handleSendSystemPromptChange}
-            disabled={isUpdating("connector_send_system_prompt")}
-            placeholder={t("settings.browserConnector.sendPrompts.systemPrompt.placeholder")}
-            className="w-full"
-            rows={3}
-          />
-        </SettingContainer>
-      </SettingsGroup>
-
-      {/* Send + Selection Prompts */}
-      <SettingsGroup title={t("settings.browserConnector.sendSelectionPrompts.title")}>
-        <div className="text-sm text-text/60 mb-2 px-1">
-          {t("settings.browserConnector.sendSelectionPrompts.description")}
-        </div>
-        <SettingContainer
-          title={t("settings.browserConnector.sendSelectionPrompts.systemPrompt.title")}
-          description={t("settings.browserConnector.sendSelectionPrompts.systemPrompt.description")}
-          descriptionMode="inline"
-          grouped={true}
-          layout="stacked"
-        >
-          <Textarea
-            value={sendSelectionSystemPrompt}
-            onChange={handleSendSelectionSystemPromptChange}
-            disabled={isUpdating("connector_send_selection_system_prompt")}
-            className="w-full"
-            rows={4}
-          />
-        </SettingContainer>
-        <SettingContainer
-          title={t("settings.browserConnector.sendSelectionPrompts.userPrompt.title")}
-          description={t("settings.browserConnector.sendSelectionPrompts.userPrompt.description")}
-          descriptionMode="inline"
-          grouped={true}
-          layout="stacked"
-        >
-          <Textarea
-            value={sendSelectionUserPrompt}
-            onChange={handleSendSelectionUserPromptChange}
-            disabled={isUpdating("connector_send_selection_user_prompt")}
-            className="w-full"
-            rows={3}
-          />
-          <div className="text-xs text-text/50 mt-1">
-            {t("settings.browserConnector.sendSelectionPrompts.variables")}
-          </div>
-        </SettingContainer>
       </SettingsGroup>
 
       {/* Auto-Open Tab Settings */}

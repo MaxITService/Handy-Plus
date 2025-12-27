@@ -651,17 +651,9 @@ impl ConnectorManager {
         let now = now_ms();
         let expires_at = now + BLOB_EXPIRY_MS;
 
-        // Get settings for port and auth token
-        let settings = get_settings(&self.app_handle);
+        // Get port for fetch URL
         let port = *self.port.read().unwrap();
         let fetch_url = format!("http://127.0.0.1:{}/blob/{}", port, att_id);
-
-        // Include auth header so extension can fetch blobs (blob endpoint requires auth)
-        let mut fetch_headers = HashMap::new();
-        fetch_headers.insert(
-            "Authorization".to_string(),
-            format!("Bearer {}", settings.connector_password),
-        );
 
         // Create the attachment
         let attachment = BundleAttachment {
@@ -673,7 +665,7 @@ impl ConnectorManager {
             fetch: BundleFetch {
                 url: fetch_url,
                 method: Some("GET".to_string()),
-                headers: Some(fetch_headers),
+                headers: None, // Extension provides auth header automatically
                 expires_at: Some(expires_at),
             },
         };

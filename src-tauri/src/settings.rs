@@ -352,12 +352,6 @@ pub struct AppSettings {
     pub connector_auto_open_enabled: bool,
     #[serde(default = "default_connector_auto_open_url")]
     pub connector_auto_open_url: String,
-    #[serde(default = "default_connector_send_system_prompt")]
-    pub connector_send_system_prompt: String,
-    #[serde(default = "default_connector_send_selection_system_prompt")]
-    pub connector_send_selection_system_prompt: String,
-    #[serde(default = "default_connector_send_selection_user_prompt")]
-    pub connector_send_selection_user_prompt: String,
     #[serde(default = "default_screenshot_capture_command")]
     pub screenshot_capture_command: String,
     #[serde(default = "default_screenshot_folder")]
@@ -498,18 +492,6 @@ fn default_connector_auto_open_enabled() -> bool {
 
 fn default_connector_auto_open_url() -> String {
     "".to_string()
-}
-
-fn default_connector_send_system_prompt() -> String {
-    "".to_string()
-}
-
-fn default_connector_send_selection_system_prompt() -> String {
-    "You are a text transformation engine.\nReturn ONLY the final transformed text that is ready to be sent to an AI chat.\nDo not include explanations, commentary, labels, headings, lists, markdown, code fences, or any surrounding quotes.\nPreserve the original language and keep the original formatting (line breaks, punctuation, and spacing) unless the instruction explicitly asks to change it.\nMake the smallest change that satisfies the instruction.\nIf the instruction conflicts with the text or is unclear, prefer minimal edits and do not invent new facts.".to_string()
-}
-
-fn default_connector_send_selection_user_prompt() -> String {
-    "INSTRUCTION:\n${instruction}\n\nTEXT:\n${output}".to_string()
 }
 
 fn default_screenshot_capture_command() -> String {
@@ -754,8 +736,7 @@ pub fn get_default_settings() -> AppSettings {
         ShortcutBinding {
             id: "send_to_extension_with_selection".to_string(),
             name: "Send + Selection to Extension".to_string(),
-            description:
-                "Send transcription plus copied selection to Handy Connector.".to_string(),
+            description: "Send transcription plus copied selection to Handy Connector.".to_string(),
             default_binding: default_send_selection_shortcut.to_string(),
             current_binding: default_send_selection_shortcut.to_string(),
         },
@@ -779,9 +760,8 @@ pub fn get_default_settings() -> AppSettings {
         ShortcutBinding {
             id: "send_screenshot_to_extension".to_string(),
             name: "Send Screenshot to Extension".to_string(),
-            description:
-                "Capture screenshot with voice instruction and send to Handy Connector."
-                    .to_string(),
+            description: "Capture screenshot with voice instruction and send to Handy Connector."
+                .to_string(),
             default_binding: "".to_string(),
             current_binding: "".to_string(),
         },
@@ -850,9 +830,6 @@ pub fn get_default_settings() -> AppSettings {
         connector_path: default_connector_path(),
         connector_auto_open_enabled: default_connector_auto_open_enabled(),
         connector_auto_open_url: default_connector_auto_open_url(),
-        connector_send_system_prompt: default_connector_send_system_prompt(),
-        connector_send_selection_system_prompt: default_connector_send_selection_system_prompt(),
-        connector_send_selection_user_prompt: default_connector_send_selection_user_prompt(),
         screenshot_capture_command: default_screenshot_capture_command(),
         screenshot_folder: default_screenshot_folder(),
         screenshot_require_recent: true,
