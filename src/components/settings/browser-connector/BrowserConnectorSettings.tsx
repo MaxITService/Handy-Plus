@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { Globe, Info, ExternalLink, Eye, EyeOff, Copy, AlertTriangle } from "lucide-react";
+import { commands } from "@/bindings";
 import { useSettings } from "../../../hooks/useSettings";
 import { HandyShortcut } from "../HandyShortcut";
 import { Input } from "../../ui/Input";
@@ -28,6 +29,7 @@ export const BrowserConnectorSettings: React.FC = () => {
   const { settings, getSetting, updateSetting, isUpdating } = useSettings();
 
   const [portInput, setPortInput] = useState(String(settings?.connector_port ?? 63155));
+  const [portError, setPortError] = useState<string | null>(null);
   const [passwordInput, setPasswordInput] = useState(settings?.connector_password ?? "");
   const [showPassword, setShowPassword] = useState(false);
   const [showCopiedTooltip, setShowCopiedTooltip] = useState(false);
@@ -50,6 +52,7 @@ export const BrowserConnectorSettings: React.FC = () => {
 
   useEffect(() => {
     setPortInput(String(settings?.connector_port ?? 63155));
+    setPortError(null); // Clear error when port updates successfully
   }, [settings?.connector_port]);
 
   useEffect(() => {
@@ -71,10 +74,32 @@ export const BrowserConnectorSettings: React.FC = () => {
     setScreenshotTimeoutInput(String(settings?.screenshot_timeout_seconds ?? 5));
   }, [settings?.screenshot_timeout_seconds]);
 
-  const handlePortBlur = () => {
+  const handlePortBlur = async () => {
     const port = parseInt(portInput.trim(), 10);
-    if (!isNaN(port) && port > 0 && port <= 65535 && port !== settings?.connector_port) {
-      void updateSetting("connector_port", port);
+    const MIN_PORT = 1024;
+    
+    // Validate port range
+    if (isNaN(port) || port < MIN_PORT || port > 65535) {
+      setPortError(t("settings.browserConnector.connection.port.errorRange", { min: MIN_PORT }));
+      return;
+    }
+    
+    if (port === settings?.connector_port) {
+      setPortError(null);
+      return;
+    }
+    
+    setPortError(null);
+    try {
+      const result = await commands.changeConnectorPortSetting(port);
+      if (result.status === "error") {
+        setPortError(result.error);
+        // Revert input to current working port
+        setPortInput(String(settings?.connector_port ?? 63155));
+      }
+    } catch (error) {
+      setPortError(String(error));
+      setPortInput(String(settings?.connector_port ?? 63155));
     }
   };
 
@@ -452,16 +477,27 @@ export const BrowserConnectorSettings: React.FC = () => {
           descriptionMode="tooltip"
           grouped={true}
         >
-          <Input
-            type="number"
-            value={portInput}
-            onChange={(event) => setPortInput(event.target.value)}
-            onBlur={handlePortBlur}
-            placeholder="63155"
-            min={1}
-            max={65535}
-            className="w-28"
-          />
+          <div className="flex flex-col gap-1">
+            <Input
+              type="number"
+              value={portInput}
+              onChange={(event) => {
+                setPortInput(event.target.value);
+                setPortError(null);
+              }}
+              onBlur={handlePortBlur}
+              placeholder="63155"
+              min={1024}
+              max={65535}
+              className={`w-28 ${portError ? "border-red-500" : ""}`}
+            />
+            {portError && (
+              <div className="text-sm text-red-400 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                {portError}
+              </div>
+            )}
+          </div>
         </SettingContainer>
 
         <SettingContainer

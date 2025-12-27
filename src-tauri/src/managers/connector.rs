@@ -262,14 +262,27 @@ impl ConnectorManager {
         Ok(())
     }
 
+    /// Minimum allowed port number (1024 = first non-privileged port)
+    const MIN_PORT: u16 = 1024;
+
     /// Try to bind to the specified port (exact port only, no fallback)
     fn try_bind_server(port: u16) -> Result<Server, String> {
+        // Validate port range
+        if port < Self::MIN_PORT {
+            return Err(format!(
+                "Port {} is not allowed. Please use a port number of {} or higher.",
+                port,
+                Self::MIN_PORT
+            ));
+        }
+
         let addr = format!("127.0.0.1:{}", port);
 
         Server::http(&addr).map_err(|e| {
+            error!("Failed to bind connector server to port {}: {}", port, e);
             format!(
-                "Could not bind to port {}: {}. Please ensure the port is available or change the connector port in settings.",
-                port, e
+                "Port {} is already in use or unavailable. Please choose a different port.",
+                port
             )
         })
     }

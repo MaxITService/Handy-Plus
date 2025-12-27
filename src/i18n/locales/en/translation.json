@@ -609,7 +609,8 @@
         },
         "port": {
           "title": "Port",
-          "description": "The port number of the Handy Connector server."
+          "description": "The port number of the Handy Connector server.",
+          "errorRange": "Port must be {{min}} or higher"
         },
         "path": {
           "title": "Path",
