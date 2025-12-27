@@ -617,6 +617,14 @@
         "userPrompt": {
           "title": "User Prompt Template",
           "description": "Template for combining instruction and selection. Supports ${instruction} and ${output}."
+        },
+        "allowNoVoice": {
+          "title": "Allow Without Voice",
+          "description": "Send selected text without speaking. Uses the system prompt below for formatting."
+        },
+        "noVoiceSystemPrompt": {
+          "title": "System Prompt (No Voice)",
+          "description": "System prompt used when sending selected text without voice instruction."
         }
       }
     },

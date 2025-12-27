@@ -391,6 +391,35 @@ export const BrowserConnectorSettings: React.FC = () => {
             {t("settings.aiReplace.withSelection.variables")}
           </div>
         </SettingContainer>
+        <SettingContainer
+          title={t("settings.browserConnector.prompts.allowNoVoice.title")}
+          description={t("settings.browserConnector.prompts.allowNoVoice.description")}
+          descriptionMode="tooltip"
+          grouped={true}
+        >
+          <ToggleSwitch
+            checked={settings?.send_to_extension_with_selection_allow_no_voice ?? true}
+            onChange={(enabled) => void updateSetting("send_to_extension_with_selection_allow_no_voice", enabled)}
+            disabled={isUpdating("send_to_extension_with_selection_allow_no_voice")}
+          />
+        </SettingContainer>
+        <div className={!settings?.send_to_extension_with_selection_allow_no_voice ? "opacity-50" : ""}>
+          <SettingContainer
+            title={t("settings.browserConnector.prompts.noVoiceSystemPrompt.title")}
+            description={t("settings.browserConnector.prompts.noVoiceSystemPrompt.description")}
+            descriptionMode="inline"
+            grouped={true}
+            layout="stacked"
+          >
+            <Textarea
+              value={settings?.send_to_extension_with_selection_no_voice_system_prompt ?? ""}
+              onChange={(event) => void updateSetting("send_to_extension_with_selection_no_voice_system_prompt", event.target.value)}
+              disabled={!settings?.send_to_extension_with_selection_allow_no_voice || isUpdating("send_to_extension_with_selection_no_voice_system_prompt")}
+              className="w-full"
+              rows={2}
+            />
+          </SettingContainer>
+        </div>
       </SettingsGroup>
 
       {/* Auto-Open Tab Settings */}

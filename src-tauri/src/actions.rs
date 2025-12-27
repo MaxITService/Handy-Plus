@@ -523,7 +523,18 @@ fn build_extension_message(settings: &AppSettings, instruction: &str, selection:
     let selection_trimmed = selection.trim();
 
     if instruction_trimmed.is_empty() {
-        return String::new();
+        if settings.send_to_extension_with_selection_allow_no_voice {
+            let system_prompt = settings
+                .send_to_extension_with_selection_no_voice_system_prompt
+                .trim();
+            if system_prompt.is_empty() {
+                return selection_trimmed.to_string();
+            } else {
+                return format!("SYSTEM:\n{}\n\n{}", system_prompt, selection_trimmed);
+            }
+        } else {
+            return String::new();
+        }
     }
 
     if selection_trimmed.is_empty() {
@@ -808,16 +819,18 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
                     None => return,
                 };
 
-            if transcription.trim().is_empty() {
-                utils::hide_recording_overlay(&ah);
-                change_tray_icon(&ah, TrayIconState::Idle);
-                return;
-            }
-
-            let final_transcription =
-                apply_post_processing_and_history(&ah, transcription, samples).await;
-
             let settings = get_settings(&ah);
+            let final_transcription = if transcription.trim().is_empty() {
+                if !settings.send_to_extension_with_selection_allow_no_voice {
+                    utils::hide_recording_overlay(&ah);
+                    change_tray_icon(&ah, TrayIconState::Idle);
+                    return;
+                }
+                String::new()
+            } else {
+                apply_post_processing_and_history(&ah, transcription, samples).await
+            };
+
             let selected_text = utils::capture_selection_text_copy(&ah).unwrap_or_default();
             let message = build_extension_message(&settings, &final_transcription, &selected_text);
 

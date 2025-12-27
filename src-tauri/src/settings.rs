@@ -341,6 +341,10 @@ pub struct AppSettings {
     #[serde(default = "default_true")]
     pub send_to_extension_with_selection_push_to_talk: bool,
     #[serde(default = "default_true")]
+    pub send_to_extension_with_selection_allow_no_voice: bool,
+    #[serde(default)]
+    pub send_to_extension_with_selection_no_voice_system_prompt: String,
+    #[serde(default = "default_true")]
     pub ai_replace_selection_push_to_talk: bool,
     #[serde(default)]
     pub mute_while_recording: bool,
@@ -836,6 +840,8 @@ pub fn get_default_settings() -> AppSettings {
             default_send_to_extension_with_selection_system_prompt(),
         send_to_extension_with_selection_user_prompt:
             default_send_to_extension_with_selection_user_prompt(),
+        send_to_extension_with_selection_allow_no_voice: true,
+        send_to_extension_with_selection_no_voice_system_prompt: String::new(),
         send_to_extension_push_to_talk: true,
         send_to_extension_with_selection_push_to_talk: true,
         ai_replace_selection_push_to_talk: true,
