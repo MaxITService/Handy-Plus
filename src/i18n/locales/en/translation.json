@@ -111,7 +111,7 @@
             "description": "Converts your speech into text."
           },
           "send_to_extension": {
-            "name": "Send to Extension",
+            "name": "Send Transcription to Extension",
             "description": "Send transcription to Handy Connector browser extension.",
             "pushToTalk": {
               "label": "Push To Talk",
@@ -119,7 +119,7 @@
             }
           },
           "send_to_extension_with_selection": {
-            "name": "Send + Selection to Extension",
+            "name": "Send Transcription + Selection to Extension",
             "description": "Send transcription plus selected text to Handy Connector browser extension.",
             "pushToTalk": {
               "label": "Push To Talk",
@@ -135,7 +135,7 @@
             }
           },
           "send_screenshot_to_extension": {
-            "name": "Send Screenshot to Extension",
+            "name": "Send Transcription + Screenshot to Extension",
             "description": "Capture a screenshot region and send it with voice instruction to the browser extension.",
             "pushToTalk": {
               "label": "Push To Talk",
@@ -504,7 +504,7 @@
         "title": "What is Browser Connector?",
         "description": "Browser Connector sends your voice transcriptions directly to AI chat interfaces (like ChatGPT, Claude) through the <link>Handy Connector</link> Chrome extension.",
         "feature1": "Speak and send messages directly to ChatGPT or other AI chats",
-        "feature2": "Use \"Send + Selection\" to include selected text as context",
+        "feature2": "Use \"Send Transcription + Selection\" to include selected text as context",
         "feature3": "Optional LLM processing before sending (e.g., translate, reformat)",
         "feature4": "YOU MUST CHANGE PASSWORD IN SETTINGS - SAME PASSWORD HERE AND IN EXTENSION. OTHERWISE YOUR MESSAGES ARE AT RISK OF BEING SPYED ON BY ANY WEBSITE WHICH KNOWS DEFAULT PASSWORD!"
       },
@@ -608,8 +608,8 @@
         }
       },
       "prompts": {
-        "title": "Send + Selection Prompts",
-        "description": "Customize how selected text and voice instructions are formatted when using \"Send + Selection to Extension\".",
+        "title": "Send Transcription + Selection Prompts",
+        "description": "Customize how selected text and voice instructions are formatted when using \"Send Transcription + Selection to Extension\".",
         "systemPrompt": {
           "title": "System Prompt",
           "description": "System prompt used for formatting the message."
@@ -623,7 +623,7 @@
     "aiReplace": {
       "help": {
         "title": "What is AI Replace Selection?",
-        "description": "Select text, speak an instruction, and let AI transform the selected text based on your voice command. Requires an API key configured in the API Post Processing section.",
+        "description": "Select text, speak an instruction, and let AI transform the selected text based on your voice command. If no text is selected, the AI replaces the \"empty\" text with new content generated from your instruction.",
         "step1": "Select text in any application",
         "step2": "Press the shortcut and speak your instruction (e.g., \"translate to French\")",
         "step3": "AI replaces your selection with the transformed result"
