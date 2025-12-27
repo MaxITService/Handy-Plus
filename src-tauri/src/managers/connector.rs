@@ -436,15 +436,20 @@ impl ConnectorManager {
                 let mut body = String::new();
                 let _ = request.as_reader().read_to_string(&mut body);
 
+                debug!("POST /messages body: {}", body);
                 if let Ok(post_body) = serde_json::from_str::<PostBody>(&body) {
+                    debug!("Parsed POST body, msg_type={:?}", post_body.msg_type);
                     if post_body.msg_type.as_deref() == Some("keepalive_ack") {
                         debug!("Received keepalive ack from extension");
                     } else if post_body.msg_type.as_deref() == Some("password_ack") {
                         // Extension acknowledged receiving the new password - commit it
+                        info!("Received password_ack from extension, committing password...");
                         commit_pending_password(app_handle);
                     } else if let Some(text) = post_body.text {
                         debug!("Received message from extension: {}", text);
                     }
+                } else {
+                    debug!("Failed to parse POST body as JSON");
                 }
 
                 // Update last poll time on POST too
@@ -916,22 +921,31 @@ fn maybe_generate_new_password(app_handle: &AppHandle) -> Option<String> {
     }
 
     // Only generate if:
-    // 1. Password has not been explicitly set by user
-    // 2. Password is still the default
-    if !settings.connector_password_user_set
-        && settings.connector_password == default_connector_password()
-    {
+    // 1. Password is the default (regardless of whether user explicitly set it)
+    // This allows recovery when user accidentally sets password to default
+    let is_default = settings.connector_password == default_connector_password();
+    debug!(
+        "Password check: is_default={}, user_set={}, current_len={}",
+        is_default,
+        settings.connector_password_user_set,
+        settings.connector_password.len()
+    );
+
+    if is_default {
         let new_password = generate_secure_password();
-        info!("Generating new secure connector password (first connection with default) - awaiting acknowledgement");
+        info!("Generating new secure connector password (default password detected) - awaiting acknowledgement");
 
         // Store as pending - NOT committed until extension acknowledges
         let mut new_settings = settings.clone();
         new_settings.connector_pending_password = Some(new_password.clone());
+        // Reset user_set flag since we're auto-generating
+        new_settings.connector_password_user_set = false;
         // Note: connector_password stays as default until ack received
         write_settings(app_handle, new_settings);
 
         Some(new_password)
     } else {
+        debug!("Password is not default, skipping auto-generation");
         None
     }
 }

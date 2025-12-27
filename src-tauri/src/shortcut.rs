@@ -1035,9 +1035,19 @@ pub fn change_connector_password_setting(app: AppHandle, password: String) -> Re
     }
 
     let mut settings = settings::get_settings(&app);
-    settings.connector_password = trimmed;
+
+    // If setting to the same password, nothing to do
+    if settings.connector_password == trimmed {
+        return Ok(());
+    }
+
+    // Use two-phase commit: set new password as pending, keep old one valid
+    // Extension will receive passwordUpdate, save it, send ack, then it's committed
+    // This prevents extension from getting locked out during password change
+    log::info!("User changing connector password - using two-phase commit");
+    settings.connector_pending_password = Some(trimmed);
     settings.connector_password_user_set = true;
-    settings.connector_pending_password = None;
+    // Note: connector_password stays as OLD password until extension acks
     settings::write_settings(&app, settings);
     Ok(())
 }
