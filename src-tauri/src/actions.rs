@@ -335,6 +335,89 @@ fn start_recording_with_feedback(app: &AppHandle, binding_id: &str) -> bool {
 
 // ============================================================================
 
+/// Result of a transcription operation
+pub enum TranscriptionOutcome {
+    /// Transcription succeeded with the given text
+    Success(String),
+    /// Operation was cancelled (Remote STT only)
+    Cancelled,
+    /// Error occurred - for Remote STT, error is already shown in overlay
+    Error {
+        message: String,
+        shown_in_overlay: bool,
+    },
+}
+
+/// Performs transcription using either local or remote STT based on settings.
+///
+/// This helper consolidates the common transcription logic used across multiple actions:
+/// - Provider selection (local vs remote)
+/// - Custom word correction (for remote)
+/// - Cancellation tracking (for remote)
+/// - Error display in overlay (for remote)
+///
+/// Returns a TranscriptionOutcome indicating success, cancellation, or error.
+async fn perform_transcription(app: &AppHandle, samples: Vec<f32>) -> TranscriptionOutcome {
+    let settings = get_settings(app);
+
+    if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible {
+        let remote_manager = app.state::<Arc<RemoteSttManager>>();
+        let operation_id = remote_manager.start_operation();
+
+        let result = remote_manager
+            .transcribe(&settings.remote_stt, &samples)
+            .await
+            .map(|text| {
+                if settings.custom_words.is_empty() {
+                    text
+                } else {
+                    apply_custom_words(
+                        &text,
+                        &settings.custom_words,
+                        settings.word_correction_threshold,
+                    )
+                }
+            });
+
+        // Check if operation was cancelled while we were waiting
+        if remote_manager.is_cancelled(operation_id) {
+            debug!(
+                "Transcription operation {} was cancelled, discarding result",
+                operation_id
+            );
+            return TranscriptionOutcome::Cancelled;
+        }
+
+        match result {
+            Ok(text) => TranscriptionOutcome::Success(text),
+            Err(err) => {
+                let err_str = format!("{}", err);
+                let _ = app.emit("remote-stt-error", err_str.clone());
+                crate::plus_overlay_state::handle_transcription_error(app, &err_str);
+                TranscriptionOutcome::Error {
+                    message: err_str,
+                    shown_in_overlay: true,
+                }
+            }
+        }
+    } else {
+        let tm = app.state::<Arc<TranscriptionManager>>();
+        match tm.transcribe(samples) {
+            Ok(text) => TranscriptionOutcome::Success(text),
+            Err(err) => {
+                let err_str = format!("{}", err);
+                debug!("Local transcription error: {}", err_str);
+                TranscriptionOutcome::Error {
+                    message: err_str,
+                    shown_in_overlay: false,
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+
 fn build_extension_message(settings: &AppSettings, instruction: &str, selection: &str) -> String {
     let instruction_trimmed = instruction.trim();
     let selection_trimmed = selection.trim();
@@ -483,7 +566,6 @@ impl ShortcutAction for TranscribeAction {
 
         let ah = app.clone();
         let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
-        let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
         let hm = Arc::clone(&app.state::<Arc<HistoryManager>>());
 
         // Get settings early to determine overlay type
@@ -504,7 +586,6 @@ impl ShortcutAction for TranscribeAction {
         let binding_id = binding_id.to_string(); // Clone binding_id for the async task
 
         tauri::async_runtime::spawn(async move {
-            let binding_id = binding_id.clone(); // Clone for the inner async task
             debug!(
                 "Starting async transcription task for binding: {}",
                 binding_id
@@ -520,144 +601,99 @@ impl ShortcutAction for TranscribeAction {
 
                 let transcription_time = Instant::now();
                 let samples_clone = samples.clone(); // Clone for history saving
-                let settings = get_settings(&ah);
 
-                // Get operation ID for cancellation tracking (Remote STT only)
-                let remote_manager = ah.state::<Arc<RemoteSttManager>>();
-                let operation_id = if settings.transcription_provider
-                    == TranscriptionProvider::RemoteOpenAiCompatible
-                {
-                    remote_manager.start_operation()
-                } else {
-                    0 // Not used for local transcription
-                };
-
-                let transcription_result = if settings.transcription_provider
-                    == TranscriptionProvider::RemoteOpenAiCompatible
-                {
-                    remote_manager
-                        .transcribe(&settings.remote_stt, &samples)
-                        .await
-                        .map(|text| {
-                            if settings.custom_words.is_empty() {
-                                text
-                            } else {
-                                apply_custom_words(
-                                    &text,
-                                    &settings.custom_words,
-                                    settings.word_correction_threshold,
-                                )
-                            }
-                        })
-                } else {
-                    tm.transcribe(samples)
-                };
-
-                // Check if operation was cancelled while we were waiting
-                if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible
-                    && remote_manager.is_cancelled(operation_id)
-                {
-                    debug!(
-                        "Transcription operation {} was cancelled, discarding result",
-                        operation_id
-                    );
-                    return;
-                }
-
-                match transcription_result {
-                    Ok(transcription) => {
-                        debug!(
-                            "Transcription completed in {:?}: '{}'",
-                            transcription_time.elapsed(),
-                            transcription
-                        );
-                        if !transcription.is_empty() {
-                            let mut final_text = transcription.clone();
-                            let mut post_processed_text: Option<String> = None;
-                            let mut post_process_prompt: Option<String> = None;
-
-                            // First, check if Chinese variant conversion is needed
-                            if let Some(converted_text) =
-                                maybe_convert_chinese_variant(&settings, &transcription).await
-                            {
-                                final_text = converted_text.clone();
-                                post_processed_text = Some(converted_text);
-                            }
-                            // Then apply regular post-processing if enabled
-                            else if let Some(processed_text) =
-                                maybe_post_process_transcription(&settings, &transcription).await
-                            {
-                                final_text = processed_text.clone();
-                                post_processed_text = Some(processed_text);
-
-                                // Get the prompt that was used
-                                if let Some(prompt_id) = &settings.post_process_selected_prompt_id {
-                                    if let Some(prompt) = settings
-                                        .post_process_prompts
-                                        .iter()
-                                        .find(|p| &p.id == prompt_id)
-                                    {
-                                        post_process_prompt = Some(prompt.prompt.clone());
-                                    }
-                                }
-                            }
-
-                            // Save to history with post-processed text and prompt
-                            let hm_clone = Arc::clone(&hm);
-                            let transcription_for_history = transcription.clone();
-                            tauri::async_runtime::spawn(async move {
-                                if let Err(e) = hm_clone
-                                    .save_transcription(
-                                        samples_clone,
-                                        transcription_for_history,
-                                        post_processed_text,
-                                        post_process_prompt,
-                                    )
-                                    .await
-                                {
-                                    error!("Failed to save transcription to history: {}", e);
-                                }
-                            });
-
-                            // Paste the final text (either processed or original)
-                            let ah_clone = ah.clone();
-                            let paste_time = Instant::now();
-                            ah.run_on_main_thread(move || {
-                                match utils::paste(final_text, ah_clone.clone()) {
-                                    Ok(()) => debug!(
-                                        "Text pasted successfully in {:?}",
-                                        paste_time.elapsed()
-                                    ),
-                                    Err(e) => error!("Failed to paste transcription: {}", e),
-                                }
-                                // Hide the overlay after transcription is complete
-                                utils::hide_recording_overlay(&ah_clone);
-                                change_tray_icon(&ah_clone, TrayIconState::Idle);
-                            })
-                            .unwrap_or_else(|e| {
-                                error!("Failed to run paste on main thread: {:?}", e);
-                                utils::hide_recording_overlay(&ah);
-                                change_tray_icon(&ah, TrayIconState::Idle);
-                            });
-                        } else {
+                // Use shared transcription helper
+                let transcription = match perform_transcription(&ah, samples).await {
+                    TranscriptionOutcome::Success(text) => text,
+                    TranscriptionOutcome::Cancelled => return,
+                    TranscriptionOutcome::Error {
+                        shown_in_overlay, ..
+                    } => {
+                        if !shown_in_overlay {
                             utils::hide_recording_overlay(&ah);
                             change_tray_icon(&ah, TrayIconState::Idle);
                         }
+                        return;
                     }
-                    Err(err) => {
-                        let err_str = format!("{}", err);
-                        if settings.transcription_provider
-                            == TranscriptionProvider::RemoteOpenAiCompatible
+                };
+
+                debug!(
+                    "Transcription completed in {:?}: '{}'",
+                    transcription_time.elapsed(),
+                    transcription
+                );
+
+                if !transcription.is_empty() {
+                    let settings = get_settings(&ah);
+                    let mut final_text = transcription.clone();
+                    let mut post_processed_text: Option<String> = None;
+                    let mut post_process_prompt: Option<String> = None;
+
+                    // First, check if Chinese variant conversion is needed
+                    if let Some(converted_text) =
+                        maybe_convert_chinese_variant(&settings, &transcription).await
+                    {
+                        final_text = converted_text.clone();
+                        post_processed_text = Some(converted_text);
+                    }
+                    // Then apply regular post-processing if enabled
+                    else if let Some(processed_text) =
+                        maybe_post_process_transcription(&settings, &transcription).await
+                    {
+                        final_text = processed_text.clone();
+                        post_processed_text = Some(processed_text);
+
+                        // Get the prompt that was used
+                        if let Some(prompt_id) = &settings.post_process_selected_prompt_id {
+                            if let Some(prompt) = settings
+                                .post_process_prompts
+                                .iter()
+                                .find(|p| &p.id == prompt_id)
+                            {
+                                post_process_prompt = Some(prompt.prompt.clone());
+                            }
+                        }
+                    }
+
+                    // Save to history with post-processed text and prompt
+                    let hm_clone = Arc::clone(&hm);
+                    let transcription_for_history = transcription.clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(e) = hm_clone
+                            .save_transcription(
+                                samples_clone,
+                                transcription_for_history,
+                                post_processed_text,
+                                post_process_prompt,
+                            )
+                            .await
                         {
-                            let _ = ah.emit("remote-stt-error", err_str.clone());
-                            // Show categorized error in overlay (auto-hides after 3s)
-                            crate::plus_overlay_state::handle_transcription_error(&ah, &err_str);
-                        } else {
-                            debug!("Global Shortcut Transcription error: {}", err);
-                            utils::hide_recording_overlay(&ah);
-                            change_tray_icon(&ah, TrayIconState::Idle);
+                            error!("Failed to save transcription to history: {}", e);
                         }
-                    }
+                    });
+
+                    // Paste the final text (either processed or original)
+                    let ah_clone = ah.clone();
+                    let paste_time = Instant::now();
+                    ah.run_on_main_thread(move || {
+                        match utils::paste(final_text, ah_clone.clone()) {
+                            Ok(()) => {
+                                debug!("Text pasted successfully in {:?}", paste_time.elapsed())
+                            }
+                            Err(e) => error!("Failed to paste transcription: {}", e),
+                        }
+                        // Hide the overlay after transcription is complete
+                        utils::hide_recording_overlay(&ah_clone);
+                        change_tray_icon(&ah_clone, TrayIconState::Idle);
+                    })
+                    .unwrap_or_else(|e| {
+                        error!("Failed to run paste on main thread: {:?}", e);
+                        utils::hide_recording_overlay(&ah);
+                        change_tray_icon(&ah, TrayIconState::Idle);
+                    });
+                } else {
+                    utils::hide_recording_overlay(&ah);
+                    change_tray_icon(&ah, TrayIconState::Idle);
                 }
             } else {
                 debug!("No samples retrieved from recording stop");
@@ -719,7 +755,6 @@ impl ShortcutAction for SendToExtensionAction {
 
         let ah = app.clone();
         let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
-        let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
         let hm = Arc::clone(&app.state::<Arc<HistoryManager>>());
         let cm = Arc::clone(&app.state::<Arc<ConnectorManager>>());
 
@@ -741,7 +776,6 @@ impl ShortcutAction for SendToExtensionAction {
         let binding_id = binding_id.to_string(); // Clone binding_id for the async task
 
         tauri::async_runtime::spawn(async move {
-            let binding_id = binding_id.clone(); // Clone for the inner async task
             debug!(
                 "Starting async connector transcription task for binding: {}",
                 binding_id
@@ -757,142 +791,98 @@ impl ShortcutAction for SendToExtensionAction {
 
                 let transcription_time = Instant::now();
                 let samples_clone = samples.clone(); // Clone for history saving
-                let settings = get_settings(&ah);
 
-                // Get operation ID for cancellation tracking (Remote STT only)
-                let remote_manager = ah.state::<Arc<RemoteSttManager>>();
-                let operation_id = if settings.transcription_provider
-                    == TranscriptionProvider::RemoteOpenAiCompatible
-                {
-                    remote_manager.start_operation()
-                } else {
-                    0 // Not used for local transcription
-                };
-
-                let transcription_result = if settings.transcription_provider
-                    == TranscriptionProvider::RemoteOpenAiCompatible
-                {
-                    remote_manager
-                        .transcribe(&settings.remote_stt, &samples)
-                        .await
-                        .map(|text| {
-                            if settings.custom_words.is_empty() {
-                                text
-                            } else {
-                                apply_custom_words(
-                                    &text,
-                                    &settings.custom_words,
-                                    settings.word_correction_threshold,
-                                )
-                            }
-                        })
-                } else {
-                    tm.transcribe(samples)
-                };
-
-                // Check if operation was cancelled while we were waiting
-                if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible
-                    && remote_manager.is_cancelled(operation_id)
-                {
-                    debug!(
-                        "Connector transcription operation {} was cancelled, discarding result",
-                        operation_id
-                    );
-                    return;
-                }
-
-                match transcription_result {
-                    Ok(transcription) => {
-                        debug!(
-                            "Connector transcription completed in {:?}: '{}'",
-                            transcription_time.elapsed(),
-                            transcription
-                        );
-                        if !transcription.is_empty() {
-                            let mut final_text = transcription.clone();
-                            let mut post_processed_text: Option<String> = None;
-                            let mut post_process_prompt: Option<String> = None;
-
-                            // First, check if Chinese variant conversion is needed
-                            if let Some(converted_text) =
-                                maybe_convert_chinese_variant(&settings, &transcription).await
-                            {
-                                final_text = converted_text.clone();
-                                post_processed_text = Some(converted_text);
-                            }
-                            // Then apply regular post-processing if enabled
-                            else if let Some(processed_text) =
-                                maybe_post_process_transcription(&settings, &transcription).await
-                            {
-                                final_text = processed_text.clone();
-                                post_processed_text = Some(processed_text);
-
-                                // Get the prompt that was used
-                                if let Some(prompt_id) = &settings.post_process_selected_prompt_id {
-                                    if let Some(prompt) = settings
-                                        .post_process_prompts
-                                        .iter()
-                                        .find(|p| &p.id == prompt_id)
-                                    {
-                                        post_process_prompt = Some(prompt.prompt.clone());
-                                    }
-                                }
-                            }
-
-                            // Save to history with post-processed text and prompt
-                            let hm_clone = Arc::clone(&hm);
-                            let transcription_for_history = transcription.clone();
-                            tauri::async_runtime::spawn(async move {
-                                if let Err(e) = hm_clone
-                                    .save_transcription(
-                                        samples_clone,
-                                        transcription_for_history,
-                                        post_processed_text,
-                                        post_process_prompt,
-                                    )
-                                    .await
-                                {
-                                    error!("Failed to save transcription to history: {}", e);
-                                }
-                            });
-
-                            let send_time = Instant::now();
-                            match cm.queue_message(&final_text) {
-                                Ok(()) => {
-                                    debug!("Connector message queued in {:?}", send_time.elapsed())
-                                }
-                                Err(e) => error!("Failed to queue connector message: {}", e),
-                            }
-
-                            let ah_clone = ah.clone();
-                            ah.run_on_main_thread(move || {
-                                utils::hide_recording_overlay(&ah_clone);
-                                change_tray_icon(&ah_clone, TrayIconState::Idle);
-                            })
-                            .unwrap_or_else(|e| {
-                                error!("Failed to run connector cleanup on main thread: {:?}", e);
-                                utils::hide_recording_overlay(&ah);
-                                change_tray_icon(&ah, TrayIconState::Idle);
-                            });
-                        } else {
+                // Use shared transcription helper
+                let transcription = match perform_transcription(&ah, samples).await {
+                    TranscriptionOutcome::Success(text) => text,
+                    TranscriptionOutcome::Cancelled => return,
+                    TranscriptionOutcome::Error {
+                        shown_in_overlay, ..
+                    } => {
+                        if !shown_in_overlay {
                             utils::hide_recording_overlay(&ah);
                             change_tray_icon(&ah, TrayIconState::Idle);
                         }
+                        return;
                     }
-                    Err(err) => {
-                        let err_str = format!("{}", err);
-                        if settings.transcription_provider
-                            == TranscriptionProvider::RemoteOpenAiCompatible
+                };
+
+                debug!(
+                    "Connector transcription completed in {:?}: '{}'",
+                    transcription_time.elapsed(),
+                    transcription
+                );
+
+                if !transcription.is_empty() {
+                    let settings = get_settings(&ah);
+                    let mut final_text = transcription.clone();
+                    let mut post_processed_text: Option<String> = None;
+                    let mut post_process_prompt: Option<String> = None;
+
+                    // First, check if Chinese variant conversion is needed
+                    if let Some(converted_text) =
+                        maybe_convert_chinese_variant(&settings, &transcription).await
+                    {
+                        final_text = converted_text.clone();
+                        post_processed_text = Some(converted_text);
+                    }
+                    // Then apply regular post-processing if enabled
+                    else if let Some(processed_text) =
+                        maybe_post_process_transcription(&settings, &transcription).await
+                    {
+                        final_text = processed_text.clone();
+                        post_processed_text = Some(processed_text);
+
+                        // Get the prompt that was used
+                        if let Some(prompt_id) = &settings.post_process_selected_prompt_id {
+                            if let Some(prompt) = settings
+                                .post_process_prompts
+                                .iter()
+                                .find(|p| &p.id == prompt_id)
+                            {
+                                post_process_prompt = Some(prompt.prompt.clone());
+                            }
+                        }
+                    }
+
+                    // Save to history with post-processed text and prompt
+                    let hm_clone = Arc::clone(&hm);
+                    let transcription_for_history = transcription.clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(e) = hm_clone
+                            .save_transcription(
+                                samples_clone,
+                                transcription_for_history,
+                                post_processed_text,
+                                post_process_prompt,
+                            )
+                            .await
                         {
-                            let _ = ah.emit("remote-stt-error", err_str.clone());
-                            // Show categorized error in overlay (auto-hides after 3s)
-                            crate::plus_overlay_state::handle_transcription_error(&ah, &err_str);
-                        } else {
-                            debug!("Connector transcription error: {}", err);
-                            utils::hide_recording_overlay(&ah);
-                            change_tray_icon(&ah, TrayIconState::Idle);
+                            error!("Failed to save transcription to history: {}", e);
                         }
+                    });
+
+                    let send_time = Instant::now();
+                    match cm.queue_message(&final_text) {
+                        Ok(()) => {
+                            debug!("Connector message queued in {:?}", send_time.elapsed())
+                        }
+                        Err(e) => error!("Failed to queue connector message: {}", e),
                     }
+
+                    let ah_clone = ah.clone();
+                    ah.run_on_main_thread(move || {
+                        utils::hide_recording_overlay(&ah_clone);
+                        change_tray_icon(&ah_clone, TrayIconState::Idle);
+                    })
+                    .unwrap_or_else(|e| {
+                        error!("Failed to run connector cleanup on main thread: {:?}", e);
+                        utils::hide_recording_overlay(&ah);
+                        change_tray_icon(&ah, TrayIconState::Idle);
+                    });
+                } else {
+                    utils::hide_recording_overlay(&ah);
+                    change_tray_icon(&ah, TrayIconState::Idle);
                 }
             } else {
                 debug!("No samples retrieved from recording stop");
@@ -953,7 +943,6 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
 
         let ah = app.clone();
         let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
-        let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
         let cm = Arc::clone(&app.state::<Arc<ConnectorManager>>());
 
         // Get settings early to determine overlay type
@@ -985,117 +974,74 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
                 );
 
                 let transcription_time = Instant::now();
-                let settings = get_settings(&ah);
 
-                // Get operation ID for cancellation tracking (Remote STT only)
-                let remote_manager = ah.state::<Arc<RemoteSttManager>>();
-                let operation_id = if settings.transcription_provider
-                    == TranscriptionProvider::RemoteOpenAiCompatible
-                {
-                    remote_manager.start_operation()
-                } else {
-                    0 // Not used for local transcription
+                // Use shared transcription helper
+                let transcription = match perform_transcription(&ah, samples).await {
+                    TranscriptionOutcome::Success(text) => text,
+                    TranscriptionOutcome::Cancelled => return,
+                    TranscriptionOutcome::Error {
+                        shown_in_overlay, ..
+                    } => {
+                        if !shown_in_overlay {
+                            utils::hide_recording_overlay(&ah);
+                            change_tray_icon(&ah, TrayIconState::Idle);
+                        }
+                        return;
+                    }
                 };
 
-                let transcription_result = if settings.transcription_provider
-                    == TranscriptionProvider::RemoteOpenAiCompatible
-                {
-                    remote_manager
-                        .transcribe(&settings.remote_stt, &samples)
-                        .await
-                        .map(|text| {
-                            if settings.custom_words.is_empty() {
-                                text
-                            } else {
-                                apply_custom_words(
-                                    &text,
-                                    &settings.custom_words,
-                                    settings.word_correction_threshold,
-                                )
-                            }
-                        })
-                } else {
-                    tm.transcribe(samples)
-                };
+                debug!(
+                    "Connector selection transcription completed in {:?}: '{}'",
+                    transcription_time.elapsed(),
+                    transcription
+                );
 
-                // Check if operation was cancelled while we were waiting
-                if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible
-                    && remote_manager.is_cancelled(operation_id)
-                {
-                    debug!("Connector selection transcription operation {} was cancelled, discarding result", operation_id);
+                if transcription.trim().is_empty() {
+                    utils::hide_recording_overlay(&ah);
+                    change_tray_icon(&ah, TrayIconState::Idle);
                     return;
                 }
 
-                match transcription_result {
-                    Ok(transcription) => {
-                        debug!(
-                            "Connector selection transcription completed in {:?}: '{}'",
-                            transcription_time.elapsed(),
-                            transcription
-                        );
-
-                        if transcription.trim().is_empty() {
-                            utils::hide_recording_overlay(&ah);
-                            change_tray_icon(&ah, TrayIconState::Idle);
-                            return;
-                        }
-
-                        let capture_start = Instant::now();
-                        let selected_text = match utils::capture_selection_text_copy(&ah) {
-                            Ok(text) => text,
-                            Err(err) => {
-                                debug!("Selection copy capture failed: {}", err);
-                                String::new()
-                            }
-                        };
-                        debug!(
-                            "Selection copied in {:?} ({} chars)",
-                            capture_start.elapsed(),
-                            selected_text.chars().count()
-                        );
-
-                        let message =
-                            build_extension_message(&settings, &transcription, &selected_text);
-                        if message.trim().is_empty() {
-                            utils::hide_recording_overlay(&ah);
-                            change_tray_icon(&ah, TrayIconState::Idle);
-                            return;
-                        }
-
-                        let send_time = Instant::now();
-                        match cm.queue_message(&message) {
-                            Ok(()) => {
-                                debug!("Connector message queued in {:?}", send_time.elapsed())
-                            }
-                            Err(e) => error!("Failed to queue connector message: {}", e),
-                        }
-
-                        let ah_clone = ah.clone();
-                        ah.run_on_main_thread(move || {
-                            utils::hide_recording_overlay(&ah_clone);
-                            change_tray_icon(&ah_clone, TrayIconState::Idle);
-                        })
-                        .unwrap_or_else(|e| {
-                            error!("Failed to run connector cleanup on main thread: {:?}", e);
-                            utils::hide_recording_overlay(&ah);
-                            change_tray_icon(&ah, TrayIconState::Idle);
-                        });
-                    }
+                let settings = get_settings(&ah);
+                let capture_start = Instant::now();
+                let selected_text = match utils::capture_selection_text_copy(&ah) {
+                    Ok(text) => text,
                     Err(err) => {
-                        let err_str = format!("{}", err);
-                        if settings.transcription_provider
-                            == TranscriptionProvider::RemoteOpenAiCompatible
-                        {
-                            let _ = ah.emit("remote-stt-error", err_str.clone());
-                            // Show categorized error in overlay (auto-hides after 3s)
-                            crate::plus_overlay_state::handle_transcription_error(&ah, &err_str);
-                        } else {
-                            debug!("Connector selection transcription error: {}", err);
-                            utils::hide_recording_overlay(&ah);
-                            change_tray_icon(&ah, TrayIconState::Idle);
-                        }
+                        debug!("Selection copy capture failed: {}", err);
+                        String::new()
                     }
+                };
+                debug!(
+                    "Selection copied in {:?} ({} chars)",
+                    capture_start.elapsed(),
+                    selected_text.chars().count()
+                );
+
+                let message = build_extension_message(&settings, &transcription, &selected_text);
+                if message.trim().is_empty() {
+                    utils::hide_recording_overlay(&ah);
+                    change_tray_icon(&ah, TrayIconState::Idle);
+                    return;
                 }
+
+                let send_time = Instant::now();
+                match cm.queue_message(&message) {
+                    Ok(()) => {
+                        debug!("Connector message queued in {:?}", send_time.elapsed())
+                    }
+                    Err(e) => error!("Failed to queue connector message: {}", e),
+                }
+
+                let ah_clone = ah.clone();
+                ah.run_on_main_thread(move || {
+                    utils::hide_recording_overlay(&ah_clone);
+                    change_tray_icon(&ah_clone, TrayIconState::Idle);
+                })
+                .unwrap_or_else(|e| {
+                    error!("Failed to run connector cleanup on main thread: {:?}", e);
+                    utils::hide_recording_overlay(&ah);
+                    change_tray_icon(&ah, TrayIconState::Idle);
+                });
             } else {
                 debug!("No samples retrieved from recording stop");
                 utils::hide_recording_overlay(&ah);
@@ -1348,7 +1294,6 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
 
         let ah = app.clone();
         let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
-        let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
         let cm = Arc::clone(&app.state::<Arc<ConnectorManager>>());
 
         // Get settings early to determine overlay type
@@ -1376,82 +1321,42 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
             // Gate 1: Stop recording and transcribe FIRST (before launching screenshot tool)
             // This ensures we capture the audio before any external process can interfere
             let stop_recording_time = Instant::now();
-            let voice_result = if let Some(samples) = rm.stop_recording(&binding_id) {
-                debug!(
-                    "Recording stopped and samples retrieved in {:?}, sample count: {}",
-                    stop_recording_time.elapsed(),
-                    samples.len()
-                );
-
-                let transcription_time = Instant::now();
-
-                // Get operation ID for cancellation tracking (Remote STT only)
-                let remote_manager = ah.state::<Arc<RemoteSttManager>>();
-                let operation_id = if settings.transcription_provider
-                    == TranscriptionProvider::RemoteOpenAiCompatible
-                {
-                    remote_manager.start_operation()
-                } else {
-                    0 // Not used for local transcription
-                };
-
-                let result = if settings.transcription_provider
-                    == TranscriptionProvider::RemoteOpenAiCompatible
-                {
-                    remote_manager
-                        .transcribe(&settings.remote_stt, &samples)
-                        .await
-                        .map(|text| {
-                            if settings.custom_words.is_empty() {
-                                text
-                            } else {
-                                apply_custom_words(
-                                    &text,
-                                    &settings.custom_words,
-                                    settings.word_correction_threshold,
-                                )
-                            }
-                        })
-                } else {
-                    tm.transcribe(samples)
-                };
-
-                // Check if operation was cancelled while we were waiting
-                if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible
-                    && remote_manager.is_cancelled(operation_id)
-                {
+            let voice_result: Result<String, String> =
+                if let Some(samples) = rm.stop_recording(&binding_id) {
                     debug!(
-                        "Screenshot transcription operation {} was cancelled, discarding result",
-                        operation_id
+                        "Recording stopped and samples retrieved in {:?}, sample count: {}",
+                        stop_recording_time.elapsed(),
+                        samples.len()
                     );
-                    return;
-                }
 
-                match result {
-                    Ok(text) => {
-                        debug!(
-                            "Screenshot action transcription completed in {:?}: '{}'",
-                            transcription_time.elapsed(),
-                            text
-                        );
-                        Ok(text)
-                    }
-                    Err(e) => {
-                        let err_str = format!("{}", e);
-                        if settings.transcription_provider
-                            == TranscriptionProvider::RemoteOpenAiCompatible
-                        {
-                            let _ = ah.emit("remote-stt-error", err_str.clone());
-                            // Show categorized error in overlay (auto-hides after 3s)
-                            crate::plus_overlay_state::handle_transcription_error(&ah, &err_str);
+                    let transcription_time = Instant::now();
+
+                    // Use shared transcription helper
+                    match perform_transcription(&ah, samples).await {
+                        TranscriptionOutcome::Success(text) => {
+                            debug!(
+                                "Screenshot action transcription completed in {:?}: '{}'",
+                                transcription_time.elapsed(),
+                                text
+                            );
+                            Ok(text)
                         }
-                        Err(format!("Transcription failed: {}", e))
+                        TranscriptionOutcome::Cancelled => return,
+                        TranscriptionOutcome::Error {
+                            message,
+                            shown_in_overlay,
+                        } => {
+                            if !shown_in_overlay {
+                                utils::hide_recording_overlay(&ah);
+                                change_tray_icon(&ah, TrayIconState::Idle);
+                            }
+                            Err(format!("Transcription failed: {}", message))
+                        }
                     }
-                }
-            } else {
-                debug!("No samples retrieved from recording stop");
-                Ok(String::new()) // Empty transcription is OK for screenshot action
-            };
+                } else {
+                    debug!("No samples retrieved from recording stop");
+                    Ok(String::new()) // Empty transcription is OK for screenshot action
+                };
 
             // Check voice gate first - hide overlay immediately after transcription
             let voice_text = match voice_result {
@@ -1593,7 +1498,6 @@ impl ShortcutAction for AiReplaceSelectionAction {
 
         let ah = app.clone();
         let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
-        let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
 
         // Get settings early to determine overlay type
         let settings = get_settings(app);
@@ -1624,96 +1528,50 @@ impl ShortcutAction for AiReplaceSelectionAction {
                 );
 
                 let transcription_time = Instant::now();
-                let settings = get_settings(&ah);
 
-                // Get operation ID for cancellation tracking (Remote STT only)
-                let remote_manager = ah.state::<Arc<RemoteSttManager>>();
-                let operation_id = if settings.transcription_provider
-                    == TranscriptionProvider::RemoteOpenAiCompatible
-                {
-                    remote_manager.start_operation()
-                } else {
-                    0 // Not used for local transcription
+                // Use shared transcription helper
+                let transcription = match perform_transcription(&ah, samples).await {
+                    TranscriptionOutcome::Success(text) => text,
+                    TranscriptionOutcome::Cancelled => return,
+                    TranscriptionOutcome::Error {
+                        shown_in_overlay, ..
+                    } => {
+                        if !shown_in_overlay {
+                            utils::hide_recording_overlay(&ah);
+                            change_tray_icon(&ah, TrayIconState::Idle);
+                        }
+                        return;
+                    }
                 };
 
-                let transcription_result = if settings.transcription_provider
-                    == TranscriptionProvider::RemoteOpenAiCompatible
-                {
-                    remote_manager
-                        .transcribe(&settings.remote_stt, &samples)
-                        .await
-                        .map(|text| {
-                            if settings.custom_words.is_empty() {
-                                text
-                            } else {
-                                apply_custom_words(
-                                    &text,
-                                    &settings.custom_words,
-                                    settings.word_correction_threshold,
-                                )
-                            }
-                        })
-                } else {
-                    tm.transcribe(samples)
-                };
+                debug!(
+                    "AI replace instruction transcription completed in {:?}: '{}'",
+                    transcription_time.elapsed(),
+                    transcription
+                );
 
-                // Check if operation was cancelled while we were waiting
-                if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible
-                    && remote_manager.is_cancelled(operation_id)
-                {
-                    debug!(
-                        "AI replace transcription operation {} was cancelled, discarding result",
-                        operation_id
-                    );
+                if transcription.trim().is_empty() {
+                    emit_ai_replace_error(&ah, "No instruction captured. Please try again.");
+                    utils::hide_recording_overlay(&ah);
+                    change_tray_icon(&ah, TrayIconState::Idle);
                     return;
                 }
 
-                match transcription_result {
-                    Ok(transcription) => {
-                        debug!(
-                            "AI replace instruction transcription completed in {:?}: '{}'",
-                            transcription_time.elapsed(),
-                            transcription
-                        );
+                let settings = get_settings(&ah);
+                debug!("AI replace instruction: {}", transcription);
 
-                        if transcription.trim().is_empty() {
-                            emit_ai_replace_error(
-                                &ah,
-                                "No instruction captured. Please try again.",
-                            );
-                            utils::hide_recording_overlay(&ah);
-                            change_tray_icon(&ah, TrayIconState::Idle);
-                            return;
-                        }
-
-                        debug!("AI replace instruction: {}", transcription);
-
-                        let capture_start = Instant::now();
-                        let selected_text = match utils::capture_selection_text(&ah) {
-                            Ok(text) => text,
-                            Err(err) => {
-                                debug!("AI replace selection capture failed: {}", err);
-                                // If "no selection" mode is allowed, fall back to empty string
-                                // instead of aborting. This lets users use AI Replace in apps
-                                // where accessibility/selection APIs don't work.
-                                if settings.ai_replace_allow_no_selection {
-                                    debug!("Falling back to empty selection (ai_replace_allow_no_selection is enabled)");
-                                    String::new()
-                                } else {
-                                    emit_ai_replace_error(
-                                        &ah,
-                                        "Could not capture selection. Please select editable text.",
-                                    );
-                                    utils::hide_recording_overlay(&ah);
-                                    change_tray_icon(&ah, TrayIconState::Idle);
-                                    return;
-                                }
-                            }
-                        };
-
-                        if selected_text.trim().is_empty()
-                            && !settings.ai_replace_allow_no_selection
-                        {
+                let capture_start = Instant::now();
+                let selected_text = match utils::capture_selection_text(&ah) {
+                    Ok(text) => text,
+                    Err(err) => {
+                        debug!("AI replace selection capture failed: {}", err);
+                        // If "no selection" mode is allowed, fall back to empty string
+                        // instead of aborting. This lets users use AI Replace in apps
+                        // where accessibility/selection APIs don't work.
+                        if settings.ai_replace_allow_no_selection {
+                            debug!("Falling back to empty selection (ai_replace_allow_no_selection is enabled)");
+                            String::new()
+                        } else {
                             emit_ai_replace_error(
                                 &ah,
                                 "Could not capture selection. Please select editable text.",
@@ -1722,85 +1580,78 @@ impl ShortcutAction for AiReplaceSelectionAction {
                             change_tray_icon(&ah, TrayIconState::Idle);
                             return;
                         }
+                    }
+                };
 
-                        let selection_len = selected_text.chars().count();
-                        if selection_len > settings.ai_replace_max_chars {
-                            emit_ai_replace_error(
-                                &ah,
-                                format!(
-                                    "Selection too large (max {} characters).",
-                                    settings.ai_replace_max_chars
+                if selected_text.trim().is_empty() && !settings.ai_replace_allow_no_selection {
+                    emit_ai_replace_error(
+                        &ah,
+                        "Could not capture selection. Please select editable text.",
+                    );
+                    utils::hide_recording_overlay(&ah);
+                    change_tray_icon(&ah, TrayIconState::Idle);
+                    return;
+                }
+
+                let selection_len = selected_text.chars().count();
+                if selection_len > settings.ai_replace_max_chars {
+                    emit_ai_replace_error(
+                        &ah,
+                        format!(
+                            "Selection too large (max {} characters).",
+                            settings.ai_replace_max_chars
+                        ),
+                    );
+                    utils::hide_recording_overlay(&ah);
+                    change_tray_icon(&ah, TrayIconState::Idle);
+                    return;
+                }
+
+                debug!(
+                    "AI replace selection captured in {:?} ({} chars)",
+                    capture_start.elapsed(),
+                    selection_len
+                );
+                debug!("AI replace selected text: {}", selected_text);
+
+                // Show "Thinking..." overlay while LLM processes the request
+                show_thinking_overlay(&ah);
+
+                let llm_start = Instant::now();
+                match ai_replace_with_llm(&settings, &selected_text, &transcription).await {
+                    Ok(output) => {
+                        debug!(
+                            "AI replace LLM completed in {:?}: '{}'",
+                            llm_start.elapsed(),
+                            output
+                        );
+
+                        let ah_clone = ah.clone();
+                        let paste_time = Instant::now();
+                        ah.run_on_main_thread(move || {
+                            match utils::paste(output, ah_clone.clone()) {
+                                Ok(()) => debug!(
+                                    "AI replace text pasted successfully in {:?}",
+                                    paste_time.elapsed()
                                 ),
-                            );
+                                Err(e) => {
+                                    error!("Failed to paste AI replace output: {}", e)
+                                }
+                            }
+                            utils::hide_recording_overlay(&ah_clone);
+                            change_tray_icon(&ah_clone, TrayIconState::Idle);
+                        })
+                        .unwrap_or_else(|e| {
+                            error!("Failed to run paste on main thread: {:?}", e);
                             utils::hide_recording_overlay(&ah);
                             change_tray_icon(&ah, TrayIconState::Idle);
-                            return;
-                        }
-
-                        debug!(
-                            "AI replace selection captured in {:?} ({} chars)",
-                            capture_start.elapsed(),
-                            selection_len
-                        );
-                        debug!("AI replace selected text: {}", selected_text);
-
-                        // Show "Thinking..." overlay while LLM processes the request
-                        show_thinking_overlay(&ah);
-
-                        let llm_start = Instant::now();
-                        match ai_replace_with_llm(&settings, &selected_text, &transcription).await {
-                            Ok(output) => {
-                                debug!(
-                                    "AI replace LLM completed in {:?}: '{}'",
-                                    llm_start.elapsed(),
-                                    output
-                                );
-
-                                let ah_clone = ah.clone();
-                                let paste_time = Instant::now();
-                                ah.run_on_main_thread(move || {
-                                    match utils::paste(output, ah_clone.clone()) {
-                                        Ok(()) => debug!(
-                                            "AI replace text pasted successfully in {:?}",
-                                            paste_time.elapsed()
-                                        ),
-                                        Err(e) => {
-                                            error!("Failed to paste AI replace output: {}", e)
-                                        }
-                                    }
-                                    utils::hide_recording_overlay(&ah_clone);
-                                    change_tray_icon(&ah_clone, TrayIconState::Idle);
-                                })
-                                .unwrap_or_else(|e| {
-                                    error!("Failed to run paste on main thread: {:?}", e);
-                                    utils::hide_recording_overlay(&ah);
-                                    change_tray_icon(&ah, TrayIconState::Idle);
-                                });
-                            }
-                            Err(err) => {
-                                error!("AI replace LLM failed: {}", err);
-                                emit_ai_replace_error(
-                                    &ah,
-                                    "AI replace failed. Check your LLM settings.",
-                                );
-                                utils::hide_recording_overlay(&ah);
-                                change_tray_icon(&ah, TrayIconState::Idle);
-                            }
-                        }
+                        });
                     }
                     Err(err) => {
-                        let err_str = format!("{}", err);
-                        if settings.transcription_provider
-                            == TranscriptionProvider::RemoteOpenAiCompatible
-                        {
-                            let _ = ah.emit("remote-stt-error", err_str.clone());
-                            // Show categorized error in overlay (auto-hides after 3s)
-                            crate::plus_overlay_state::handle_transcription_error(&ah, &err_str);
-                        } else {
-                            debug!("AI replace transcription error: {}", err);
-                            utils::hide_recording_overlay(&ah);
-                            change_tray_icon(&ah, TrayIconState::Idle);
-                        }
+                        error!("AI replace LLM failed: {}", err);
+                        emit_ai_replace_error(&ah, "AI replace failed. Check your LLM settings.");
+                        utils::hide_recording_overlay(&ah);
+                        change_tray_icon(&ah, TrayIconState::Idle);
                     }
                 }
             } else {
