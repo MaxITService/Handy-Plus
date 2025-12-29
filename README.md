@@ -1,7 +1,8 @@
-# AivoRelay (Fork)
+# AivoRelay
+
+![large_logo](Promo/large_logo.jpg)
+
 AI Voice Relay
-
-
 A fork of [cjpais/Handy](https://github.com/cjpais/Handy) with additional features for Windows.
 
 ## Fork Features
@@ -36,7 +37,7 @@ Voice-controlled text editing:
 
 Send voice to ChatGPT/Perplexity via **AivoRelay Connector** Chrome extension.
 
-> ⚠️ **Requires:** [AivoRelay-relay](https://github.com/MaxITService/Handy-connector) Chrome extension must be installed and running. Without it, "Send to Extension" features won't work.
+> ⚠️ **Requires:** [AivoRelay Connector](https://github.com/MaxITService/AivoRelay-connector) Chrome extension must be installed and running. Without it, "Send to Extension" features won't work.
 
 **Three modes:**
 
@@ -118,7 +119,7 @@ ${output}
 
 ### AivoRelay Connector Setup
 
-1. Install [AivoRelay Connector](https://github.com/user/handy-connector) Chrome extension
+1. Install [AivoRelay Connector](https://github.com/MaxITService/AivoRelay-connector) Chrome extension
 2. Open ChatGPT or Perplexity in a browser tab
 3. Click extension icon → "Bind to this tab"
 4. Extension polls `http://127.0.0.1:63155` by default for messages from AivoRelay. Port must match in extension and in AivoRelay settings.

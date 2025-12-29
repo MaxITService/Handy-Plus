@@ -26,14 +26,14 @@ export const DebugPaths: React.FC<DebugPathsProps> = ({
             {t("settings.debug.paths.appData")}
           </span>{" "}
           {/* eslint-disable-next-line i18next/no-literal-string */}
-          <span className="font-mono text-xs">%APPDATA%/handy</span>
+          <span className="font-mono text-xs">%APPDATA%/fi.maxits.aivorelay</span>
         </div>
         <div>
           <span className="font-medium">
             {t("settings.debug.paths.models")}
           </span>{" "}
           {/* eslint-disable-next-line i18next/no-literal-string */}
-          <span className="font-mono text-xs">%APPDATA%/handy/models</span>
+          <span className="font-mono text-xs">%APPDATA%/fi.maxits.aivorelay/models</span>
         </div>
         <div>
           <span className="font-medium">
@@ -41,7 +41,7 @@ export const DebugPaths: React.FC<DebugPathsProps> = ({
           </span>{" "}
           {/* eslint-disable-next-line i18next/no-literal-string */}
           <span className="font-mono text-xs">
-            %APPDATA%/handy/settings_store.json
+            %APPDATA%/fi.maxits.aivorelay/settings_store.json
           </span>
         </div>
       </div>

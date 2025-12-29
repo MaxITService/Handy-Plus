@@ -18,7 +18,7 @@
   "onboarding": {
     "subtitle": "To get started, choose a transcription model",
     "mode": {
-      "subtitle": "Choose how you want Handy to transcribe speech",
+      "subtitle": "Choose how you want AivoRelay to transcribe speech",
       "local": {
         "title": "Local (Offline)",
         "description": "Runs on-device using downloaded models."
