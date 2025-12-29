@@ -17,7 +17,7 @@ No need to use WSL for them: their Windows versions are installed: callable dire
 This repository is a **fork** of [cjpais/Handy](https://github.com/cjpais/Handy).
 
 - **Upstream**: https://github.com/cjpais/Handy (original project)
-- **This fork**: Adds Windows-specific features and external service integrations
+- **This fork**: AivoRelay — Adds Windows-specific features and external service integrations
 
 ## Fork Documentation
 
@@ -80,7 +80,7 @@ When using Remote STT API, the **Recording Overlay** (`recording_overlay` window
 ### 3. Connector (Send Transcription to Extension)
 
 - Primary implementation: `src-tauri/src/managers/connector.rs` (local HTTP server), `src-tauri/src/actions.rs` (Send\*ToExtension actions), `src/components/settings/browser-connector/`
-- Extension polls Handy’s local server (default `http://127.0.0.1:63155`):
+- Extension polls AivoRelay's local server (default `http://127.0.0.1:63155`):
   - `GET /messages?since=<cursor>` → queued messages + next `cursor`
   - `GET /blob/{attId}` → attachment bytes (short-lived)
   - `POST /messages` → extension acks (e.g. `keepalive_ack`, `password_ack`)
@@ -122,9 +122,9 @@ See [`fork-merge-guide.md`](fork-merge-guide.md) for upstream tracking and the m
 
 ### Connector (Send to Extension)
 
-1. Ensure Handy Connector extension is installed and bound to a tab
+1. Ensure AivoRelay Connector extension is installed and bound to a tab
 2. Check console for "Connector message sent" or error logs
-3. Verify Handy server responds (auth required): `curl -H "Authorization: Bearer <password>" "http://127.0.0.1:63155/messages"`
+3. Verify AivoRelay server responds (auth required): `curl -H "Authorization: Bearer <password>" "http://127.0.0.1:63155/messages"`
 
 ### Send Screenshot to Extension
 

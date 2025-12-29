@@ -54,7 +54,7 @@
     }
   },
   "modelSelector": {
-    "welcome": "Willkommen bei Handy!",
+    "welcome": "Willkommen bei AivoRelay!",
     "downloadPrompt": "Lade ein Modell herunter, um mit der Transkription zu beginnen.",
     "availableModels": "Verfügbare Modelle",
     "downloadModels": "Modelle herunterladen",
@@ -80,7 +80,7 @@
     "general": {
       "title": "Allgemein",
       "shortcut": {
-        "title": "Handy-Tastenkürzel",
+        "title": "AivoRelay-Tastenkürzel",
         "description": "Tastenkürzel für die Sprachaufnahme konfigurieren",
         "loading": "Tastenkürzel werden geladen...",
         "none": "Keine Tastenkürzel konfiguriert",
@@ -146,7 +146,7 @@
       },
       "autostart": {
         "label": "Beim Start ausführen",
-        "description": "Handy automatisch beim Anmelden starten."
+        "description": "AivoRelay automatisch beim Anmelden starten."
       },
       "overlay": {
         "title": "Overlay-Position",
@@ -283,7 +283,7 @@
       },
       "updateChecks": {
         "label": "Nach Updates suchen",
-        "description": "Automatisch nach neuen Versionen von Handy suchen"
+        "description": "Automatisch nach neuen Versionen von AivoRelay suchen"
       },
       "soundTheme": {
         "label": "Sound-Thema",
@@ -338,11 +338,11 @@
       "title": "Info",
       "version": {
         "title": "Version",
-        "description": "Aktuelle Version von Handy"
+        "description": "Aktuelle Version von AivoRelay"
       },
       "appDataDirectory": {
         "title": "App-Datenverzeichnis",
-        "description": "Speicherort der Handy-Daten"
+        "description": "Speicherort der AivoRelay-Daten"
       },
       "sourceCode": {
         "title": "Quellcode",
@@ -351,7 +351,7 @@
       },
       "supportDevelopment": {
         "title": "Entwicklung unterstützen",
-        "description": "Hilf uns, Handy weiterzuentwickeln",
+        "description": "Hilf uns, AivoRelay weiterzuentwickeln",
         "button": "Spenden"
       },
       "acknowledgments": {
@@ -359,7 +359,7 @@
         "whisper": {
           "title": "Whisper.cpp",
           "description": "Hochleistungs-Inferenz des Whisper-Spracherkennungsmodells von OpenAI",
-          "details": "Handy verwendet Whisper.cpp für schnelle, lokale Sprach-zu-Text-Verarbeitung. Dank an Georgi Gerganov und die Mitwirkenden für ihre großartige Arbeit."
+          "details": "AivoRelay verwendet Whisper.cpp für schnelle, lokale Sprach-zu-Text-Verarbeitung. Dank an Georgi Gerganov und die Mitwirkenden für ihre großartige Arbeit."
         }
       }
     }
@@ -402,7 +402,7 @@
   },
   "accessibility": {
     "permissionsRequired": "Bedienungshilfen-Berechtigungen erforderlich",
-    "permissionsDescription": "Handy benötigt Bedienungshilfen-Berechtigungen, um transkribierten Text einzugeben.",
+    "permissionsDescription": "AivoRelay benötigt Bedienungshilfen-Berechtigungen, um transkribierten Text einzugeben.",
     "openSettings": "Systemeinstellungen öffnen",
     "dismiss": "Schließen"
   },
@@ -411,7 +411,7 @@
   },
   "appLanguage": {
     "title": "Anwendungssprache",
-    "description": "Sprache der Handy-Oberfläche ändern"
+    "description": "Sprache der AivoRelay-Oberfläche ändern"
   },
   "overlay": {
     "transcribing": "Transkribiere..."

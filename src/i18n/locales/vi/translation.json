@@ -1,5 +1,5 @@
 {
-  "_comment": "Vietnamese translation for Handy. Contribute at: https://github.com/cjpais/Handy",
+  "_comment": "Vietnamese translation for AivoRelay. Contribute at: https://github.com/cjpais/AivoRelay",
   "tray": {
     "settings": "Cài đặt...",
     "checkUpdates": "Kiểm tra cập nhật...",
@@ -55,7 +55,7 @@
     }
   },
   "modelSelector": {
-    "welcome": "Chào mừng đến với Handy!",
+    "welcome": "Chào mừng đến với AivoRelay!",
     "downloadPrompt": "Tải xuống mô hình bên dưới để bắt đầu chuyển đổi.",
     "availableModels": "Các Mô Hình Có Sẵn",
     "downloadModels": "Tải Xuống Mô Hình",
@@ -81,7 +81,7 @@
     "general": {
       "title": "Chung",
       "shortcut": {
-        "title": "Phím tắt Handy",
+        "title": "Phím tắt AivoRelay",
         "description": "Cấu hình phím tắt để kích hoạt ghi âm chuyển đổi giọng nói thành văn bản",
         "loading": "Đang tải phím tắt...",
         "none": "Chưa cấu hình phím tắt",
@@ -147,7 +147,7 @@
       },
       "autostart": {
         "label": "Khởi động cùng hệ thống",
-        "description": "Tự động khởi động Handy khi bạn đăng nhập vào máy tính."
+        "description": "Tự động khởi động AivoRelay khi bạn đăng nhập vào máy tính."
       },
       "overlay": {
         "title": "Vị trí lớp phủ",
@@ -284,7 +284,7 @@
       },
       "updateChecks": {
         "label": "Kiểm tra cập nhật",
-        "description": "Tự động kiểm tra phiên bản mới của Handy"
+        "description": "Tự động kiểm tra phiên bản mới của AivoRelay"
       },
       "soundTheme": {
         "label": "Chủ đề âm thanh",
@@ -338,11 +338,11 @@
       "title": "Giới thiệu",
       "version": {
         "title": "Phiên bản",
-        "description": "Phiên bản hiện tại của Handy"
+        "description": "Phiên bản hiện tại của AivoRelay"
       },
       "appDataDirectory": {
         "title": "Thư mục dữ liệu ứng dụng",
-        "description": "Vị trí Handy lưu trữ dữ liệu"
+        "description": "Vị trí AivoRelay lưu trữ dữ liệu"
       },
       "sourceCode": {
         "title": "Mã nguồn",
@@ -351,7 +351,7 @@
       },
       "supportDevelopment": {
         "title": "Hỗ trợ phát triển",
-        "description": "Giúp chúng tôi tiếp tục xây dựng Handy",
+        "description": "Giúp chúng tôi tiếp tục xây dựng AivoRelay",
         "button": "Quyên góp"
       },
       "acknowledgments": {
@@ -359,7 +359,7 @@
         "whisper": {
           "title": "Whisper.cpp",
           "description": "Suy luận hiệu suất cao của mô hình nhận dạng giọng nói tự động Whisper của OpenAI",
-          "details": "Handy sử dụng Whisper.cpp để xử lý chuyển đổi giọng nói thành văn bản nhanh, cục bộ. Cảm ơn công việc tuyệt vời của Georgi Gerganov và các cộng tác viên."
+          "details": "AivoRelay sử dụng Whisper.cpp để xử lý chuyển đổi giọng nói thành văn bản nhanh, cục bộ. Cảm ơn công việc tuyệt vời của Georgi Gerganov và các cộng tác viên."
         }
       }
     }
@@ -402,7 +402,7 @@
   },
   "accessibility": {
     "permissionsRequired": "Cần quyền truy cập",
-    "permissionsDescription": "Handy cần quyền truy cập để gõ văn bản đã chuyển đổi.",
+    "permissionsDescription": "AivoRelay cần quyền truy cập để gõ văn bản đã chuyển đổi.",
     "openSettings": "Mở Cài đặt Hệ thống",
     "dismiss": "Bỏ qua"
   },
@@ -411,7 +411,7 @@
   },
   "appLanguage": {
     "title": "Ngôn ngữ ứng dụng",
-    "description": "Thay đổi ngôn ngữ giao diện của Handy"
+    "description": "Thay đổi ngôn ngữ giao diện của AivoRelay"
   },
   "overlay": {
     "transcribing": "Đang chuyển đổi..."

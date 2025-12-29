@@ -172,7 +172,7 @@ export const BrowserConnectorSettings: React.FC = () => {
                       rel="noopener noreferrer"
                       className="text-blue-400 hover:underline inline-flex items-center gap-1"
                     >
-                      Handy Connector
+                      AivoRelay Connector
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   ),

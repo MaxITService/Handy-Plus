@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Handy Pro Plus",
+  "productName": "AivoRelay",
   "version": "0.6.9",
-  "identifier": "com.pais.handy",
+  "identifier": "fi.maxits.aivorelay",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Handy Pro Plus",
+        "title": "AivoRelay",
         "width": 680,
         "height": 570,
         "minWidth": 680,
@@ -67,7 +67,7 @@
       }
     },
     "windows": {
-      "signCommand": "trusted-signing-cli -e https://eus.codesigning.azure.net/ -a CJ-Signing -c cjpais-dev -d Handy %1"
+      "signCommand": "trusted-signing-cli -e https://eus.codesigning.azure.net/ -a CJ-Signing -c cjpais-dev -d AivoRelay %1"
     }
   },
   "plugins": {

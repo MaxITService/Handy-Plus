@@ -1,6 +1,6 @@
 //! Connector Manager - HTTP server for Chrome extension communication
 //!
-//! This module provides an HTTP server that allows the Handy Chrome extension
+//! This module provides an HTTP server that allows the AivoRelay Chrome extension
 //! to poll for messages. It tracks the connection status based on polling activity.
 
 use crate::settings::{default_connector_password, get_settings, write_settings};

@@ -13,7 +13,7 @@ const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 60;
 /// Default connection timeout (10 seconds)
 const DEFAULT_CONNECT_TIMEOUT_SECS: u64 = 10;
 
-const REMOTE_STT_SERVICE: &str = "com.pais.handy";
+const REMOTE_STT_SERVICE: &str = "fi.maxits.aivorelay";
 const REMOTE_STT_USER: &str = "remote_stt_api_key";
 
 #[derive(Debug, Deserialize)]
@@ -86,8 +86,12 @@ impl RemoteSttManager {
     /// Marks all operations started before now as cancelled.
     pub fn cancel(&self) {
         let current = self.current_operation_id.load(Ordering::SeqCst);
-        self.cancelled_before_id.store(current + 1, Ordering::SeqCst);
-        log::info!("RemoteSttManager: cancelled all operations up to id {}", current + 1);
+        self.cancelled_before_id
+            .store(current + 1, Ordering::SeqCst);
+        log::info!(
+            "RemoteSttManager: cancelled all operations up to id {}",
+            current + 1
+        );
     }
 
     /// Returns true if the given operation ID has been cancelled.
@@ -300,7 +304,10 @@ impl RemoteSttManager {
         if settings.debug_mode == RemoteSttDebugMode::Verbose {
             self.record_info(
                 settings,
-                format!("Remote STT test response status={} elapsed_ms={}", status, elapsed_ms),
+                format!(
+                    "Remote STT test response status={} elapsed_ms={}",
+                    status, elapsed_ms
+                ),
             );
         }
 

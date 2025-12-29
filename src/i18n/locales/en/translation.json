@@ -70,7 +70,7 @@
     }
   },
   "modelSelector": {
-    "welcome": "Welcome to Handy!",
+    "welcome": "Welcome to AivoRelay!",
     "downloadPrompt": "Download a model below to get started with transcription.",
     "availableModels": "Available Models",
     "downloadModels": "Download Models",
@@ -98,7 +98,7 @@
     "general": {
       "title": "General",
       "shortcut": {
-        "title": "Handy Shortcuts",
+        "title": "AivoRelay Shortcuts",
         "description": "Configure keyboard shortcuts to trigger speech-to-text recording",
         "loading": "Loading shortcuts...",
         "none": "No shortcuts configured",
@@ -112,7 +112,7 @@
           },
           "send_to_extension": {
             "name": "Send Transcription to Extension",
-            "description": "Send transcription to Handy Connector browser extension.",
+            "description": "Send transcription to AivoRelay Connector browser extension.",
             "pushToTalk": {
               "label": "Push To Talk",
               "description": "When ON: hold key to record. When OFF: tap once to start, tap again to stop."
@@ -120,7 +120,7 @@
           },
           "send_to_extension_with_selection": {
             "name": "Send Transcription + Selection to Extension",
-            "description": "Send transcription plus selected text to Handy Connector browser extension.",
+            "description": "Send transcription plus selected text to AivoRelay Connector browser extension.",
             "pushToTalk": {
               "label": "Push To Talk",
               "description": "When ON: hold key to record. When OFF: tap once to start, tap again to stop."
@@ -201,7 +201,7 @@
       },
       "autostart": {
         "label": "Launch on Startup",
-        "description": "Automatically start Handy when you log in to your computer."
+        "description": "Automatically start AivoRelay when you log in to your computer."
       },
       "overlay": {
         "title": "Overlay Position",
@@ -297,7 +297,7 @@
           "replace": "Replace",
           "cancel": "Cancel",
           "statusStored": "API key stored securely.",
-          "statusStoredHint": "Stored in Windows Credential Manager and available to Handy when needed. The key isn't shown here.",
+          "statusStoredHint": "Stored in Windows Credential Manager and available to AivoRelay when needed. The key isn't shown here.",
           "replaceHint": "Enter a new key to replace the stored one.",
           "statusMissing": "No API key stored yet."
         },
@@ -447,7 +447,7 @@
       },
       "updateChecks": {
         "label": "Check for Updates",
-        "description": "Automatically check for new versions of Handy"
+        "description": "Automatically check for new versions of AivoRelay"
       },
       "soundTheme": {
         "label": "Sound Theme",
@@ -502,11 +502,11 @@
       "title": "About",
       "version": {
         "title": "Version",
-        "description": "Current version of Handy"
+        "description": "Current version of AivoRelay"
       },
       "appDataDirectory": {
         "title": "App Data Directory",
-        "description": "Location where Handy stores its data"
+        "description": "Location where AivoRelay stores its data"
       },
       "sourceCode": {
         "title": "Source Code",
@@ -515,7 +515,7 @@
       },
       "supportDevelopment": {
         "title": "Support Development",
-        "description": "Help us continue building Handy",
+        "description": "Help us continue building AivoRelay",
         "button": "Donate"
       },
       "acknowledgments": {
@@ -523,14 +523,14 @@
         "whisper": {
           "title": "Whisper.cpp",
           "description": "High-performance inference of OpenAI's Whisper automatic speech recognition model",
-          "details": "Handy uses Whisper.cpp for fast, local speech-to-text processing. Thanks to the amazing work by Georgi Gerganov and contributors."
+          "details": "AivoRelay uses Whisper.cpp for fast, local speech-to-text processing. Thanks to the amazing work by Georgi Gerganov and contributors."
         }
       }
     },
     "browserConnector": {
       "help": {
         "title": "What is Browser Connector?",
-        "description": "Browser Connector sends your voice transcriptions directly to AI chat interfaces (like ChatGPT, Claude) through the <link>Handy Connector</link> Chrome extension.",
+        "description": "Browser Connector sends your voice transcriptions directly to AI chat interfaces (like ChatGPT, Claude) through the <link>AivoRelay Connector</link> Chrome extension.",
         "feature1": "Speak and send messages directly to ChatGPT or other AI chats",
         "feature2": "Use \"Send Transcription + Selection\" to include selected text as context",
         "feature3": "Optional LLM processing before sending (e.g., translate, reformat)",
@@ -561,7 +561,7 @@
         "description": "Automatically open a new browser tab when no tab is bound to the extension. This allows seamless hands-free sending without manually selecting a tab first.",
         "enabled": {
           "label": "Enable Auto-Open",
-          "description": "Opens ChatGPT/Claude automatically if no tab has the Handy Connector extension active."
+          "description": "Opens ChatGPT/Claude automatically if no tab has the AivoRelay Connector extension active."
         },
         "site": {
           "title": "Target Site",
@@ -616,11 +616,11 @@
         "title": "Connection Settings",
         "host": {
           "title": "Host",
-          "description": "The host address of the Handy Connector server."
+          "description": "The host address of the AivoRelay Connector server."
         },
         "port": {
           "title": "Port",
-          "description": "The port number of the Handy Connector server.",
+          "description": "The port number of the AivoRelay Connector server.",
           "errorRange": "Port must be {{min}} or higher"
         },
         "path": {
@@ -629,10 +629,10 @@
         },
         "password": {
           "title": "Connection Password",
-          "description": "Password to authenticate the extension. Must match in both Handy and the extension.",
+          "description": "Password to authenticate the extension. Must match in both AivoRelay and the extension.",
           "defaultWarning": {
             "title": "Security Warning: Default Password",
-            "description": "You are using the default password. Please change it to a unique password in BOTH the Handy app AND the Handy Connector extension to prevent other websites from reading your messages."
+            "description": "You are using the default password. Please change it to a unique password in BOTH the AivoRelay app AND the AivoRelay Connector extension to prevent other websites from reading your messages."
           }
         },
         "endpoint": {
@@ -765,7 +765,7 @@
   },
   "accessibility": {
     "permissionsRequired": "Accessibility Permissions Required",
-    "permissionsDescription": "Handy needs accessibility permissions to type transcribed text.",
+    "permissionsDescription": "AivoRelay needs accessibility permissions to type transcribed text.",
     "openSettings": "Open System Settings",
     "dismiss": "Dismiss"
   },
@@ -774,7 +774,7 @@
   },
   "appLanguage": {
     "title": "Application Language",
-    "description": "Change the language of the Handy interface"
+    "description": "Change the language of the AivoRelay interface"
   },
   "overlay": {
     "transcribing": "Transcribing..."

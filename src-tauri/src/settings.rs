@@ -738,7 +738,7 @@ pub fn get_default_settings() -> AppSettings {
         ShortcutBinding {
             id: "send_to_extension".to_string(),
             name: "Send to Extension".to_string(),
-            description: "Send transcription to Handy Connector.".to_string(),
+            description: "Send transcription to AivoRelay Connector.".to_string(),
             default_binding: default_send_shortcut.to_string(),
             current_binding: default_send_shortcut.to_string(),
         },
@@ -748,7 +748,8 @@ pub fn get_default_settings() -> AppSettings {
         ShortcutBinding {
             id: "send_to_extension_with_selection".to_string(),
             name: "Send + Selection to Extension".to_string(),
-            description: "Send transcription plus copied selection to Handy Connector.".to_string(),
+            description: "Send transcription plus copied selection to AivoRelay Connector."
+                .to_string(),
             default_binding: default_send_selection_shortcut.to_string(),
             current_binding: default_send_selection_shortcut.to_string(),
         },
@@ -772,8 +773,9 @@ pub fn get_default_settings() -> AppSettings {
         ShortcutBinding {
             id: "send_screenshot_to_extension".to_string(),
             name: "Send Screenshot to Extension".to_string(),
-            description: "Capture screenshot with voice instruction and send to Handy Connector."
-                .to_string(),
+            description:
+                "Capture screenshot with voice instruction and send to AivoRelay Connector."
+                    .to_string(),
             default_binding: "".to_string(),
             current_binding: "".to_string(),
         },
