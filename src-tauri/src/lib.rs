@@ -384,6 +384,7 @@ pub fn run() {
         commands::connector::connector_start_server,
         commands::connector::connector_stop_server,
         commands::connector::connector_queue_message,
+        commands::connector::connector_cancel_message,
         helpers::clamshell::is_laptop,
     ]);
 

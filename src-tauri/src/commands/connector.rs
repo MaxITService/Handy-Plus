@@ -35,11 +35,23 @@ pub fn connector_stop_server(manager: State<Arc<ConnectorManager>>) {
 }
 
 /// Queue a message to be sent to the extension
+/// Returns the message ID on success
 #[tauri::command]
 #[specta::specta]
 pub fn connector_queue_message(
     manager: State<Arc<ConnectorManager>>,
     text: String,
-) -> Result<(), String> {
+) -> Result<String, String> {
     manager.queue_message(&text)
+}
+
+/// Cancel a queued message if it hasn't been delivered yet
+/// Returns true if message was cancelled, false if not found or already delivered
+#[tauri::command]
+#[specta::specta]
+pub fn connector_cancel_message(
+    manager: State<Arc<ConnectorManager>>,
+    message_id: String,
+) -> Result<bool, String> {
+    manager.cancel_queued_message(&message_id)
 }

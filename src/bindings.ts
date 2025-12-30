@@ -990,10 +990,23 @@ async connectorStopServer() : Promise<void> {
 },
 /**
  * Queue a message to be sent to the extension
+ * Returns the message ID on success
  */
-async connectorQueueMessage(text: string) : Promise<Result<null, string>> {
+async connectorQueueMessage(text: string) : Promise<Result<string, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("connector_queue_message", { text }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Cancel a queued message if it hasn't been delivered yet
+ * Returns true if message was cancelled, false if not found or already delivered
+ */
+async connectorCancelMessage(messageId: string) : Promise<Result<boolean, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("connector_cancel_message", { messageId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

@@ -607,7 +607,7 @@ fn default_ai_replace_quick_tap_system_prompt() -> String {
 }
 
 fn default_send_to_extension_with_selection_system_prompt() -> String {
-    default_ai_replace_system_prompt()
+    String::new()
 }
 
 fn default_send_to_extension_with_selection_user_prompt() -> String {

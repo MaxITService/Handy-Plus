@@ -778,7 +778,7 @@ impl ShortcutAction for SendToExtensionAction {
             let final_text = apply_post_processing_and_history(&ah, transcription, samples).await;
 
             match cm.queue_message(&final_text) {
-                Ok(()) => debug!("Connector message queued"),
+                Ok(id) => debug!("Connector message queued with id: {}", id),
                 Err(e) => error!("Failed to queue connector message: {}", e),
             }
 
