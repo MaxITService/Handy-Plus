@@ -195,6 +195,14 @@
       "pushToTalk": {
         "label": "Push To Talk",
         "description": "When ON: hold key to record. When OFF: tap once to start, tap again to stop."
+      },
+      "transcriptionSystemPrompt": {
+        "title": "System Prompt (Optional)",
+        "description": "Model works fine without it! Provide context to help with specialized terminology, names, or formatting.",
+        "placeholder": "Example: Context: technical discussion. Terms: Kubernetes, gRPC, CI/CD.",
+        "nearLimit": "Approaching the {{limit}} character limit. Longer prompts may be truncated.",
+        "overLimit": "Exceeds {{limit}} character limit! The prompt will be automatically truncated.",
+        "remoteNote": "For remote APIs: prompt support depends on your provider. Most OpenAI-compatible APIs support this parameter."
       }
     },
     "sound": {

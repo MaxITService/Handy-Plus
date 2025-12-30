@@ -417,6 +417,23 @@ pub fn change_remote_stt_model_id_setting(app: AppHandle, model_id: String) -> R
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_transcription_prompt_setting(
+    app: AppHandle,
+    model_id: String,
+    prompt: String,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    if prompt.trim().is_empty() {
+        settings.transcription_prompts.remove(&model_id);
+    } else {
+        settings.transcription_prompts.insert(model_id, prompt);
+    }
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_remote_stt_debug_capture_setting(
     app: AppHandle,
     enabled: bool,

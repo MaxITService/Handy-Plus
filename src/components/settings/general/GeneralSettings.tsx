@@ -9,6 +9,7 @@ import { PushToTalk } from "../PushToTalk";
 import { AudioFeedback } from "../AudioFeedback";
 import { useSettings } from "../../../hooks/useSettings";
 import { VolumeSlider } from "../VolumeSlider";
+import { TranscriptionSystemPrompt } from "../TranscriptionSystemPrompt";
 
 export const GeneralSettings: React.FC = () => {
   const { t } = useTranslation();
@@ -17,6 +18,7 @@ export const GeneralSettings: React.FC = () => {
     <div className="max-w-3xl w-full mx-auto space-y-6">
       <SettingsGroup title={t("settings.general.title")}>
         <HandyShortcut shortcutId="transcribe" grouped={true} />
+        <TranscriptionSystemPrompt grouped={true} />
         <LanguageSelector descriptionMode="tooltip" grouped={true} />
         <PushToTalk descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>

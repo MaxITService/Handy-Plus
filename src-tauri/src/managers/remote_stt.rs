@@ -21,6 +21,32 @@ struct TranscriptionResponse {
     text: String,
 }
 
+/// Returns the known character limit for a model's prompt parameter.
+/// Returns None if the model is unknown (no limit enforced by us, API may handle).
+fn get_model_prompt_limit(model_id: &str) -> Option<usize> {
+    let lower = model_id.to_lowercase();
+
+    // Groq Whisper models - 896 character limit
+    // https://console.groq.com/docs/speech-to-text
+    if lower.contains("whisper") {
+        return Some(896);
+    }
+
+    // OpenAI whisper-1 - also uses ~224 tokens ≈ 896 chars
+    if lower == "whisper-1" {
+        return Some(896);
+    }
+
+    // Deepgram - supports longer prompts (based on their docs)
+    if lower.contains("deepgram") || lower.contains("nova") {
+        return Some(2000);
+    }
+
+    // Unknown model - no limit enforced by us
+    // Let the API handle it and return error if needed
+    None
+}
+
 #[derive(Default)]
 struct DebugBuffer {
     lines: VecDeque<String>,
@@ -138,6 +164,7 @@ impl RemoteSttManager {
         &self,
         settings: &RemoteSttSettings,
         audio_samples: &[f32],
+        prompt: Option<String>,
     ) -> Result<String> {
         if audio_samples.is_empty() {
             return Ok(String::new());
@@ -181,7 +208,7 @@ impl RemoteSttManager {
             );
         }
 
-        let form = reqwest::multipart::Form::new()
+        let mut form = reqwest::multipart::Form::new()
             .text("model", settings.model_id.clone())
             .text("response_format", "json".to_string())
             .part(
@@ -191,6 +218,32 @@ impl RemoteSttManager {
                     .mime_str("audio/wav")
                     .map_err(|e| anyhow!("Failed to build multipart file: {}", e))?,
             );
+
+        // Check prompt against known model limits
+        // For known models: validate limit upfront and return user-friendly error
+        // For unknown models: pass through, let API handle (and parse error if returned)
+        if let Some(p) = prompt {
+            let trimmed = p.trim();
+            if !trimmed.is_empty() {
+                // Get the limit for this model (if known)
+                let model_limit = get_model_prompt_limit(&settings.model_id);
+
+                if let Some(limit) = model_limit {
+                    if trimmed.len() > limit {
+                        let message = format!(
+                            "System prompt is too long ({} characters). The {} model has a limit of {} characters. Please shorten your prompt.",
+                            trimmed.len(),
+                            settings.model_id,
+                            limit
+                        );
+                        self.record_error(settings, message.clone());
+                        return Err(anyhow!(message));
+                    }
+                }
+
+                form = form.text("prompt", trimmed.to_string());
+            }
+        }
 
         let start = Instant::now();
         let response = self

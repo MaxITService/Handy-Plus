@@ -367,6 +367,15 @@ impl TranscriptionManager {
                     let params = WhisperInferenceParams {
                         language: whisper_language,
                         translate: settings.translate_to_english,
+                        initial_prompt: {
+                            // Get the prompt for current model from the per-model HashMap
+                            let current_model_id = self.current_model_id.lock().unwrap();
+                            current_model_id
+                                .as_ref()
+                                .and_then(|id| settings.transcription_prompts.get(id))
+                                .filter(|p| !p.trim().is_empty())
+                                .cloned()
+                        },
                         ..Default::default()
                     };
 

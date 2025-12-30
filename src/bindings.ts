@@ -93,6 +93,14 @@ async changeTranscriptionProviderSetting(provider: string) : Promise<Result<null
     else return { status: "error", error: e  as any };
 }
 },
+async changeTranscriptionPromptSetting(modelId: string, prompt: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_transcription_prompt_setting", { modelId, prompt }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeOverlayPositionSetting(position: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_overlay_position_setting", { position }) };
@@ -1023,7 +1031,12 @@ connector_password_user_set?: boolean;
 /**
  * Pending password awaiting acknowledgement from extension (two-phase commit)
  */
-connector_pending_password?: string | null }
+connector_pending_password?: string | null; 
+/**
+ * Per-model transcription prompts (model_id -> prompt text)
+ * For Whisper: context/terms prompt. For Parakeet: comma-separated boost words.
+ */
+transcription_prompts?: Partial<{ [key in string]: string }> }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type BindingResponse = { success: boolean; binding: ShortcutBinding | null; error: string | null }
 export type ClipboardHandling = "dont_modify" | "copy_to_clipboard"

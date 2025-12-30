@@ -1,12 +1,12 @@
+/* Google Fonts - Inter for modern typography */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @import "tailwindcss";
 
 /* ============================================
    AivoRelay - Adobe Photoshop Style Dark Theme
    with Apple Liquid Glass Effects
    ============================================ */
-
-/* Google Fonts - Inter for modern typography */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @theme {
   /* Warm Dark Theme Colors - Pink/Violet/Yellow palette */

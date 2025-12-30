@@ -425,6 +425,10 @@ pub struct AppSettings {
     /// Pending password awaiting acknowledgement from extension (two-phase commit)
     #[serde(default)]
     pub connector_pending_password: Option<String>,
+    /// Per-model transcription prompts (model_id -> prompt text)
+    /// For Whisper: context/terms prompt. For Parakeet: comma-separated boost words.
+    #[serde(default)]
+    pub transcription_prompts: HashMap<String, String>,
 }
 
 fn default_model() -> String {
@@ -917,6 +921,7 @@ pub fn get_default_settings() -> AppSettings {
         connector_password: default_connector_password(),
         connector_password_user_set: false,
         connector_pending_password: None,
+        transcription_prompts: HashMap::new(),
     }
 }
 

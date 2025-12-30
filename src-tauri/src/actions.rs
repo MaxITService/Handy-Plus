@@ -368,7 +368,16 @@ async fn perform_transcription(app: &AppHandle, samples: Vec<f32>) -> Transcript
         let operation_id = remote_manager.start_operation();
 
         let result = remote_manager
-            .transcribe(&settings.remote_stt, &samples)
+            .transcribe(
+                &settings.remote_stt,
+                &samples,
+                // Get prompt for the remote model from per-model HashMap
+                settings
+                    .transcription_prompts
+                    .get(&settings.remote_stt.model_id)
+                    .filter(|p| !p.trim().is_empty())
+                    .cloned(),
+            )
             .await
             .map(|text| {
                 if settings.custom_words.is_empty() {
@@ -1110,6 +1119,29 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
             utils::hide_recording_overlay(&ah);
             change_tray_icon(&ah, TrayIconState::Idle);
 
+            // Validate screenshot folder before launching capture tool
+            let screenshot_folder = PathBuf::from(expand_env_vars(&settings.screenshot_folder));
+            if !screenshot_folder.exists() {
+                emit_screenshot_error(
+                    &ah,
+                    &format!(
+                        "Screenshot folder not found: {}",
+                        screenshot_folder.display()
+                    ),
+                );
+                return;
+            }
+            if !screenshot_folder.is_dir() {
+                emit_screenshot_error(
+                    &ah,
+                    &format!(
+                        "Screenshot path is not a folder: {}",
+                        screenshot_folder.display()
+                    ),
+                );
+                return;
+            }
+
             // Launch screenshot tool
             let capture_command = settings.screenshot_capture_command.clone();
             if !capture_command.trim().is_empty() {
@@ -1120,10 +1152,8 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
             }
 
             // Wait for screenshot
-            let screenshot_folder = PathBuf::from(expand_env_vars(&settings.screenshot_folder));
             let timeout = settings.screenshot_timeout_seconds as u64;
-
-            if let Ok(path) = watch_for_new_image(
+            match watch_for_new_image(
                 screenshot_folder,
                 timeout,
                 settings.screenshot_require_recent,
@@ -1132,9 +1162,12 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
             )
             .await
             {
-                let _ = cm.queue_bundle_message(&final_voice_text, &path);
-            } else {
-                emit_screenshot_error(&ah, "Screenshot timeout");
+                Ok(path) => {
+                    let _ = cm.queue_bundle_message(&final_voice_text, &path);
+                }
+                Err(e) => {
+                    emit_screenshot_error(&ah, &e);
+                }
             }
         });
     }
