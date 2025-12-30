@@ -173,7 +173,7 @@ export const BrowserConnectorSettings: React.FC = () => {
                 components={{
                   link: (
                     <a
-                      href="https://github.com/MaxITService/AivoRelay-connector"
+                      href="https://github.com/MaxITService/AivoRelay-relay"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-purple-400 hover:underline inline-flex items-center gap-1"
