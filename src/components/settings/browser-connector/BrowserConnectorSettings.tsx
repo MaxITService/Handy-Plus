@@ -158,7 +158,7 @@ export const BrowserConnectorSettings: React.FC = () => {
   const endpointUrl = `http://127.0.0.1:${portInput}/messages`;
 
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
+    <div className="max-w-3xl w-full mx-auto space-y-8 pb-12">
       {/* Help Banner */}
       <div className="rounded-lg border border-purple-500/30 bg-purple-500/10 p-4">
         <div className="flex items-start gap-3">
@@ -205,8 +205,8 @@ export const BrowserConnectorSettings: React.FC = () => {
         <ConnectorStatusIndicator grouped={true} descriptionMode="tooltip" />
       </SettingsGroup>
 
-      <SettingsGroup title={t("settings.browserConnector.shortcuts.title")}>
-        {/* Send Transcription Directly to Extension */}
+      {/* Feature 1: Send Transcription Directly to Extension */}
+      <SettingsGroup title={t("settings.general.shortcut.bindings.send_to_extension.name")}>
         <SettingContainer
           title={t("settings.general.shortcut.bindings.send_to_extension.enable.label")}
           description={t("settings.general.shortcut.bindings.send_to_extension.enable.description")}
@@ -225,23 +225,33 @@ export const BrowserConnectorSettings: React.FC = () => {
             disabled={isUpdating("send_to_extension_enabled")}
           />
         </SettingContainer>
-        <div className={!settings?.send_to_extension_enabled ? "opacity-50" : ""}>
-          <HandyShortcut shortcutId="send_to_extension" grouped={true} disabled={!settings?.send_to_extension_enabled} />
-          <SettingContainer
-            title={t("settings.general.shortcut.bindings.send_to_extension.pushToTalk.label")}
-            description={t("settings.general.shortcut.bindings.send_to_extension.pushToTalk.description")}
-            descriptionMode="tooltip"
-            grouped={true}
-          >
-            <ToggleSwitch
-              checked={settings?.send_to_extension_push_to_talk ?? true}
-              onChange={(enabled) => void updateSetting("send_to_extension_push_to_talk", enabled)}
-              disabled={!settings?.send_to_extension_enabled || isUpdating("send_to_extension_push_to_talk")}
-            />
-          </SettingContainer>
+        <div 
+          className={`overflow-hidden transition-all duration-300 ease-out ${
+            settings?.send_to_extension_enabled 
+              ? "max-h-[500px] opacity-100" 
+              : "max-h-0 opacity-0"
+          }`}
+        >
+          <div className="border-t border-white/[0.05]">
+            <HandyShortcut shortcutId="send_to_extension" grouped={true} />
+            <SettingContainer
+              title={t("settings.general.shortcut.bindings.send_to_extension.pushToTalk.label")}
+              description={t("settings.general.shortcut.bindings.send_to_extension.pushToTalk.description")}
+              descriptionMode="tooltip"
+              grouped={true}
+            >
+              <ToggleSwitch
+                checked={settings?.send_to_extension_push_to_talk ?? true}
+                onChange={(enabled) => void updateSetting("send_to_extension_push_to_talk", enabled)}
+                disabled={isUpdating("send_to_extension_push_to_talk")}
+              />
+            </SettingContainer>
+          </div>
         </div>
+      </SettingsGroup>
 
-        {/* Send Transcription + Selection to Extension */}
+      {/* Feature 2: Send Transcription + Selection to Extension */}
+      <SettingsGroup title={t("settings.general.shortcut.bindings.send_to_extension_with_selection.name")}>
         <SettingContainer
           title={t("settings.general.shortcut.bindings.send_to_extension_with_selection.enable.label")}
           description={t("settings.general.shortcut.bindings.send_to_extension_with_selection.enable.description")}
@@ -260,23 +270,130 @@ export const BrowserConnectorSettings: React.FC = () => {
             disabled={isUpdating("send_to_extension_with_selection_enabled")}
           />
         </SettingContainer>
-        <div className={!settings?.send_to_extension_with_selection_enabled ? "opacity-50" : ""}>
-          <HandyShortcut shortcutId="send_to_extension_with_selection" grouped={true} disabled={!settings?.send_to_extension_with_selection_enabled} />
-          <SettingContainer
-            title={t("settings.general.shortcut.bindings.send_to_extension_with_selection.pushToTalk.label")}
-            description={t("settings.general.shortcut.bindings.send_to_extension_with_selection.pushToTalk.description")}
-            descriptionMode="tooltip"
-            grouped={true}
-          >
-            <ToggleSwitch
-              checked={settings?.send_to_extension_with_selection_push_to_talk ?? true}
-              onChange={(enabled) => void updateSetting("send_to_extension_with_selection_push_to_talk", enabled)}
-              disabled={!settings?.send_to_extension_with_selection_enabled || isUpdating("send_to_extension_with_selection_push_to_talk")}
-            />
-          </SettingContainer>
+        <div 
+          className={`overflow-hidden transition-all duration-300 ease-out ${
+            settings?.send_to_extension_with_selection_enabled 
+              ? "max-h-[2000px] opacity-100" 
+              : "max-h-0 opacity-0"
+          }`}
+        >
+          <div className="border-t border-white/[0.05]">
+            <HandyShortcut shortcutId="send_to_extension_with_selection" grouped={true} />
+            <SettingContainer
+              title={t("settings.general.shortcut.bindings.send_to_extension_with_selection.pushToTalk.label")}
+              description={t("settings.general.shortcut.bindings.send_to_extension_with_selection.pushToTalk.description")}
+              descriptionMode="tooltip"
+              grouped={true}
+            >
+              <ToggleSwitch
+                checked={settings?.send_to_extension_with_selection_push_to_talk ?? true}
+                onChange={(enabled) => void updateSetting("send_to_extension_with_selection_push_to_talk", enabled)}
+                disabled={isUpdating("send_to_extension_with_selection_push_to_talk")}
+              />
+            </SettingContainer>
+            
+            {/* Prompt Templates - now inside feature block */}
+            <div className="border-t border-white/[0.08] mt-2 pt-2">
+              <div className="px-6 py-2 text-xs font-bold text-[#ff4d8d] uppercase tracking-widest">
+                {t("settings.browserConnector.prompts.title")}
+              </div>
+              <SettingContainer
+                title={t("settings.browserConnector.prompts.systemPrompt.title")}
+                description={t("settings.browserConnector.prompts.systemPrompt.description")}
+                descriptionMode="inline"
+                grouped={true}
+                layout="stacked"
+              >
+                <Textarea
+                  value={settings?.send_to_extension_with_selection_system_prompt ?? ""}
+                  onChange={(event) => void updateSetting("send_to_extension_with_selection_system_prompt", event.target.value)}
+                  disabled={isUpdating("send_to_extension_with_selection_system_prompt")}
+                  className="w-full"
+                  rows={4}
+                />
+              </SettingContainer>
+              <SettingContainer
+                title={t("settings.browserConnector.prompts.userPrompt.title")}
+                description={t("settings.browserConnector.prompts.userPrompt.description")}
+                descriptionMode="inline"
+                grouped={true}
+                layout="stacked"
+              >
+                <Textarea
+                  value={settings?.send_to_extension_with_selection_user_prompt ?? ""}
+                  onChange={(event) => void updateSetting("send_to_extension_with_selection_user_prompt", event.target.value)}
+                  disabled={isUpdating("send_to_extension_with_selection_user_prompt")}
+                  className="w-full"
+                  rows={3}
+                />
+                <div className="text-xs text-text/50 mt-1">
+                  {t("settings.aiReplace.withSelection.variables")}
+                </div>
+              </SettingContainer>
+              <SettingContainer
+                title={t("settings.browserConnector.prompts.quickTap.title")}
+                description={t("settings.browserConnector.prompts.quickTap.description")}
+                descriptionMode="tooltip"
+                grouped={true}
+              >
+                <ToggleSwitch
+                  checked={settings?.send_to_extension_with_selection_allow_no_voice ?? true}
+                  onChange={(enabled) => void updateSetting("send_to_extension_with_selection_allow_no_voice", enabled)}
+                  disabled={isUpdating("send_to_extension_with_selection_allow_no_voice")}
+                />
+              </SettingContainer>
+              <div className={!settings?.send_to_extension_with_selection_allow_no_voice ? "opacity-50" : ""}>
+                <SettingContainer
+                  title={t("settings.browserConnector.prompts.quickTap.threshold.title")}
+                  description={t("settings.browserConnector.prompts.quickTap.threshold.description")}
+                  descriptionMode="tooltip"
+                  grouped={true}
+                >
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      value={settings?.send_to_extension_with_selection_quick_tap_threshold_ms ?? 500}
+                      onChange={(event) => {
+                        const val = parseInt(event.target.value, 10);
+                        if (!isNaN(val) && val > 0) {
+                          void updateSetting("send_to_extension_with_selection_quick_tap_threshold_ms", val);
+                        }
+                      }}
+                      disabled={!settings?.send_to_extension_with_selection_allow_no_voice || isUpdating("send_to_extension_with_selection_quick_tap_threshold_ms")}
+                      min={100}
+                      max={2000}
+                      step={50}
+                      className="w-24"
+                    />
+                    <span className="text-sm text-text/60">
+                      {t("settings.browserConnector.prompts.quickTap.threshold.suffix")}
+                    </span>
+                  </div>
+                </SettingContainer>
+                <SettingContainer
+                  title={t("settings.browserConnector.prompts.quickTap.systemPrompt.title")}
+                  description={t("settings.browserConnector.prompts.quickTap.systemPrompt.description")}
+                  descriptionMode="inline"
+                  grouped={true}
+                  layout="stacked"
+                >
+                  <Textarea
+                    value={settings?.send_to_extension_with_selection_no_voice_system_prompt ?? ""}
+                    onChange={(event) => void updateSetting("send_to_extension_with_selection_no_voice_system_prompt", event.target.value)}
+                    disabled={!settings?.send_to_extension_with_selection_allow_no_voice || isUpdating("send_to_extension_with_selection_no_voice_system_prompt")}
+                    className="w-full"
+                    rows={2}
+                  />
+                </SettingContainer>
+              </div>
+            </div>
+          </div>
         </div>
+      </SettingsGroup>
 
-        {/* Send Transcription + Screenshot to Extension */}
+
+      {/* Feature 3: Send Transcription + Screenshot to Extension */}
+      <SettingsGroup title={t("settings.general.shortcut.bindings.send_screenshot_to_extension.name")}>
         <SettingContainer
           title={t("settings.general.shortcut.bindings.send_screenshot_to_extension.enable.label")}
           description={t("settings.general.shortcut.bindings.send_screenshot_to_extension.enable.description")}
@@ -295,275 +412,188 @@ export const BrowserConnectorSettings: React.FC = () => {
             disabled={isUpdating("send_screenshot_to_extension_enabled")}
           />
         </SettingContainer>
-        <div className={!settings?.send_screenshot_to_extension_enabled ? "opacity-50" : ""}>
-          <HandyShortcut shortcutId="send_screenshot_to_extension" grouped={true} disabled={!settings?.send_screenshot_to_extension_enabled} />
-          <SettingContainer
-            title={t("settings.general.shortcut.bindings.send_screenshot_to_extension.pushToTalk.label")}
-            description={t("settings.general.shortcut.bindings.send_screenshot_to_extension.pushToTalk.description")}
-            descriptionMode="tooltip"
-            grouped={true}
-          >
-            <ToggleSwitch
-              checked={settings?.send_screenshot_to_extension_push_to_talk ?? true}
-              onChange={(enabled) => void updateSetting("send_screenshot_to_extension_push_to_talk", enabled)}
-              disabled={!settings?.send_screenshot_to_extension_enabled || isUpdating("send_screenshot_to_extension_push_to_talk")}
-            />
-          </SettingContainer>
+        <div 
+          className={`overflow-hidden transition-all duration-300 ease-out ${
+            settings?.send_screenshot_to_extension_enabled 
+              ? "max-h-[2500px] opacity-100" 
+              : "max-h-0 opacity-0"
+          }`}
+        >
+          <div className="border-t border-white/[0.05]">
+            <HandyShortcut shortcutId="send_screenshot_to_extension" grouped={true} />
+            <SettingContainer
+              title={t("settings.general.shortcut.bindings.send_screenshot_to_extension.pushToTalk.label")}
+              description={t("settings.general.shortcut.bindings.send_screenshot_to_extension.pushToTalk.description")}
+              descriptionMode="tooltip"
+              grouped={true}
+            >
+              <ToggleSwitch
+                checked={settings?.send_screenshot_to_extension_push_to_talk ?? true}
+                onChange={(enabled) => void updateSetting("send_screenshot_to_extension_push_to_talk", enabled)}
+                disabled={isUpdating("send_screenshot_to_extension_push_to_talk")}
+              />
+            </SettingContainer>
+            
+            {/* Screenshot Settings - now inside feature block */}
+            <div className="border-t border-white/[0.08] mt-2 pt-2">
+              <div className="px-6 py-2 text-xs font-bold text-[#ff4d8d] uppercase tracking-widest">
+                {t("settings.browserConnector.screenshot.title")}
+              </div>
+              <div className="mx-6 mb-2 p-3 rounded border border-red-500/30 bg-red-500/10 text-red-200/90 text-sm italic">
+                <div className="flex gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+                  <p>{t("settings.browserConnector.screenshot.warning")}</p>
+                </div>
+              </div>
+              <SettingContainer
+                title={t("settings.browserConnector.screenshot.command.title")}
+                description={t("settings.browserConnector.screenshot.command.description")}
+                descriptionMode="inline"
+                grouped={true}
+                layout="stacked"
+              >
+                <Input
+                  type="text"
+                  value={screenshotCommandInput}
+                  onChange={(event) => setScreenshotCommandInput(event.target.value)}
+                  onBlur={handleScreenshotCommandBlur}
+                  placeholder='"C:\Program Files\ShareX\ShareX.exe" -RectangleRegion'
+                  className="w-full font-mono text-sm"
+                />
+              </SettingContainer>
+              <SettingContainer
+                title={t("settings.browserConnector.screenshot.folder.title")}
+                description={t("settings.browserConnector.screenshot.folder.description")}
+                descriptionMode="inline"
+                grouped={true}
+                layout="stacked"
+              >
+                <Input
+                  type="text"
+                  value={screenshotFolderInput}
+                  onChange={(event) => setScreenshotFolderInput(event.target.value)}
+                  onBlur={handleScreenshotFolderBlur}
+                  placeholder="%USERPROFILE%\Documents\ShareX\Screenshots"
+                  className="w-full font-mono text-sm"
+                />
+              </SettingContainer>
+              <SettingContainer
+                title={t("settings.browserConnector.screenshot.includeSubfolders.title")}
+                description={t("settings.browserConnector.screenshot.includeSubfolders.description")}
+                descriptionMode="tooltip"
+                grouped={true}
+              >
+                <ToggleSwitch
+                  checked={settings?.screenshot_include_subfolders ?? false}
+                  onChange={(enabled) => void updateSetting("screenshot_include_subfolders", enabled)}
+                  disabled={isUpdating("screenshot_include_subfolders")}
+                />
+              </SettingContainer>
+              <SettingContainer
+                title={t("settings.browserConnector.screenshot.requireRecent.title")}
+                description={t("settings.browserConnector.screenshot.requireRecent.description")}
+                descriptionMode="tooltip"
+                grouped={true}
+              >
+                <ToggleSwitch
+                  checked={settings?.screenshot_require_recent ?? true}
+                  onChange={(enabled) => void updateSetting("screenshot_require_recent", enabled)}
+                  disabled={isUpdating("screenshot_require_recent")}
+                />
+              </SettingContainer>
+              <div className={!settings?.screenshot_require_recent ? "opacity-50" : ""}>
+                <SettingContainer
+                  title={t("settings.browserConnector.screenshot.timeout.title")}
+                  description={t("settings.browserConnector.screenshot.timeout.description")}
+                  descriptionMode="tooltip"
+                  grouped={true}
+                >
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      value={screenshotTimeoutInput}
+                      onChange={(event) => setScreenshotTimeoutInput(event.target.value)}
+                      onBlur={handleScreenshotTimeoutBlur}
+                      placeholder="5"
+                      min={1}
+                      max={60}
+                      className="w-20"
+                      disabled={!settings?.screenshot_require_recent}
+                    />
+                    <span className="text-sm text-text/60">
+                      {t("settings.browserConnector.screenshot.timeout.unit")}
+                    </span>
+                  </div>
+                </SettingContainer>
+              </div>
+              <SettingContainer
+                title={t("settings.browserConnector.screenshot.quickTap.title")}
+                description={t("settings.browserConnector.screenshot.quickTap.description")}
+                descriptionMode="tooltip"
+                grouped={true}
+              >
+                <ToggleSwitch
+                  checked={settings?.screenshot_allow_no_voice ?? true}
+                  onChange={(enabled) => void updateSetting("screenshot_allow_no_voice", enabled)}
+                  disabled={isUpdating("screenshot_allow_no_voice")}
+                />
+              </SettingContainer>
+              <div className={!settings?.screenshot_allow_no_voice ? "opacity-50" : ""}>
+                <SettingContainer
+                  title={t("settings.browserConnector.screenshot.quickTap.threshold.title")}
+                  description={t("settings.browserConnector.screenshot.quickTap.threshold.description")}
+                  descriptionMode="tooltip"
+                  grouped={true}
+                >
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      value={settings?.screenshot_quick_tap_threshold_ms ?? 500}
+                      onChange={(event) => {
+                        const val = parseInt(event.target.value, 10);
+                        if (!isNaN(val) && val > 0) {
+                          void updateSetting("screenshot_quick_tap_threshold_ms", val);
+                        }
+                      }}
+                      disabled={!settings?.screenshot_allow_no_voice || isUpdating("screenshot_quick_tap_threshold_ms")}
+                      min={100}
+                      max={2000}
+                      step={50}
+                      className="w-24"
+                    />
+                    <span className="text-sm text-text/60">
+                      {t("settings.browserConnector.screenshot.quickTap.threshold.suffix")}
+                    </span>
+                  </div>
+                </SettingContainer>
+                <SettingContainer
+                  title={t("settings.browserConnector.screenshot.quickTap.defaultPrompt.title")}
+                  description={t("settings.browserConnector.screenshot.quickTap.defaultPrompt.description")}
+                  descriptionMode="inline"
+                  grouped={true}
+                  layout="stacked"
+                >
+                  <Textarea
+                    value={settings?.screenshot_no_voice_default_prompt ?? ""}
+                    onChange={(event) => void updateSetting("screenshot_no_voice_default_prompt", event.target.value)}
+                    disabled={!settings?.screenshot_allow_no_voice || isUpdating("screenshot_no_voice_default_prompt")}
+                    placeholder={t("settings.browserConnector.screenshot.quickTap.defaultPrompt.placeholder")}
+                    className="w-full"
+                    rows={2}
+                  />
+                </SettingContainer>
+              </div>
+            </div>
+          </div>
         </div>
       </SettingsGroup>
 
-      {/* Screenshot Settings */}
-      <SettingsGroup title={t("settings.browserConnector.screenshot.title")}>
-        <div className="text-sm text-text/60 mb-2 px-1">
-          {t("settings.browserConnector.screenshot.description")}
-        </div>
-        <div className="mx-1 mb-4 p-3 rounded border border-red-500/30 bg-red-500/5 text-red-200/90 text-sm italic">
-          <div className="flex gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
-            <p>{t("settings.browserConnector.screenshot.warning")}</p>
-          </div>
-        </div>
-        <SettingContainer
-          title={t("settings.browserConnector.screenshot.command.title")}
-          description={t("settings.browserConnector.screenshot.command.description")}
-          descriptionMode="inline"
-          grouped={true}
-          layout="stacked"
-        >
-          <Input
-            type="text"
-            value={screenshotCommandInput}
-            onChange={(event) => setScreenshotCommandInput(event.target.value)}
-            onBlur={handleScreenshotCommandBlur}
-            placeholder='"C:\Program Files\ShareX\ShareX.exe" -RectangleRegion'
-            className="w-full font-mono text-sm"
-          />
-        </SettingContainer>
-        <SettingContainer
-          title={t("settings.browserConnector.screenshot.folder.title")}
-          description={t("settings.browserConnector.screenshot.folder.description")}
-          descriptionMode="inline"
-          grouped={true}
-          layout="stacked"
-        >
-          <Input
-            type="text"
-            value={screenshotFolderInput}
-            onChange={(event) => setScreenshotFolderInput(event.target.value)}
-            onBlur={handleScreenshotFolderBlur}
-            placeholder="%USERPROFILE%\Documents\ShareX\Screenshots"
-            className="w-full font-mono text-sm"
-          />
-        </SettingContainer>
-        <SettingContainer
-          title={t("settings.browserConnector.screenshot.includeSubfolders.title")}
-          description={t("settings.browserConnector.screenshot.includeSubfolders.description")}
-          descriptionMode="tooltip"
-          grouped={true}
-        >
-          <ToggleSwitch
-            checked={settings?.screenshot_include_subfolders ?? false}
-            onChange={(enabled) => void updateSetting("screenshot_include_subfolders", enabled)}
-            disabled={isUpdating("screenshot_include_subfolders")}
-          />
-        </SettingContainer>
-        <SettingContainer
-          title={t("settings.browserConnector.screenshot.requireRecent.title")}
-          description={t("settings.browserConnector.screenshot.requireRecent.description")}
-          descriptionMode="tooltip"
-          grouped={true}
-        >
-          <ToggleSwitch
-            checked={settings?.screenshot_require_recent ?? true}
-            onChange={(enabled) => void updateSetting("screenshot_require_recent", enabled)}
-            disabled={isUpdating("screenshot_require_recent")}
-          />
-        </SettingContainer>
-        <div className={!settings?.screenshot_require_recent ? "opacity-50" : ""}>
-          <SettingContainer
-            title={t("settings.browserConnector.screenshot.timeout.title")}
-            description={t("settings.browserConnector.screenshot.timeout.description")}
-            descriptionMode="tooltip"
-            grouped={true}
-          >
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                value={screenshotTimeoutInput}
-                onChange={(event) => setScreenshotTimeoutInput(event.target.value)}
-                onBlur={handleScreenshotTimeoutBlur}
-                placeholder="5"
-                min={1}
-                max={60}
-                className="w-20"
-                disabled={!settings?.screenshot_require_recent}
-              />
-              <span className="text-sm text-text/60">
-                {t("settings.browserConnector.screenshot.timeout.unit")}
-              </span>
-            </div>
-          </SettingContainer>
-        </div>
-        <SettingContainer
-          title={t("settings.browserConnector.screenshot.quickTap.title")}
-          description={t("settings.browserConnector.screenshot.quickTap.description")}
-          descriptionMode="tooltip"
-          grouped={true}
-        >
-          <ToggleSwitch
-            checked={settings?.screenshot_allow_no_voice ?? true}
-            onChange={(enabled) => void updateSetting("screenshot_allow_no_voice", enabled)}
-            disabled={isUpdating("screenshot_allow_no_voice")}
-          />
-        </SettingContainer>
-        <div className={!settings?.screenshot_allow_no_voice ? "opacity-50" : ""}>
-          <SettingContainer
-            title={t("settings.browserConnector.screenshot.quickTap.threshold.title")}
-            description={t("settings.browserConnector.screenshot.quickTap.threshold.description")}
-            descriptionMode="tooltip"
-            grouped={true}
-          >
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                value={settings?.screenshot_quick_tap_threshold_ms ?? 500}
-                onChange={(event) => {
-                  const val = parseInt(event.target.value, 10);
-                  if (!isNaN(val) && val > 0) {
-                    void updateSetting("screenshot_quick_tap_threshold_ms", val);
-                  }
-                }}
-                disabled={!settings?.screenshot_allow_no_voice || isUpdating("screenshot_quick_tap_threshold_ms")}
-                min={100}
-                max={2000}
-                step={50}
-                className="w-24"
-              />
-              <span className="text-sm text-text/60">
-                {t("settings.browserConnector.screenshot.quickTap.threshold.suffix")}
-              </span>
-            </div>
-          </SettingContainer>
-          <SettingContainer
-            title={t("settings.browserConnector.screenshot.quickTap.defaultPrompt.title")}
-            description={t("settings.browserConnector.screenshot.quickTap.defaultPrompt.description")}
-            descriptionMode="inline"
-            grouped={true}
-            layout="stacked"
-          >
-            <Textarea
-              value={settings?.screenshot_no_voice_default_prompt ?? ""}
-              onChange={(event) => void updateSetting("screenshot_no_voice_default_prompt", event.target.value)}
-              disabled={!settings?.screenshot_allow_no_voice || isUpdating("screenshot_no_voice_default_prompt")}
-              placeholder={t("settings.browserConnector.screenshot.quickTap.defaultPrompt.placeholder")}
-              className="w-full"
-              rows={2}
-            />
-          </SettingContainer>
-        </div>
-      </SettingsGroup>
-
-      {/* Prompt Templates */}
-      <SettingsGroup title={t("settings.browserConnector.prompts.title")}>
-        <div className="text-sm text-text/60 mb-2 px-1">
-          {t("settings.browserConnector.prompts.description")}
-        </div>
-        <SettingContainer
-          title={t("settings.browserConnector.prompts.systemPrompt.title")}
-          description={t("settings.browserConnector.prompts.systemPrompt.description")}
-          descriptionMode="inline"
-          grouped={true}
-          layout="stacked"
-        >
-          <Textarea
-            value={settings?.send_to_extension_with_selection_system_prompt ?? ""}
-            onChange={(event) => void updateSetting("send_to_extension_with_selection_system_prompt", event.target.value)}
-            disabled={isUpdating("send_to_extension_with_selection_system_prompt")}
-            className="w-full"
-            rows={4}
-          />
-        </SettingContainer>
-        <SettingContainer
-          title={t("settings.browserConnector.prompts.userPrompt.title")}
-          description={t("settings.browserConnector.prompts.userPrompt.description")}
-          descriptionMode="inline"
-          grouped={true}
-          layout="stacked"
-        >
-          <Textarea
-            value={settings?.send_to_extension_with_selection_user_prompt ?? ""}
-            onChange={(event) => void updateSetting("send_to_extension_with_selection_user_prompt", event.target.value)}
-            disabled={isUpdating("send_to_extension_with_selection_user_prompt")}
-            className="w-full"
-            rows={3}
-          />
-          <div className="text-xs text-text/50 mt-1">
-            {t("settings.aiReplace.withSelection.variables")}
-          </div>
-        </SettingContainer>
-        <SettingContainer
-          title={t("settings.browserConnector.prompts.quickTap.title")}
-          description={t("settings.browserConnector.prompts.quickTap.description")}
-          descriptionMode="tooltip"
-          grouped={true}
-        >
-          <ToggleSwitch
-            checked={settings?.send_to_extension_with_selection_allow_no_voice ?? true}
-            onChange={(enabled) => void updateSetting("send_to_extension_with_selection_allow_no_voice", enabled)}
-            disabled={isUpdating("send_to_extension_with_selection_allow_no_voice")}
-          />
-        </SettingContainer>
-        <div className={!settings?.send_to_extension_with_selection_allow_no_voice ? "opacity-50" : ""}>
-          <SettingContainer
-            title={t("settings.browserConnector.prompts.quickTap.threshold.title")}
-            description={t("settings.browserConnector.prompts.quickTap.threshold.description")}
-            descriptionMode="tooltip"
-            grouped={true}
-          >
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                value={settings?.send_to_extension_with_selection_quick_tap_threshold_ms ?? 500}
-                onChange={(event) => {
-                  const val = parseInt(event.target.value, 10);
-                  if (!isNaN(val) && val > 0) {
-                    void updateSetting("send_to_extension_with_selection_quick_tap_threshold_ms", val);
-                  }
-                }}
-                disabled={!settings?.send_to_extension_with_selection_allow_no_voice || isUpdating("send_to_extension_with_selection_quick_tap_threshold_ms")}
-                min={100}
-                max={2000}
-                step={50}
-                className="w-24"
-              />
-              <span className="text-sm text-text/60">
-                {t("settings.browserConnector.prompts.quickTap.threshold.suffix")}
-              </span>
-            </div>
-          </SettingContainer>
-          <SettingContainer
-            title={t("settings.browserConnector.prompts.quickTap.systemPrompt.title")}
-            description={t("settings.browserConnector.prompts.quickTap.systemPrompt.description")}
-            descriptionMode="inline"
-            grouped={true}
-            layout="stacked"
-          >
-            <Textarea
-              value={settings?.send_to_extension_with_selection_no_voice_system_prompt ?? ""}
-              onChange={(event) => void updateSetting("send_to_extension_with_selection_no_voice_system_prompt", event.target.value)}
-              disabled={!settings?.send_to_extension_with_selection_allow_no_voice || isUpdating("send_to_extension_with_selection_no_voice_system_prompt")}
-              className="w-full"
-              rows={2}
-            />
-          </SettingContainer>
-        </div>
-      </SettingsGroup>
 
       {/* Auto-Open Tab Settings */}
-      <SettingsGroup title={t("settings.browserConnector.autoOpen.title")}>
-        <div className="text-sm text-text/60 mb-2 px-1">
-          {t("settings.browserConnector.autoOpen.description")}
-        </div>
+      <SettingsGroup 
+        title={t("settings.browserConnector.autoOpen.title")}
+        description={t("settings.browserConnector.autoOpen.description")}
+      >
         <SettingContainer
           title={t("settings.browserConnector.autoOpen.enabled.label")}
           description={t("settings.browserConnector.autoOpen.enabled.description")}

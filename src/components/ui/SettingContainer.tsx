@@ -48,8 +48,8 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
   };
 
   const containerClasses = grouped
-    ? "px-4 py-3"
-    : "px-4 py-3 rounded-lg bg-[#2b2b2b]/40 border border-[#2f2f2f] hover:bg-[#323232]/50 hover:border-[#3c3c3c] transition-all duration-200";
+    ? "px-6 py-4"
+    : "px-6 py-4 rounded-lg bg-[#2b2b2b]/40 border border-[#2f2f2f] hover:bg-[#323232]/50 hover:border-[#3c3c3c] transition-all duration-200";
 
   if (layout === "stacked") {
     if (descriptionMode === "tooltip") {
@@ -124,8 +124,8 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
 
   // Horizontal layout (default)
   const horizontalContainerClasses = grouped
-    ? "flex items-center justify-between px-4 py-3"
-    : "flex items-center justify-between px-4 py-3 rounded-lg bg-[#2b2b2b]/40 border border-[#2f2f2f] hover:bg-[#323232]/50 hover:border-[#3c3c3c] transition-all duration-200";
+    ? "flex items-center justify-between px-6 py-4"
+    : "flex items-center justify-between px-6 py-4 rounded-lg bg-[#2b2b2b]/40 border border-[#2f2f2f] hover:bg-[#323232]/50 hover:border-[#3c3c3c] transition-all duration-200";
 
   if (descriptionMode === "tooltip") {
     return (

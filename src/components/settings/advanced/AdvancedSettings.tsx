@@ -15,7 +15,7 @@ import { RemoteSttSettings } from "../remote-stt/RemoteSttSettings";
 export const AdvancedSettings: React.FC = () => {
   const { t } = useTranslation();
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
+    <div className="max-w-3xl w-full mx-auto space-y-8 pb-12">
       {/* Help Banner */}
       <div className="rounded-lg border border-purple-500/30 bg-purple-500/10 p-4">
         <div className="flex items-start gap-3">

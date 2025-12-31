@@ -43,7 +43,7 @@ export const AiReplaceSelectionSettings: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
+    <div className="max-w-3xl w-full mx-auto space-y-8 pb-12">
       {/* Help Banner */}
       <div className="rounded-lg border border-purple-500/30 bg-purple-500/10 p-4">
         <div className="flex items-start gap-3">
@@ -78,10 +78,10 @@ export const AiReplaceSelectionSettings: React.FC = () => {
         </SettingContainer>
       </SettingsGroup>
 
-      <SettingsGroup title={t("settings.aiReplace.noSelection.title")}>
-        <div className="text-sm text-text/60 mb-2 px-1">
-          {t("settings.aiReplace.noSelection.description")}
-        </div>
+      <SettingsGroup 
+        title={t("settings.aiReplace.noSelection.title")}
+        description={t("settings.aiReplace.noSelection.description")}
+      >
         <ToggleSwitch
           label={t("settings.aiReplace.noSelection.allowToggle.label")}
           description={t("settings.aiReplace.noSelection.allowToggle.description")}
@@ -110,10 +110,10 @@ export const AiReplaceSelectionSettings: React.FC = () => {
         )}
       </SettingsGroup>
 
-      <SettingsGroup title={t("settings.aiReplace.quickTap.title")}>
-        <div className="text-sm text-text/60 mb-2 px-1">
-          {t("settings.aiReplace.quickTap.description")}
-        </div>
+      <SettingsGroup 
+        title={t("settings.aiReplace.quickTap.title")}
+        description={t("settings.aiReplace.quickTap.description")}
+      >
         <ToggleSwitch
           label={t("settings.aiReplace.quickTap.allowQuickTap.label")}
           description={t("settings.aiReplace.quickTap.allowQuickTap.description")}
@@ -172,10 +172,10 @@ export const AiReplaceSelectionSettings: React.FC = () => {
         )}
       </SettingsGroup>
 
-      <SettingsGroup title={t("settings.aiReplace.withSelection.title")}>
-        <div className="text-sm text-text/60 mb-2 px-1">
-          {t("settings.aiReplace.withSelection.description")}
-        </div>
+      <SettingsGroup 
+        title={t("settings.aiReplace.withSelection.title")}
+        description={t("settings.aiReplace.withSelection.description")}
+      >
         <SettingContainer
           title={t("settings.aiReplace.withSelection.systemPrompt.title")}
           description={t("settings.aiReplace.withSelection.systemPrompt.description")}
