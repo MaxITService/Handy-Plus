@@ -611,6 +611,8 @@ fn default_send_to_extension_with_selection_user_prompt() -> String {
 }
 
 fn default_post_process_providers() -> Vec<PostProcessProvider> {
+    // mut is required on macOS where we push Apple Intelligence provider
+    #[allow(unused_mut)]
     let mut providers = vec![
         PostProcessProvider {
             id: "openai".to_string(),

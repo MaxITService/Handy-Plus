@@ -10,10 +10,11 @@ use crate::actions::ACTION_MAP;
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::remote_stt::RemoteSttManager;
 use crate::settings::ShortcutBinding;
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+use crate::settings::APPLE_INTELLIGENCE_DEFAULT_MODEL_ID;
 use crate::settings::{
     self, get_settings, ClipboardHandling, LLMPrompt, OverlayPosition, PasteMethod,
-    RemoteSttDebugMode, SoundTheme, TranscriptionProvider, APPLE_INTELLIGENCE_DEFAULT_MODEL_ID,
-    APPLE_INTELLIGENCE_PROVIDER_ID,
+    RemoteSttDebugMode, SoundTheme, TranscriptionProvider, APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use crate::tray;
 use crate::ManagedToggleState;

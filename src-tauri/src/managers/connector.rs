@@ -2,7 +2,7 @@
 //!
 //! This module provides an HTTP server that allows the AivoRelay Chrome extension
 //! to poll for messages. It tracks the connection status based on polling activity.
-//! 
+//!
 //! Supports long-polling: extension can send `wait=N` query parameter to hold
 //! the connection open for up to N seconds waiting for new messages.
 
@@ -22,9 +22,9 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
-use std::sync::Mutex;
 use tokio::net::TcpListener;
 use tokio::sync::{Notify, RwLock};
 use tower_http::cors::{Any, CorsLayer};
@@ -189,6 +189,8 @@ struct AppState {
     app_handle: AppHandle,
     state: Arc<Mutex<ConnectorState>>,
     last_poll_at: Arc<AtomicI64>,
+    /// Stored for consistency with ConnectorManager; handlers get port from settings
+    #[allow(dead_code)]
     port: Arc<RwLock<u16>>,
     /// Notify waiters when a new message is queued
     message_notify: Arc<Notify>,
@@ -691,7 +693,10 @@ async fn handle_get_messages(
     }
 
     let cursor = params.since.unwrap_or(0);
-    let wait_seconds = params.wait.unwrap_or(DEFAULT_WAIT_SECONDS).min(MAX_WAIT_SECONDS);
+    let wait_seconds = params
+        .wait
+        .unwrap_or(DEFAULT_WAIT_SECONDS)
+        .min(MAX_WAIT_SECONDS);
 
     // Try to get messages, with optional long-poll wait
     let (messages, delivered_ids) = if wait_seconds > 0 {
@@ -753,13 +758,12 @@ async fn handle_get_messages(
 
     // Get config from settings
     let settings = get_settings(&app_state.app_handle);
-    let auto_open_url = if settings.connector_auto_open_enabled
-        && !settings.connector_auto_open_url.is_empty()
-    {
-        Some(settings.connector_auto_open_url.clone())
-    } else {
-        None
-    };
+    let auto_open_url =
+        if settings.connector_auto_open_enabled && !settings.connector_auto_open_url.is_empty() {
+            Some(settings.connector_auto_open_url.clone())
+        } else {
+            None
+        };
 
     // Set cursor to ts+1 so next poll with >= won't re-fetch same messages
     let next_cursor = messages.last().map(|m| m.ts + 1).unwrap_or(cursor);

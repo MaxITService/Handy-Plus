@@ -19,7 +19,7 @@ use crate::utils::{
 };
 use crate::ManagedToggleState;
 use ferrous_opencc::{config::BuiltinConfig, OpenCC};
-use log::{debug, error, info};
+use log::{debug, error};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -309,6 +309,8 @@ pub enum TranscriptionOutcome {
     Cancelled,
     /// Error occurred - for Remote STT, error is already shown in overlay
     Error {
+        /// Kept for debugging and future logging; currently only shown_in_overlay is checked
+        #[allow(dead_code)]
         message: String,
         shown_in_overlay: bool,
     },

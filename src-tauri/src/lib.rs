@@ -396,6 +396,8 @@ pub fn run() {
         )
         .expect("Failed to export typescript bindings");
 
+    // mut is required on macOS where we add the nspanel plugin
+    #[allow(unused_mut)]
     let mut builder = tauri::Builder::default().plugin(
         LogBuilder::new()
             .level(log::LevelFilter::Trace) // Set to most verbose level globally
