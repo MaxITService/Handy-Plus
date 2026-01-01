@@ -59,16 +59,4 @@ export function getErrorDisplayText(category: OverlayErrorCategory): string {
   return messages[category];
 }
 
-/**
- * Get the icon/emoji for an overlay state
- */
-export function getStateIcon(state: ExtendedOverlayState): string {
-  const icons: Record<ExtendedOverlayState, string> = {
-    recording: "🎤",
-    sending: "⬆️",
-    transcribing: "📝",
-    thinking: "🧠",
-    error: "❌",
-  };
-  return icons[state];
-}
+
