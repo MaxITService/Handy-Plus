@@ -11,6 +11,8 @@ mod llm_client;
 mod managers;
 mod overlay;
 mod plus_overlay_state;
+#[cfg(target_os = "windows")]
+mod region_capture;
 mod settings;
 mod shortcut;
 mod signal_handle;
@@ -153,6 +155,12 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(llm_operation_tracker.clone());
     app_handle.manage(history_manager.clone());
     app_handle.manage(connector_manager.clone());
+
+    // Initialize region capture state (Windows only)
+    #[cfg(target_os = "windows")]
+    app_handle.manage(std::sync::Mutex::new(
+        region_capture::RegionCaptureState::default(),
+    ));
 
     // Start the connector server for extension communication
     if let Err(e) = connector_manager.start_server() {
@@ -389,6 +397,9 @@ pub fn run() {
         commands::connector::connector_stop_server,
         commands::connector::connector_queue_message,
         commands::connector::connector_cancel_message,
+        commands::region_capture::region_capture_get_data,
+        commands::region_capture::region_capture_confirm,
+        commands::region_capture::region_capture_cancel,
         helpers::clamshell::is_laptop,
     ]);
 

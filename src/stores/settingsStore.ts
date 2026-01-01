@@ -161,6 +161,8 @@ const settingUpdaters: {
     commands.changeConnectorPortSetting(value as number),
   connector_password: (value) =>
     commands.changeConnectorPasswordSetting(value as string),
+  screenshot_capture_method: (value) =>
+    commands.changeScreenshotCaptureMethodSetting(value as any),
   screenshot_capture_command: (value) =>
     commands.changeScreenshotCaptureCommandSetting(value as string),
   screenshot_folder: (value) =>

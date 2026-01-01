@@ -635,6 +635,12 @@
       "screenshot": {
         "title": "Screenshot Settings",
         "description": "Configure screenshot capture for sending images with voice instructions to the extension.",
+        "method": {
+          "title": "Capture Method",
+          "description": "Choose how screenshots are captured.",
+          "external": "External Program (ShareX / Command Line)",
+          "native": "Native (Built-in Region Selector)"
+        },
         "command": {
           "title": "Capture Command",
           "description": "Command to run for capturing a screenshot region. ShareX is recommended on Windows."

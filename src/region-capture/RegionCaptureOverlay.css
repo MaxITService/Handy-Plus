@@ -1,0 +1,163 @@
+/* Region Capture Overlay Styles */
+
+.region-capture-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  cursor: crosshair;
+  user-select: none;
+}
+
+/* Screenshot background */
+.screenshot-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+/* Dimmed overlay areas (4 divs approach) */
+.dim-overlay {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.dim-top {
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.dim-bottom {
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.dim-left {
+  left: 0;
+}
+
+.dim-right {
+  right: 0;
+}
+
+/* Selection region border */
+.selection-region {
+  position: absolute;
+  border: 2px solid #00aaff;
+  background: transparent;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+/* Cursor overrides for different states */
+.region-capture-container.state-moving {
+  cursor: move;
+}
+
+.region-capture-container.state-resizing-nw,
+.region-capture-container.state-resizing-se {
+  cursor: nwse-resize;
+}
+
+.region-capture-container.state-resizing-ne,
+.region-capture-container.state-resizing-sw {
+  cursor: nesw-resize;
+}
+
+.region-capture-container.state-resizing-n,
+.region-capture-container.state-resizing-s {
+  cursor: ns-resize;
+}
+
+.region-capture-container.state-resizing-e,
+.region-capture-container.state-resizing-w {
+  cursor: ew-resize;
+}
+
+/* Resize handles */
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #00aaff;
+  border: 1px solid #fff;
+  border-radius: 2px;
+  pointer-events: auto;
+}
+
+.resize-handle.handle-nw {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+
+.resize-handle.handle-n {
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.resize-handle.handle-ne {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+
+.resize-handle.handle-w {
+  top: 50%;
+  left: -5px;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.resize-handle.handle-e {
+  top: 50%;
+  right: -5px;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.resize-handle.handle-sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
+}
+
+.resize-handle.handle-s {
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.resize-handle.handle-se {
+  bottom: -5px;
+  right: -5px;
+  cursor: nwse-resize;
+}
+
+/* Hint text */
+.hint-text {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 1000;
+}

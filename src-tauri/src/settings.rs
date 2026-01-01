@@ -155,6 +155,13 @@ pub enum OverlayPosition {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "snake_case")]
+pub enum ScreenshotCaptureMethod {
+    ExternalProgram,
+    Native,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[serde(rename_all = "snake_case")]
 pub enum ModelUnloadTimeout {
     Never,
     Immediately,
@@ -390,6 +397,8 @@ pub struct AppSettings {
     pub connector_auto_open_enabled: bool,
     #[serde(default = "default_connector_auto_open_url")]
     pub connector_auto_open_url: String,
+    #[serde(default = "default_screenshot_capture_method")]
+    pub screenshot_capture_method: ScreenshotCaptureMethod,
     #[serde(default = "default_screenshot_capture_command")]
     pub screenshot_capture_command: String,
     #[serde(default = "default_screenshot_folder")]
@@ -531,6 +540,10 @@ fn default_connector_auto_open_enabled() -> bool {
 
 fn default_connector_auto_open_url() -> String {
     "".to_string()
+}
+
+fn default_screenshot_capture_method() -> ScreenshotCaptureMethod {
+    ScreenshotCaptureMethod::Native
 }
 
 fn default_screenshot_capture_command() -> String {
@@ -905,6 +918,7 @@ pub fn get_default_settings() -> AppSettings {
         connector_port: default_connector_port(),
         connector_auto_open_enabled: default_connector_auto_open_enabled(),
         connector_auto_open_url: default_connector_auto_open_url(),
+        screenshot_capture_method: default_screenshot_capture_method(),
         screenshot_capture_command: default_screenshot_capture_command(),
         screenshot_folder: default_screenshot_folder(),
         screenshot_require_recent: true,

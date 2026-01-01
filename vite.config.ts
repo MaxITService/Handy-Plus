@@ -17,12 +17,13 @@ export default defineConfig(async () => ({
     },
   },
 
-  // Multiple entry points for main app and overlay
+  // Multiple entry points for main app, overlay, and region capture
   build: {
     rollupOptions: {
       input: {
         main: resolve(__dirname, "index.html"),
         overlay: resolve(__dirname, "src/overlay/index.html"),
+        "region-capture": resolve(__dirname, "src/region-capture/index.html"),
       },
     },
   },

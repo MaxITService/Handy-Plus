@@ -1114,6 +1114,46 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
             utils::hide_recording_overlay(&ah);
             change_tray_icon(&ah, TrayIconState::Idle);
 
+            if settings.screenshot_capture_method
+                == crate::settings::ScreenshotCaptureMethod::Native
+            {
+                // Native region capture (Windows only)
+                #[cfg(target_os = "windows")]
+                {
+                    use crate::region_capture::{open_region_picker, RegionCaptureResult};
+
+                    match open_region_picker(&ah).await {
+                        RegionCaptureResult::Selected {
+                            region: _,
+                            image_data,
+                        } => {
+                            // Send screenshot bytes directly to connector
+                            let _ = cm.queue_bundle_message_bytes(
+                                &final_voice_text,
+                                image_data,
+                                "image/png",
+                            );
+                        }
+                        RegionCaptureResult::Cancelled => {
+                            debug!("Screenshot capture cancelled by user");
+                            // Just return, no error - user intentionally cancelled
+                        }
+                        RegionCaptureResult::Error(e) => {
+                            emit_screenshot_error(&ah, &e);
+                        }
+                    }
+                }
+
+                #[cfg(not(target_os = "windows"))]
+                {
+                    emit_screenshot_error(
+                        &ah,
+                        "Native screenshot capture is only supported on Windows.",
+                    );
+                }
+                return;
+            }
+
             // Validate screenshot folder before launching capture tool
             let screenshot_folder = PathBuf::from(expand_env_vars(&settings.screenshot_folder));
             if !screenshot_folder.exists() {

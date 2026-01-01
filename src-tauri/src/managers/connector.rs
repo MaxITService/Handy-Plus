@@ -591,6 +591,99 @@ impl ConnectorManager {
         Ok(msg_id)
     }
 
+    /// Queue a bundle message with image bytes directly (no file read)
+    pub fn queue_bundle_message_bytes(
+        &self,
+        text: &str,
+        data: Vec<u8>,
+        mime_type: &str,
+    ) -> Result<String, String> {
+        let file_size = data.len() as u64;
+        let att_id = uuid_simple();
+        let msg_id = uuid_simple();
+        let now = now_ms();
+        let expires_at = now + BLOB_EXPIRY_MS;
+
+        // Get port for fetch URL
+        let port = match self.port.try_read() {
+            Ok(guard) => *guard,
+            Err(_) => DEFAULT_PORT,
+        };
+        let fetch_url = format!("http://127.0.0.1:{}/blob/{}", port, att_id);
+
+        // Create the attachment
+        let attachment = BundleAttachment {
+            att_id: att_id.clone(),
+            kind: "image".to_string(),
+            filename: Some(format!(
+                "screenshot.{}",
+                mime_type.split('/').nth(1).unwrap_or("png")
+            )),
+            mime: Some(mime_type.to_string()),
+            size: Some(file_size),
+            fetch: BundleFetch {
+                url: fetch_url,
+                method: Some("GET".to_string()),
+                headers: None,
+                expires_at: Some(expires_at),
+            },
+        };
+
+        // Store the blob
+        let pending_blob = PendingBlob {
+            data,
+            mime_type: mime_type.to_string(),
+            expires_at,
+        };
+
+        // Create the bundle message
+        let msg = QueuedMessage {
+            id: msg_id.clone(),
+            msg_type: "bundle".to_string(),
+            text: text.trim().to_string(),
+            ts: now,
+            attachments: Some(vec![attachment]),
+        };
+
+        {
+            let mut state = self.state.lock().unwrap();
+
+            // Store the blob for later retrieval
+            state.blobs.insert(att_id, pending_blob);
+
+            // Queue the message
+            state.messages.push_back(msg);
+
+            // Trim old messages
+            while state.messages.len() > MAX_MESSAGES {
+                state.messages.pop_front();
+            }
+
+            // Clean up expired blobs
+            let now = now_ms();
+            state.blobs.retain(|_, blob| blob.expires_at > now);
+        }
+
+        // Wake any long-polling requests
+        self.message_notify.notify_waiters();
+
+        // Emit queued event
+        let _ = self.app_handle.emit(
+            "connector-message-queued",
+            MessageQueuedEvent {
+                id: msg_id.clone(),
+                text: text.trim().to_string(),
+                timestamp: now,
+            },
+        );
+
+        debug!(
+            "Queued bundle message with image bytes ({} bytes, {})",
+            file_size, mime_type
+        );
+        Ok(msg_id)
+    }
+
     /// Cancel a queued message if it hasn't been delivered yet
     pub fn cancel_queued_message(&self, message_id: &str) -> Result<bool, String> {
         let mut state = self.state.lock().unwrap();

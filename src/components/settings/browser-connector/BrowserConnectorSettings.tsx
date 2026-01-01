@@ -64,6 +64,10 @@ export const BrowserConnectorSettings: React.FC = () => {
   const [screenshotNoVoicePromptInput, setScreenshotNoVoicePromptInput] = useState(
     settings?.screenshot_no_voice_default_prompt ?? ""
   );
+  
+  const [captureMethod, setCaptureMethod] = useState(
+    (settings as any)?.screenshot_capture_method ?? "native"
+  );
 
   useEffect(() => {
     setPortInput(String(settings?.connector_port ?? 63155));
@@ -105,6 +109,10 @@ export const BrowserConnectorSettings: React.FC = () => {
   useEffect(() => {
     setScreenshotNoVoicePromptInput(settings?.screenshot_no_voice_default_prompt ?? "");
   }, [settings?.screenshot_no_voice_default_prompt]);
+
+  useEffect(() => {
+    setCaptureMethod((settings as any)?.screenshot_capture_method ?? "native");
+  }, [(settings as any)?.screenshot_capture_method]);
 
 
   const handlePortBlur = async () => {
@@ -209,6 +217,11 @@ export const BrowserConnectorSettings: React.FC = () => {
     if (screenshotNoVoicePromptInput !== (settings?.screenshot_no_voice_default_prompt ?? "")) {
       void updateSetting("screenshot_no_voice_default_prompt", screenshotNoVoicePromptInput);
     }
+  };
+
+  const handleCaptureMethodChange = (method: string) => {
+    void updateSetting("screenshot_capture_method" as any, method);
+    setCaptureMethod(method);
   };
 
 
@@ -518,6 +531,49 @@ export const BrowserConnectorSettings: React.FC = () => {
                 </div>
               </div>
               <SettingContainer
+                title={t("settings.browserConnector.screenshot.method.title")}
+                description={t("settings.browserConnector.screenshot.method.description")}
+                grouped={true}
+              >
+                <div className="flex flex-col gap-3">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className="relative flex items-center justify-center">
+                      <input
+                        type="radio"
+                        name="capture_method"
+                        value="external_program"
+                        checked={captureMethod === "external_program"}
+                        onChange={(e) => handleCaptureMethodChange(e.target.value)}
+                        className="peer appearance-none w-4 h-4 rounded-full border border-gray-400 checked:border-purple-500 checked:bg-purple-500 transition-colors"
+                      />
+                      <div className="absolute w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" />
+                    </div>
+                    <span className="text-sm text-text/90 group-hover:text-text transition-colors">
+                      {t("settings.browserConnector.screenshot.method.external")}
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className="relative flex items-center justify-center">
+                      <input
+                        type="radio"
+                        name="capture_method"
+                        value="native"
+                        checked={captureMethod === "native"}
+                        onChange={(e) => handleCaptureMethodChange(e.target.value)}
+                        className="peer appearance-none w-4 h-4 rounded-full border border-gray-400 checked:border-purple-500 checked:bg-purple-500 transition-colors"
+                      />
+                      <div className="absolute w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" />
+                    </div>
+                    <span className="text-sm text-text/90 group-hover:text-text transition-colors">
+                      {t("settings.browserConnector.screenshot.method.native")}
+                    </span>
+                  </label>
+                </div>
+              </SettingContainer>
+
+              {captureMethod === "external_program" && (
+                <>
+              <SettingContainer
                 title={t("settings.browserConnector.screenshot.command.title")}
                 description={t("settings.browserConnector.screenshot.command.description")}
                 descriptionMode="inline"
@@ -598,6 +654,9 @@ export const BrowserConnectorSettings: React.FC = () => {
                   </div>
                 </SettingContainer>
               </div>
+                </>
+              )}
+
               <SettingContainer
                 title={t("settings.browserConnector.screenshot.quickTap.title")}
                 description={t("settings.browserConnector.screenshot.quickTap.description")}

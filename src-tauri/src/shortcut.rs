@@ -1092,6 +1092,18 @@ pub fn change_screenshot_capture_command_setting(
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_screenshot_capture_method_setting(
+    app: AppHandle,
+    method: settings::ScreenshotCaptureMethod,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.screenshot_capture_method = method;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_screenshot_folder_setting(app: AppHandle, folder: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.screenshot_folder = folder;

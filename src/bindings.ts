@@ -1045,6 +1045,29 @@ async connectorCancelMessage(messageId: string) : Promise<Result<boolean, string
 }
 },
 /**
+ * Called from the overlay to get screenshot data when ready.
+ */
+async regionCaptureGetData() : Promise<Result<RegionCaptureData, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("region_capture_get_data") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Called from the overlay when user confirms region selection.
+ */
+async regionCaptureConfirm(region: SelectedRegion) : Promise<void> {
+    await TAURI_INVOKE("region_capture_confirm", { region });
+},
+/**
+ * Called from the overlay when user cancels region capture.
+ */
+async regionCaptureCancel() : Promise<void> {
+    await TAURI_INVOKE("region_capture_cancel");
+},
+/**
  * Stub implementation for non-macOS platforms
  * Always returns false since laptop detection is macOS-specific
  */
@@ -1088,7 +1111,7 @@ send_to_extension_enabled?: boolean; send_to_extension_push_to_talk?: boolean;
 /**
  * Whether the "Send Transcription + Selection to Extension" action is enabled (risky feature)
  */
-send_to_extension_with_selection_enabled?: boolean; send_to_extension_with_selection_push_to_talk?: boolean; send_to_extension_with_selection_allow_no_voice?: boolean; send_to_extension_with_selection_quick_tap_threshold_ms?: number; send_to_extension_with_selection_no_voice_system_prompt?: string; ai_replace_selection_push_to_talk?: boolean; mute_while_recording?: boolean; append_trailing_space?: boolean; connector_port?: number; connector_auto_open_enabled?: boolean; connector_auto_open_url?: string; screenshot_capture_command?: string; screenshot_folder?: string; screenshot_require_recent?: boolean; screenshot_timeout_seconds?: number; screenshot_include_subfolders?: boolean; screenshot_allow_no_voice?: boolean; screenshot_quick_tap_threshold_ms?: number; screenshot_no_voice_default_prompt?: string; 
+send_to_extension_with_selection_enabled?: boolean; send_to_extension_with_selection_push_to_talk?: boolean; send_to_extension_with_selection_allow_no_voice?: boolean; send_to_extension_with_selection_quick_tap_threshold_ms?: number; send_to_extension_with_selection_no_voice_system_prompt?: string; ai_replace_selection_push_to_talk?: boolean; mute_while_recording?: boolean; append_trailing_space?: boolean; connector_port?: number; connector_auto_open_enabled?: boolean; connector_auto_open_url?: string; screenshot_capture_method?: ScreenshotCaptureMethod; screenshot_capture_command?: string; screenshot_folder?: string; screenshot_require_recent?: boolean; screenshot_timeout_seconds?: number; screenshot_include_subfolders?: boolean; screenshot_allow_no_voice?: boolean; screenshot_quick_tap_threshold_ms?: number; screenshot_no_voice_default_prompt?: string; 
 /**
  * Whether the "Send Transcription + Screenshot to Extension" action is enabled (risky feature)
  */
@@ -1178,11 +1201,60 @@ export type OverlayPosition = "none" | "top" | "bottom"
 export type PasteMethod = "ctrl_v" | "direct" | "none" | "shift_insert" | "ctrl_shift_v"
 export type PostProcessProvider = { id: string; label: string; base_url: string }
 export type RecordingRetentionPeriod = "never" | "preserve_limit" | "days_3" | "weeks_2" | "months_3"
+/**
+ * Response for get_data command
+ */
+export type RegionCaptureData = { screenshot: string; virtual_screen: VirtualScreenInfo }
 export type RemoteSttDebugMode = "normal" | "verbose"
 export type RemoteSttSettings = { base_url: string; model_id: string; debug_capture?: boolean; debug_mode?: RemoteSttDebugMode }
+export type ScreenshotCaptureMethod = "external_program" | "native"
+/**
+ * Region selected by the user (in screen coordinates).
+ */
+export type SelectedRegion = { 
+/**
+ * X coordinate in virtual screen space
+ */
+x: number; 
+/**
+ * Y coordinate in virtual screen space
+ */
+y: number; 
+/**
+ * Width in pixels
+ */
+width: number; 
+/**
+ * Height in pixels
+ */
+height: number }
 export type ShortcutBinding = { id: string; name: string; description: string; default_binding: string; current_binding: string }
 export type SoundTheme = "marimba" | "pop" | "custom"
 export type TranscriptionProvider = "local" | "remote_openai_compatible"
+/**
+ * Information about the virtual screen (all monitors combined).
+ */
+export type VirtualScreenInfo = { 
+/**
+ * Minimum X coordinate (can be negative if monitors are left of primary)
+ */
+offset_x: number; 
+/**
+ * Minimum Y coordinate
+ */
+offset_y: number; 
+/**
+ * Total width spanning all monitors
+ */
+total_width: number; 
+/**
+ * Total height spanning all monitors
+ */
+total_height: number; 
+/**
+ * Scale factor of primary monitor (for coordinate conversion)
+ */
+scale_factor: number }
 
 /** tauri-specta globals **/
 
