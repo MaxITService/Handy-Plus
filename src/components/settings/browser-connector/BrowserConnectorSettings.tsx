@@ -50,6 +50,20 @@ export const BrowserConnectorSettings: React.FC = () => {
   const [screenshotTimeoutInput, setScreenshotTimeoutInput] = useState(
     String(settings?.screenshot_timeout_seconds ?? 5)
   );
+  
+  // Textarea prompt local states (to prevent focus loss on each keystroke)
+  const [selectionSystemPromptInput, setSelectionSystemPromptInput] = useState(
+    settings?.send_to_extension_with_selection_system_prompt ?? ""
+  );
+  const [selectionUserPromptInput, setSelectionUserPromptInput] = useState(
+    settings?.send_to_extension_with_selection_user_prompt ?? ""
+  );
+  const [selectionNoVoicePromptInput, setSelectionNoVoicePromptInput] = useState(
+    settings?.send_to_extension_with_selection_no_voice_system_prompt ?? ""
+  );
+  const [screenshotNoVoicePromptInput, setScreenshotNoVoicePromptInput] = useState(
+    settings?.screenshot_no_voice_default_prompt ?? ""
+  );
 
   useEffect(() => {
     setPortInput(String(settings?.connector_port ?? 63155));
@@ -74,6 +88,24 @@ export const BrowserConnectorSettings: React.FC = () => {
   useEffect(() => {
     setScreenshotTimeoutInput(String(settings?.screenshot_timeout_seconds ?? 5));
   }, [settings?.screenshot_timeout_seconds]);
+
+  // Sync prompt textarea local states with settings
+  useEffect(() => {
+    setSelectionSystemPromptInput(settings?.send_to_extension_with_selection_system_prompt ?? "");
+  }, [settings?.send_to_extension_with_selection_system_prompt]);
+
+  useEffect(() => {
+    setSelectionUserPromptInput(settings?.send_to_extension_with_selection_user_prompt ?? "");
+  }, [settings?.send_to_extension_with_selection_user_prompt]);
+
+  useEffect(() => {
+    setSelectionNoVoicePromptInput(settings?.send_to_extension_with_selection_no_voice_system_prompt ?? "");
+  }, [settings?.send_to_extension_with_selection_no_voice_system_prompt]);
+
+  useEffect(() => {
+    setScreenshotNoVoicePromptInput(settings?.screenshot_no_voice_default_prompt ?? "");
+  }, [settings?.screenshot_no_voice_default_prompt]);
+
 
   const handlePortBlur = async () => {
     const port = parseInt(portInput.trim(), 10);
@@ -153,6 +185,32 @@ export const BrowserConnectorSettings: React.FC = () => {
       void updateSetting("screenshot_timeout_seconds", timeout);
     }
   };
+
+  // Prompt textarea blur handlers
+  const handleSelectionSystemPromptBlur = () => {
+    if (selectionSystemPromptInput !== (settings?.send_to_extension_with_selection_system_prompt ?? "")) {
+      void updateSetting("send_to_extension_with_selection_system_prompt", selectionSystemPromptInput);
+    }
+  };
+
+  const handleSelectionUserPromptBlur = () => {
+    if (selectionUserPromptInput !== (settings?.send_to_extension_with_selection_user_prompt ?? "")) {
+      void updateSetting("send_to_extension_with_selection_user_prompt", selectionUserPromptInput);
+    }
+  };
+
+  const handleSelectionNoVoicePromptBlur = () => {
+    if (selectionNoVoicePromptInput !== (settings?.send_to_extension_with_selection_no_voice_system_prompt ?? "")) {
+      void updateSetting("send_to_extension_with_selection_no_voice_system_prompt", selectionNoVoicePromptInput);
+    }
+  };
+
+  const handleScreenshotNoVoicePromptBlur = () => {
+    if (screenshotNoVoicePromptInput !== (settings?.screenshot_no_voice_default_prompt ?? "")) {
+      void updateSetting("screenshot_no_voice_default_prompt", screenshotNoVoicePromptInput);
+    }
+  };
+
 
   // Server always binds to 127.0.0.1 and serves /messages
   const endpointUrl = `http://127.0.0.1:${portInput}/messages`;
@@ -312,8 +370,9 @@ export const BrowserConnectorSettings: React.FC = () => {
                 layout="stacked"
               >
                 <Textarea
-                  value={settings?.send_to_extension_with_selection_system_prompt ?? ""}
-                  onChange={(event) => void updateSetting("send_to_extension_with_selection_system_prompt", event.target.value)}
+                  value={selectionSystemPromptInput}
+                  onChange={(event) => setSelectionSystemPromptInput(event.target.value)}
+                  onBlur={handleSelectionSystemPromptBlur}
                   disabled={isUpdating("send_to_extension_with_selection_system_prompt")}
                   className="w-full"
                   rows={4}
@@ -327,8 +386,9 @@ export const BrowserConnectorSettings: React.FC = () => {
                 layout="stacked"
               >
                 <Textarea
-                  value={settings?.send_to_extension_with_selection_user_prompt ?? ""}
-                  onChange={(event) => void updateSetting("send_to_extension_with_selection_user_prompt", event.target.value)}
+                  value={selectionUserPromptInput}
+                  onChange={(event) => setSelectionUserPromptInput(event.target.value)}
+                  onBlur={handleSelectionUserPromptBlur}
                   disabled={isUpdating("send_to_extension_with_selection_user_prompt")}
                   className="w-full"
                   rows={3}
@@ -385,8 +445,9 @@ export const BrowserConnectorSettings: React.FC = () => {
                   layout="stacked"
                 >
                   <Textarea
-                    value={settings?.send_to_extension_with_selection_no_voice_system_prompt ?? ""}
-                    onChange={(event) => void updateSetting("send_to_extension_with_selection_no_voice_system_prompt", event.target.value)}
+                    value={selectionNoVoicePromptInput}
+                    onChange={(event) => setSelectionNoVoicePromptInput(event.target.value)}
+                    onBlur={handleSelectionNoVoicePromptBlur}
                     disabled={!settings?.send_to_extension_with_selection_allow_no_voice || isUpdating("send_to_extension_with_selection_no_voice_system_prompt")}
                     className="w-full"
                     rows={2}
@@ -585,8 +646,9 @@ export const BrowserConnectorSettings: React.FC = () => {
                   layout="stacked"
                 >
                   <Textarea
-                    value={settings?.screenshot_no_voice_default_prompt ?? ""}
-                    onChange={(event) => void updateSetting("screenshot_no_voice_default_prompt", event.target.value)}
+                    value={screenshotNoVoicePromptInput}
+                    onChange={(event) => setScreenshotNoVoicePromptInput(event.target.value)}
+                    onBlur={handleScreenshotNoVoicePromptBlur}
                     disabled={!settings?.screenshot_allow_no_voice || isUpdating("screenshot_no_voice_default_prompt")}
                     placeholder={t("settings.browserConnector.screenshot.quickTap.defaultPrompt.placeholder")}
                     className="w-full"

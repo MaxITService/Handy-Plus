@@ -448,6 +448,30 @@ async changeSendToExtensionWithSelectionPushToTalkSetting(enabled: boolean) : Pr
     else return { status: "error", error: e  as any };
 }
 },
+async changeSendToExtensionWithSelectionAllowNoVoiceSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_send_to_extension_with_selection_allow_no_voice_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeSendToExtensionWithSelectionQuickTapThresholdMsSetting(thresholdMs: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_send_to_extension_with_selection_quick_tap_threshold_ms_setting", { thresholdMs }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeSendToExtensionWithSelectionNoVoiceSystemPromptSetting(prompt: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_send_to_extension_with_selection_no_voice_system_prompt_setting", { prompt }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeAiReplaceSelectionPushToTalkSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_ai_replace_selection_push_to_talk_setting", { enabled }) };
@@ -539,6 +563,14 @@ async changeScreenshotAllowNoVoiceSetting(enabled: boolean) : Promise<Result<nul
 async changeScreenshotNoVoiceDefaultPromptSetting(prompt: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_screenshot_no_voice_default_prompt_setting", { prompt }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeScreenshotQuickTapThresholdMsSetting(thresholdMs: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_screenshot_quick_tap_threshold_ms_setting", { thresholdMs }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

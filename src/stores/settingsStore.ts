@@ -145,6 +145,12 @@ const settingUpdaters: {
     commands.changeSendToExtensionWithSelectionEnabledSetting(value as boolean),
   send_to_extension_with_selection_push_to_talk: (value) =>
     commands.changeSendToExtensionWithSelectionPushToTalkSetting(value as boolean),
+  send_to_extension_with_selection_allow_no_voice: (value) =>
+    commands.changeSendToExtensionWithSelectionAllowNoVoiceSetting(value as boolean),
+  send_to_extension_with_selection_quick_tap_threshold_ms: (value) =>
+    commands.changeSendToExtensionWithSelectionQuickTapThresholdMsSetting(value as number),
+  send_to_extension_with_selection_no_voice_system_prompt: (value) =>
+    commands.changeSendToExtensionWithSelectionNoVoiceSystemPromptSetting(value as string),
   ai_replace_selection_push_to_talk: (value) =>
     commands.changeAiReplaceSelectionPushToTalkSetting(value as boolean),
   connector_auto_open_enabled: (value) =>
@@ -169,6 +175,12 @@ const settingUpdaters: {
     commands.changeSendScreenshotToExtensionEnabledSetting(value as boolean),
   send_screenshot_to_extension_push_to_talk: (value) =>
     commands.changeSendScreenshotToExtensionPushToTalkSetting(value as boolean),
+  screenshot_allow_no_voice: (value) =>
+    commands.changeScreenshotAllowNoVoiceSetting(value as boolean),
+  screenshot_quick_tap_threshold_ms: (value) =>
+    commands.changeScreenshotQuickTapThresholdMsSetting(value as number),
+  screenshot_no_voice_default_prompt: (value) =>
+    commands.changeScreenshotNoVoiceDefaultPromptSetting(value as string),
   mute_while_recording: (value) =>
     commands.changeMuteWhileRecordingSetting(value as boolean),
   append_trailing_space: (value) =>

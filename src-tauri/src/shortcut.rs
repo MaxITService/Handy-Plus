@@ -968,6 +968,42 @@ pub fn change_send_to_extension_with_selection_push_to_talk_setting(
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_send_to_extension_with_selection_allow_no_voice_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.send_to_extension_with_selection_allow_no_voice = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_send_to_extension_with_selection_quick_tap_threshold_ms_setting(
+    app: AppHandle,
+    threshold_ms: u32,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.send_to_extension_with_selection_quick_tap_threshold_ms = threshold_ms;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_send_to_extension_with_selection_no_voice_system_prompt_setting(
+    app: AppHandle,
+    prompt: String,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.send_to_extension_with_selection_no_voice_system_prompt = prompt;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_ai_replace_selection_push_to_talk_setting(
     app: AppHandle,
     enabled: bool,
@@ -1119,6 +1155,18 @@ pub fn change_screenshot_no_voice_default_prompt_setting(
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.screenshot_no_voice_default_prompt = prompt;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_screenshot_quick_tap_threshold_ms_setting(
+    app: AppHandle,
+    threshold_ms: u32,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.screenshot_quick_tap_threshold_ms = threshold_ms;
     settings::write_settings(&app, settings);
     Ok(())
 }
