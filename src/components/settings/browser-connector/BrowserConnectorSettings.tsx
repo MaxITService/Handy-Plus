@@ -206,7 +206,10 @@ export const BrowserConnectorSettings: React.FC = () => {
       </SettingsGroup>
 
       {/* Feature 1: Send Transcription Directly to Extension */}
-      <SettingsGroup title={t("settings.general.shortcut.bindings.send_to_extension.name")}>
+      <SettingsGroup 
+        title={t("settings.general.shortcut.bindings.send_to_extension.name")}
+        description={t("settings.general.shortcut.bindings.send_to_extension.userStory")}
+      >
         <SettingContainer
           title={t("settings.general.shortcut.bindings.send_to_extension.enable.label")}
           description={t("settings.general.shortcut.bindings.send_to_extension.enable.description")}
@@ -251,13 +254,17 @@ export const BrowserConnectorSettings: React.FC = () => {
       </SettingsGroup>
 
       {/* Feature 2: Send Transcription + Selection to Extension */}
-      <SettingsGroup title={t("settings.general.shortcut.bindings.send_to_extension_with_selection.name")}>
+      <SettingsGroup 
+        title={t("settings.general.shortcut.bindings.send_to_extension_with_selection.name")}
+        description={t("settings.general.shortcut.bindings.send_to_extension_with_selection.userStory")}
+      >
         <SettingContainer
           title={t("settings.general.shortcut.bindings.send_to_extension_with_selection.enable.label")}
           description={t("settings.general.shortcut.bindings.send_to_extension_with_selection.enable.description")}
           descriptionMode="tooltip"
           grouped={true}
         >
+
           <ToggleSwitch
             checked={settings?.send_to_extension_with_selection_enabled ?? false}
             onChange={(enabled) => {
@@ -393,7 +400,11 @@ export const BrowserConnectorSettings: React.FC = () => {
 
 
       {/* Feature 3: Send Transcription + Screenshot to Extension */}
-      <SettingsGroup title={t("settings.general.shortcut.bindings.send_screenshot_to_extension.name")}>
+      <SettingsGroup 
+        title={t("settings.general.shortcut.bindings.send_screenshot_to_extension.name")}
+        description={t("settings.general.shortcut.bindings.send_screenshot_to_extension.userStory")}
+      >
+
         <SettingContainer
           title={t("settings.general.shortcut.bindings.send_screenshot_to_extension.enable.label")}
           description={t("settings.general.shortcut.bindings.send_screenshot_to_extension.enable.description")}

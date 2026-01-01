@@ -113,6 +113,8 @@
           "send_to_extension": {
             "name": "Send Transcription Directly to Extension",
             "description": "Send transcription to AivoRelay Connector browser extension.",
+            "userStory": "Press hotkey → Speak your message → Your voice is transcribed and sent directly to the active AI chat tab (ChatGPT, Claude, etc.) via the browser extension. The message is auto-submitted.",
+
             "enable": {
               "label": "Enable Feature",
               "description": "⚠️ Risk: Your voice input is sent directly to the AI chat provider. You may accidentally send unintended audio to the AI.",
@@ -127,9 +129,11 @@
               "description": "When ON: hold key to record. When OFF: tap once to start, tap again to stop."
             }
           },
+
           "send_to_extension_with_selection": {
             "name": "Send Transcription + Selection to Extension",
             "description": "Send transcription plus selected text to AivoRelay Connector browser extension.",
+            "userStory": "Select text anywhere (browser, editor, document) → Press hotkey → Speak your instruction (e.g., 'explain this', 'translate to Spanish') → The selected text + your voice instruction are combined and sent to the AI chat. Great for asking questions about code, articles, or any text.",
             "enable": {
               "label": "Enable Feature",
               "description": "⚠️ Risk: Your selected text and voice input are sent to the AI chat provider. You may accidentally send unintended text to the AI.",
@@ -155,6 +159,7 @@
           "send_screenshot_to_extension": {
             "name": "Send Transcription + Screenshot to Extension",
             "description": "Capture a screenshot region and send it with voice instruction to the browser extension.",
+            "userStory": "Press hotkey → Select a screen region (via ShareX or similar tool) → Speak your question about the image → The screenshot + your voice instruction are sent to the AI chat. Requires a screenshot tool configured in settings below. Perfect for asking about UI, diagrams, or error messages.",
             "enable": {
               "label": "Enable Feature",
               "description": "⚠️ Risk: Your screenshot and voice input are sent to the AI chat provider. You may accidentally send unintended images to the AI.",
