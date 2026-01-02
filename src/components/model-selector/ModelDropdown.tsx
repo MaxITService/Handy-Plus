@@ -170,7 +170,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {currentModelId === model.id && (
+                  {currentModelId === model.id && !isRemoteProvider && (
                     <div className="text-xs text-logo-primary">
                       {t("modelSelector.active")}
                     </div>
