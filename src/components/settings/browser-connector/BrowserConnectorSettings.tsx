@@ -13,10 +13,14 @@ import { ToggleSwitch } from "../../ui/ToggleSwitch";
 import { ConfirmationModal } from "../../ui/ConfirmationModal";
 import { ConnectorStatusIndicator } from "./ConnectorStatus";
 
-// Preset sites for auto-open dropdown
+// Preset sites for auto-open dropdown (matches extension manifest)
 const AUTO_OPEN_SITES = [
   { value: "https://chatgpt.com", label: "ChatGPT" },
   { value: "https://claude.ai", label: "Claude" },
+  { value: "https://www.perplexity.ai", label: "Perplexity" },
+  { value: "https://gemini.google.com", label: "Gemini" },
+  { value: "https://grok.com", label: "Grok" },
+  { value: "https://aistudio.google.com", label: "Google AI Studio" },
 ];
 
 // Default screenshot folder for Windows

@@ -183,25 +183,18 @@ export const ConnectorStatusIndicator: React.FC<ConnectorStatusIndicatorProps> =
       description={t("settings.browserConnector.status.description")}
       descriptionMode={descriptionMode}
       grouped={grouped}
-      layout="stacked"
+      layout="horizontal"
     >
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
           <div
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${getStatusBadgeClass()}`}
+            className={`flex items-center gap-1.5 px-2 py-1 rounded border text-xs ${getStatusBadgeClass()}`}
           >
-            {getStatusIcon()}
-            <span className={`text-sm font-medium ${getStatusColor()}`}>
+            {React.cloneElement(getStatusIcon(), { className: `w-3.5 h-3.5 ${getStatusColor()}` })}
+            <span className={`font-medium ${getStatusColor()}`}>
               {getStatusText()}
             </span>
           </div>
-
-          {/* Show last seen time when offline */}
-          {status?.status === "offline" && lastSeenText && (
-            <span className="text-xs text-text/50">
-              {t("settings.browserConnector.status.lastSeen", { time: lastSeenText })}
-            </span>
-          )}
 
           {/* Show port info when server is running */}
           {status?.server_running && (
@@ -209,30 +202,37 @@ export const ConnectorStatusIndicator: React.FC<ConnectorStatusIndicatorProps> =
               {t("settings.browserConnector.status.port", { port: status.port })}
             </span>
           )}
+
+          {/* Show last seen time when offline */}
+          {status?.status === "offline" && lastSeenText && (
+            <span className="text-xs text-text/50">
+              {t("settings.browserConnector.status.lastSeen", { time: lastSeenText })}
+            </span>
+          )}
         </div>
 
         {/* Show server error if present */}
         {status?.server_error && (
-          <div className="flex flex-col gap-2 p-3 rounded-lg border border-red-500/30 bg-red-500/10">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <div className="text-sm font-medium text-red-400">
+          <div className="flex flex-col gap-1.5 p-2 rounded border border-red-500/30 bg-red-500/10">
+            <div className="flex items-start gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium text-red-400">
                   {t("settings.browserConnector.status.serverError")}
                 </div>
-                <div className="text-xs text-red-300/80 mt-1 font-mono break-all select-all">
+                <div className="text-xs text-red-300/80 mt-0.5 font-mono break-all select-all">
                   {status.server_error}
                 </div>
               </div>
               <button
                 onClick={handleCopyError}
-                className="p-1.5 rounded hover:bg-red-500/20 transition-colors text-red-400 hover:text-red-300"
+                className="p-1 rounded hover:bg-red-500/20 transition-colors text-red-400 hover:text-red-300"
                 title={t("settings.browserConnector.status.copyError")}
               >
                 {errorCopied ? (
-                  <Check className="w-4 h-4" />
+                  <Check className="w-3.5 h-3.5" />
                 ) : (
-                  <Copy className="w-4 h-4" />
+                  <Copy className="w-3.5 h-3.5" />
                 )}
               </button>
             </div>

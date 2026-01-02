@@ -35,10 +35,10 @@ const LlmConfigSection: React.FC<{
   const { t } = useTranslation();
 
   return (
-    <div className="space-y-4 pt-4 first:pt-0">
-      <div className="px-1">
+    <div className="space-y-4 pt-4">
+      <div className="px-6">
         <h3 className="text-sm font-semibold text-text">{title}</h3>
-        <p className="text-xs text-text/60 mt-0.5">{description}</p>
+        <p className="text-xs text-text/60 mt-1">{description}</p>
       </div>
 
       <SettingContainer
@@ -199,7 +199,7 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
   const aiReplaceState = useAiReplaceProviderState();
 
   return (
-    <div className="divide-y divide-mid-gray/10 space-y-8">
+    <div className="divide-y divide-mid-gray/10 space-y-6">
       <LlmConfigSection
         title={t("settings.postProcessing.api.transcription.title")}
         description={t("settings.postProcessing.api.transcription.description")}
