@@ -44,19 +44,26 @@ struct SendScreenshotToExtensionAction;
 
 struct RepastLastAction;
 
+enum PostProcessTranscriptionOutcome {
+    Skipped,
+    Cancelled,
+    Processed { text: String, prompt_template: String },
+}
+
 async fn maybe_post_process_transcription(
+    app: &AppHandle,
     settings: &AppSettings,
     transcription: &str,
-) -> Option<String> {
+) -> PostProcessTranscriptionOutcome {
     if !settings.post_process_enabled {
-        return None;
+        return PostProcessTranscriptionOutcome::Skipped;
     }
 
     let provider = match settings.active_post_process_provider().cloned() {
         Some(provider) => provider,
         None => {
             debug!("Post-processing enabled but no provider is selected");
-            return None;
+            return PostProcessTranscriptionOutcome::Skipped;
         }
     };
 
@@ -71,18 +78,18 @@ async fn maybe_post_process_transcription(
             "Post-processing skipped because provider '{}' has no model configured",
             provider.id
         );
-        return None;
+        return PostProcessTranscriptionOutcome::Skipped;
     }
 
     let selected_prompt_id = match &settings.post_process_selected_prompt_id {
         Some(id) => id.clone(),
         None => {
             debug!("Post-processing skipped because no prompt is selected");
-            return None;
+            return PostProcessTranscriptionOutcome::Skipped;
         }
     };
 
-    let prompt = match settings
+    let prompt_template = match settings
         .post_process_prompts
         .iter()
         .find(|prompt| prompt.id == selected_prompt_id)
@@ -93,13 +100,13 @@ async fn maybe_post_process_transcription(
                 "Post-processing skipped because prompt '{}' was not found",
                 selected_prompt_id
             );
-            return None;
+            return PostProcessTranscriptionOutcome::Skipped;
         }
     };
 
-    if prompt.trim().is_empty() {
+    if prompt_template.trim().is_empty() {
         debug!("Post-processing skipped because the selected prompt is empty");
-        return None;
+        return PostProcessTranscriptionOutcome::Skipped;
     }
 
     debug!(
@@ -108,7 +115,7 @@ async fn maybe_post_process_transcription(
     );
 
     // Replace ${output} variable in the prompt with the actual text
-    let processed_prompt = prompt.replace("${output}", transcription);
+    let processed_prompt = prompt_template.replace("${output}", transcription);
     debug!("Processed prompt length: {} chars", processed_prompt.len());
 
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
@@ -116,26 +123,49 @@ async fn maybe_post_process_transcription(
         {
             if !apple_intelligence::check_apple_intelligence_availability() {
                 debug!("Apple Intelligence selected but not currently available on this device");
-                return None;
+                return PostProcessTranscriptionOutcome::Skipped;
             }
+
+            let llm_tracker = app.state::<Arc<LlmOperationTracker>>();
+            let operation_id = llm_tracker.start_operation();
+            show_thinking_overlay(app);
 
             let token_limit = model.trim().parse::<i32>().unwrap_or(0);
             return match apple_intelligence::process_text(&processed_prompt, token_limit) {
                 Ok(result) => {
+                    if llm_tracker.is_cancelled(operation_id) {
+                        debug!(
+                            "LLM post-processing operation {} was cancelled, discarding result",
+                            operation_id
+                        );
+                        return PostProcessTranscriptionOutcome::Cancelled;
+                    }
+
                     if result.trim().is_empty() {
                         debug!("Apple Intelligence returned an empty response");
-                        None
+                        PostProcessTranscriptionOutcome::Skipped
                     } else {
                         debug!(
                             "Apple Intelligence post-processing succeeded. Output length: {} chars",
                             result.len()
                         );
-                        Some(result)
+                        PostProcessTranscriptionOutcome::Processed {
+                            text: result,
+                            prompt_template,
+                        }
                     }
                 }
                 Err(err) => {
+                    if llm_tracker.is_cancelled(operation_id) {
+                        debug!(
+                            "LLM post-processing operation {} was cancelled, skipping error handling",
+                            operation_id
+                        );
+                        return PostProcessTranscriptionOutcome::Cancelled;
+                    }
+
                     error!("Apple Intelligence post-processing failed: {}", err);
-                    None
+                    PostProcessTranscriptionOutcome::Skipped
                 }
             };
         }
@@ -143,9 +173,13 @@ async fn maybe_post_process_transcription(
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
         {
             debug!("Apple Intelligence provider selected on unsupported platform");
-            return None;
+            return PostProcessTranscriptionOutcome::Skipped;
         }
     }
+
+    let llm_tracker = app.state::<Arc<LlmOperationTracker>>();
+    let operation_id = llm_tracker.start_operation();
+    show_thinking_overlay(app);
 
     let api_key = settings
         .post_process_api_keys
@@ -158,24 +192,51 @@ async fn maybe_post_process_transcription(
         .await
     {
         Ok(Some(content)) => {
+            if llm_tracker.is_cancelled(operation_id) {
+                debug!(
+                    "LLM post-processing operation {} was cancelled, discarding result",
+                    operation_id
+                );
+                return PostProcessTranscriptionOutcome::Cancelled;
+            }
+
             debug!(
                 "LLM post-processing succeeded for provider '{}'. Output length: {} chars",
                 provider.id,
                 content.len()
             );
-            Some(content)
+            PostProcessTranscriptionOutcome::Processed {
+                text: content,
+                prompt_template,
+            }
         }
         Ok(None) => {
+            if llm_tracker.is_cancelled(operation_id) {
+                debug!(
+                    "LLM post-processing operation {} was cancelled, skipping error handling",
+                    operation_id
+                );
+                return PostProcessTranscriptionOutcome::Cancelled;
+            }
+
             error!("LLM API response has no content");
-            None
+            PostProcessTranscriptionOutcome::Skipped
         }
         Err(e) => {
+            if llm_tracker.is_cancelled(operation_id) {
+                debug!(
+                    "LLM post-processing operation {} was cancelled, skipping error handling",
+                    operation_id
+                );
+                return PostProcessTranscriptionOutcome::Cancelled;
+            }
+
             error!(
                 "LLM post-processing failed for provider '{}': {}. Falling back to original transcription.",
                 provider.id,
                 e
             );
-            None
+            PostProcessTranscriptionOutcome::Skipped
         }
     }
 }
@@ -464,7 +525,7 @@ async fn apply_post_processing_and_history(
     app: &AppHandle,
     transcription: String,
     samples: Vec<f32>,
-) -> String {
+) -> Option<String> {
     let settings = get_settings(app);
     let mut final_text = transcription.clone();
     let mut post_processed_text: Option<String> = None;
@@ -473,19 +534,19 @@ async fn apply_post_processing_and_history(
     if let Some(converted_text) = maybe_convert_chinese_variant(&settings, &transcription).await {
         final_text = converted_text.clone();
         post_processed_text = Some(converted_text);
-    } else if let Some(processed_text) =
-        maybe_post_process_transcription(&settings, &transcription).await
-    {
-        final_text = processed_text.clone();
-        post_processed_text = Some(processed_text);
-
-        if let Some(prompt_id) = &settings.post_process_selected_prompt_id {
-            if let Some(prompt) = settings
-                .post_process_prompts
-                .iter()
-                .find(|p| &p.id == prompt_id)
-            {
-                post_process_prompt = Some(prompt.prompt.clone());
+    } else {
+        match maybe_post_process_transcription(app, &settings, &transcription).await {
+            PostProcessTranscriptionOutcome::Skipped => {}
+            PostProcessTranscriptionOutcome::Cancelled => {
+                return None;
+            }
+            PostProcessTranscriptionOutcome::Processed {
+                text,
+                prompt_template,
+            } => {
+                final_text = text.clone();
+                post_processed_text = Some(text);
+                post_process_prompt = Some(prompt_template);
             }
         }
     }
@@ -505,7 +566,7 @@ async fn apply_post_processing_and_history(
         }
     });
 
-    final_text
+    Some(final_text)
 }
 
 // ============================================================================
@@ -648,7 +709,11 @@ impl ShortcutAction for TranscribeAction {
                 return;
             }
 
-            let final_text = apply_post_processing_and_history(&ah, transcription, samples).await;
+            let final_text =
+                match apply_post_processing_and_history(&ah, transcription, samples).await {
+                    Some(text) => text,
+                    None => return,
+                };
 
             let ah_clone = ah.clone();
             ah.run_on_main_thread(move || {
@@ -714,7 +779,11 @@ impl ShortcutAction for SendToExtensionAction {
                 return;
             }
 
-            let final_text = apply_post_processing_and_history(&ah, transcription, samples).await;
+            let final_text =
+                match apply_post_processing_and_history(&ah, transcription, samples).await {
+                    Some(text) => text,
+                    None => return,
+                };
 
             match cm.queue_message(&final_text) {
                 Ok(id) => debug!("Connector message queued with id: {}", id),
@@ -787,7 +856,10 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
                 }
                 String::new()
             } else {
-                apply_post_processing_and_history(&ah, transcription, samples).await
+                match apply_post_processing_and_history(&ah, transcription, samples).await {
+                    Some(text) => text,
+                    None => return,
+                }
             };
 
             let selected_text = utils::capture_selection_text_copy(&ah).unwrap_or_default();

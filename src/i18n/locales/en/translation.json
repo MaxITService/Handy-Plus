@@ -408,7 +408,7 @@
       },
       "disabledNotice": "Post processing is currently disabled. Enable it in Debug settings to configure.",
       "api": {
-        "title": "API (OpenAI Compatible)",
+        "title": "Set API providers and keys for all LLM features in app",
         "provider": {
           "title": "Provider",
           "description": "Select an OpenAI-compatible provider."
@@ -451,10 +451,10 @@
         }
       },
       "prompts": {
-        "title": "Prompt",
+        "title": "Post-Processing Prompts",
         "selectedPrompt": {
           "title": "Selected Prompt",
-          "description": "Select a template for refining transcriptions or create a new one. Use ${output} inside the prompt text to reference the captured transcript."
+          "description": "Used only for transcription post-processing. After transcription, ${output} is replaced with the raw transcript and sent to the selected LLM; its response is what gets pasted/sent (fallback: original transcript)."
         },
         "noPrompts": "No prompts available",
         "selectPrompt": "Select a prompt",
@@ -540,7 +540,7 @@
         "description": "Microphone to use when laptop lid is closed"
       },
       "postProcessingToggle": {
-        "label": "Post Processing",
+        "label": "Post-Processing",
         "description": "Enable AI-powered text refinement after transcription"
       },
       "muteWhileRecording": {

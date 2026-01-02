@@ -10,6 +10,7 @@ import { ResetButton } from "../../ui/ResetButton";
 import { Input } from "../../ui/Input";
 import { Dropdown } from "../../ui/Dropdown";
 import { Textarea } from "../../ui/Textarea";
+import { PostProcessingToggle } from "../PostProcessingToggle";
 import { ProviderSelect } from "../PostProcessingSettingsApi/ProviderSelect";
 import { BaseUrlField } from "../PostProcessingSettingsApi/BaseUrlField";
 import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
@@ -329,7 +330,7 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
       description={t(
         "settings.postProcessing.prompts.selectedPrompt.description",
       )}
-      descriptionMode="tooltip"
+      descriptionMode="inline"
       layout="stacked"
       grouped={true}
     >
@@ -524,6 +525,7 @@ export const PostProcessingSettings: React.FC = () => {
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.postProcessing.prompts.title")}>
+        <PostProcessingToggle descriptionMode="inline" grouped={true} />
         <PostProcessingSettingsPrompts />
       </SettingsGroup>
     </div>
