@@ -230,6 +230,20 @@ pub fn crop_region(_screenshot_data: &[u8], _region: &SelectedRegion) -> Result<
 /// Opens the region capture overlay and returns when user selects a region or cancels.
 #[cfg(target_os = "windows")]
 pub async fn open_region_picker(app: &AppHandle) -> RegionCaptureResult {
+    // Close any existing region capture window first and wait for it to be destroyed
+    if let Some(existing_window) = app.get_webview_window("region_capture") {
+        debug!("Closing existing region capture window");
+        let _ = existing_window.destroy();
+        // Wait for window to be fully destroyed (up to 500ms)
+        for _ in 0..50 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            if app.get_webview_window("region_capture").is_none() {
+                debug!("Region capture window destroyed successfully");
+                break;
+            }
+        }
+    }
+
     // First, capture all monitors
     let (screenshot_data, virtual_info) = match capture_all_monitors() {
         Ok(result) => result,
