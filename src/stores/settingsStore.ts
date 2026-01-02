@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type { AppSettings as Settings, AudioDevice } from "@/bindings";
 import { commands } from "@/bindings";
+import { invoke } from "@tauri-apps/api/core";
 
 interface SettingsStore {
   settings: Settings | null;
@@ -192,6 +193,10 @@ const settingUpdaters: {
   transcription_provider: (value) =>
     commands.changeTranscriptionProviderSetting(value as string),
 };
+
+// Fork-specific settings not yet present in generated bindings.
+(settingUpdaters as any).native_region_capture_mode = (value: any) =>
+  invoke("change_native_region_capture_mode_setting", { mode: value });
 
 export const useSettingsStore = create<SettingsStore>()(
   subscribeWithSelector((set, get) => ({

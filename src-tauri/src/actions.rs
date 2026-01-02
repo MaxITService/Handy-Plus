@@ -1110,8 +1110,8 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
                     voice_text
                 };
 
-            // Hide overlay immediately after transcription
-            utils::hide_recording_overlay(&ah);
+            // Hide overlay immediately after transcription (avoid capturing it in screenshots)
+            utils::hide_recording_overlay_immediately(&ah);
             change_tray_icon(&ah, TrayIconState::Idle);
 
             if settings.screenshot_capture_method
@@ -1122,7 +1122,7 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
                 {
                     use crate::region_capture::{open_region_picker, RegionCaptureResult};
 
-                    match open_region_picker(&ah).await {
+                    match open_region_picker(&ah, settings.native_region_capture_mode).await {
                         RegionCaptureResult::Selected {
                             region: _,
                             image_data,

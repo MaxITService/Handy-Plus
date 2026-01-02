@@ -31,7 +31,7 @@ const getDefaultScreenshotFolder = () => {
 
 export const BrowserConnectorSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { settings, getSetting, updateSetting, isUpdating } = useSettings();
+  const { settings, updateSetting, isUpdating } = useSettings();
 
   const [portInput, setPortInput] = useState(String(settings?.connector_port ?? 63155));
   const [portError, setPortError] = useState<string | null>(null);
@@ -71,6 +71,9 @@ export const BrowserConnectorSettings: React.FC = () => {
   
   const [captureMethod, setCaptureMethod] = useState(
     (settings as any)?.screenshot_capture_method ?? "native"
+  );
+  const [nativeRegionCaptureMode, setNativeRegionCaptureMode] = useState(
+    (settings as any)?.native_region_capture_mode ?? "live_desktop"
   );
 
   useEffect(() => {
@@ -117,6 +120,12 @@ export const BrowserConnectorSettings: React.FC = () => {
   useEffect(() => {
     setCaptureMethod((settings as any)?.screenshot_capture_method ?? "native");
   }, [(settings as any)?.screenshot_capture_method]);
+
+  useEffect(() => {
+    setNativeRegionCaptureMode(
+      (settings as any)?.native_region_capture_mode ?? "live_desktop"
+    );
+  }, [(settings as any)?.native_region_capture_mode]);
 
 
   const handlePortBlur = async () => {
@@ -227,6 +236,24 @@ export const BrowserConnectorSettings: React.FC = () => {
     void updateSetting("screenshot_capture_method" as any, method);
     setCaptureMethod(method);
   };
+
+  const handleNativeRegionCaptureModeChange = (mode: string) => {
+    void updateSetting("native_region_capture_mode" as any, mode);
+    setNativeRegionCaptureMode(mode);
+  };
+
+  const nativeRegionCaptureModeOptions = [
+    {
+      value: "live_desktop",
+      label: t("settings.browserConnector.screenshot.nativeMode.liveDesktop"),
+    },
+    {
+      value: "screenshot_background",
+      label: t(
+        "settings.browserConnector.screenshot.nativeMode.screenshotBackground"
+      ),
+    },
+  ];
 
 
   // Server always binds to 127.0.0.1 and serves /messages
@@ -574,6 +601,30 @@ export const BrowserConnectorSettings: React.FC = () => {
                   </label>
                 </div>
               </SettingContainer>
+
+              {captureMethod === "native" && (
+                <SettingContainer
+                  title={t("settings.browserConnector.screenshot.nativeMode.title")}
+                  description={t(
+                    "settings.browserConnector.screenshot.nativeMode.description"
+                  )}
+                  grouped={true}
+                >
+                  <Select
+                    value={nativeRegionCaptureMode}
+                    options={nativeRegionCaptureModeOptions}
+                    onChange={(value) =>
+                      value && handleNativeRegionCaptureModeChange(value)
+                    }
+                    disabled={isUpdating("native_region_capture_mode")}
+                    placeholder={t(
+                      "settings.browserConnector.screenshot.nativeMode.placeholder"
+                    )}
+                    isClearable={false}
+                    className="w-64"
+                  />
+                </SettingContainer>
+              )}
 
               {captureMethod === "external_program" && (
                 <>

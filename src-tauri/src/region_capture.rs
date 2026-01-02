@@ -9,6 +9,9 @@ use tauri::{AppHandle, Manager};
 use tokio::sync::oneshot;
 
 #[cfg(target_os = "windows")]
+use crate::settings::NativeRegionCaptureMode;
+
+#[cfg(target_os = "windows")]
 use tauri::WebviewWindowBuilder;
 
 /// Information about the virtual screen (all monitors combined).
@@ -57,7 +60,7 @@ pub enum RegionCaptureResult {
 pub struct RegionCaptureState {
     /// Channel to receive the result from the overlay window
     pub result_sender: Option<oneshot::Sender<RegionCaptureResult>>,
-    /// Screenshot data (PNG bytes of entire virtual screen)
+    /// Optional screenshot data for legacy picker background (PNG bytes of entire virtual screen)
     pub screenshot_data: Option<Vec<u8>>,
     /// Virtual screen info for coordinate conversion
     pub virtual_info: Option<VirtualScreenInfo>,
@@ -75,10 +78,9 @@ impl Default for RegionCaptureState {
 
 pub type ManagedRegionCaptureState = std::sync::Mutex<RegionCaptureState>;
 
-/// Captures a screenshot of all monitors and returns it as PNG bytes along with virtual screen info.
+/// Gets the virtual screen info (all monitors combined).
 #[cfg(target_os = "windows")]
-pub fn capture_all_monitors() -> Result<(Vec<u8>, VirtualScreenInfo), String> {
-    use screenshots::image::{self, ImageEncoder};
+pub fn get_virtual_screen_info() -> Result<VirtualScreenInfo, String> {
     use screenshots::Screen;
 
     let screens = Screen::all().map_err(|e| format!("Failed to enumerate screens: {}", e))?;
@@ -109,55 +111,11 @@ pub fn capture_all_monitors() -> Result<(Vec<u8>, VirtualScreenInfo), String> {
         min_x, min_y, total_width, total_height
     );
 
-    // Create canvas for combined screenshot
-    let mut canvas = image::RgbaImage::new(total_width, total_height);
-
     // Get scale factor from first screen (primary)
     let scale_factor = screens
         .first()
         .map(|s| s.display_info.scale_factor as f64)
         .unwrap_or(1.0);
-
-    // Capture each screen and composite onto canvas
-    for screen in screens {
-        let img = screen
-            .capture()
-            .map_err(|e| format!("Failed to capture screen: {}", e))?;
-
-        let offset_x = (screen.display_info.x - min_x) as u32;
-        let offset_y = (screen.display_info.y - min_y) as u32;
-
-        debug!(
-            "Screen {} at ({}, {}): {}x{}, placing at ({}, {})",
-            screen.display_info.id,
-            screen.display_info.x,
-            screen.display_info.y,
-            screen.display_info.width,
-            screen.display_info.height,
-            offset_x,
-            offset_y
-        );
-
-        // Copy pixels from captured image to canvas
-        for y in 0..img.height().min(total_height - offset_y) {
-            for x in 0..img.width().min(total_width - offset_x) {
-                let pixel = img.get_pixel(x, y);
-                canvas.put_pixel(offset_x + x, offset_y + y, *pixel);
-            }
-        }
-    }
-
-    // Encode to PNG using ImageEncoder trait
-    let mut png_bytes: Vec<u8> = Vec::new();
-    let encoder = image::codecs::png::PngEncoder::new(&mut png_bytes);
-    encoder
-        .write_image(
-            canvas.as_raw(),
-            total_width,
-            total_height,
-            image::ColorType::Rgba8,
-        )
-        .map_err(|e| format!("Failed to encode PNG: {}", e))?;
 
     let info = VirtualScreenInfo {
         offset_x: min_x,
@@ -167,23 +125,99 @@ pub fn capture_all_monitors() -> Result<(Vec<u8>, VirtualScreenInfo), String> {
         scale_factor,
     };
 
-    Ok((png_bytes, info))
+    Ok(info)
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn capture_all_monitors() -> Result<(Vec<u8>, VirtualScreenInfo), String> {
+pub fn get_virtual_screen_info() -> Result<VirtualScreenInfo, String> {
     Err("Native region capture is only supported on Windows".to_string())
 }
 
-/// Crops a region from the full screenshot and returns it as PNG bytes.
 #[cfg(target_os = "windows")]
-pub fn crop_region(screenshot_data: &[u8], region: &SelectedRegion) -> Result<Vec<u8>, String> {
+fn capture_virtual_screen_rgba(
+    virtual_info: &VirtualScreenInfo,
+) -> Result<screenshots::image::RgbaImage, String> {
+    use screenshots::image;
+    use screenshots::Screen;
+
+    let screens = Screen::all().map_err(|e| format!("Failed to enumerate screens: {}", e))?;
+    if screens.is_empty() {
+        return Err("No screens found".to_string());
+    }
+
+    let mut canvas = image::RgbaImage::new(virtual_info.total_width, virtual_info.total_height);
+    let canvas_width = canvas.width() as usize;
+    let canvas_height = canvas.height() as usize;
+    let canvas_row_bytes = canvas_width * 4;
+
+    let canvas_buf = canvas.as_flat_samples_mut().samples;
+
+    for screen in screens {
+        let img = screen
+            .capture()
+            .map_err(|e| format!("Failed to capture screen: {}", e))?;
+
+        let offset_x = screen.display_info.x - virtual_info.offset_x;
+        let offset_y = screen.display_info.y - virtual_info.offset_y;
+
+        if offset_x < 0 || offset_y < 0 {
+            continue;
+        }
+
+        let offset_x = offset_x as usize;
+        let offset_y = offset_y as usize;
+
+        if offset_x >= canvas_width || offset_y >= canvas_height {
+            continue;
+        }
+
+        let img_width = img.width() as usize;
+        let img_height = img.height() as usize;
+        let img_row_bytes = img_width * 4;
+
+        let copy_width = img_width.min(canvas_width.saturating_sub(offset_x));
+        let copy_height = img_height.min(canvas_height.saturating_sub(offset_y));
+        let copy_row_bytes = copy_width * 4;
+
+        let img_buf = img.as_flat_samples().samples;
+
+        for row in 0..copy_height {
+            let src_start = row * img_row_bytes;
+            let dst_start = (offset_y + row) * canvas_row_bytes + offset_x * 4;
+            canvas_buf[dst_start..dst_start + copy_row_bytes]
+                .copy_from_slice(&img_buf[src_start..src_start + copy_row_bytes]);
+        }
+    }
+
+    Ok(canvas)
+}
+
+#[cfg(target_os = "windows")]
+fn capture_virtual_screen_png(virtual_info: &VirtualScreenInfo) -> Result<Vec<u8>, String> {
     use screenshots::image::{self, ImageEncoder};
 
-    // Decode the PNG
-    let img = image::load_from_memory(screenshot_data)
-        .map_err(|e| format!("Failed to decode screenshot: {}", e))?
-        .to_rgba8();
+    let canvas = capture_virtual_screen_rgba(virtual_info)?;
+
+    let mut png_bytes: Vec<u8> = Vec::new();
+    let encoder = image::codecs::png::PngEncoder::new(&mut png_bytes);
+    encoder
+        .write_image(
+            canvas.as_raw(),
+            canvas.width(),
+            canvas.height(),
+            image::ColorType::Rgba8,
+        )
+        .map_err(|e| format!("Failed to encode PNG: {}", e))?;
+
+    Ok(png_bytes)
+}
+
+#[cfg(target_os = "windows")]
+fn crop_region_to_png(
+    canvas: &screenshots::image::RgbaImage,
+    region: &SelectedRegion,
+) -> Result<Vec<u8>, String> {
+    use screenshots::image::{self, ImageEncoder};
 
     // Validate region bounds
     if region.x < 0 || region.y < 0 {
@@ -192,20 +226,20 @@ pub fn crop_region(screenshot_data: &[u8], region: &SelectedRegion) -> Result<Ve
     let x = region.x as u32;
     let y = region.y as u32;
 
-    if x + region.width > img.width() || y + region.height > img.height() {
+    if x + region.width > canvas.width() || y + region.height > canvas.height() {
         return Err(format!(
             "Region out of bounds: ({}, {}) + {}x{} exceeds {}x{}",
             x,
             y,
             region.width,
             region.height,
-            img.width(),
-            img.height()
+            canvas.width(),
+            canvas.height()
         ));
     }
 
     // Crop the region
-    let cropped = image::imageops::crop_imm(&img, x, y, region.width, region.height).to_image();
+    let cropped = image::imageops::crop_imm(canvas, x, y, region.width, region.height).to_image();
 
     // Encode to PNG using ImageEncoder trait
     let mut png_bytes: Vec<u8> = Vec::new();
@@ -222,14 +256,20 @@ pub fn crop_region(screenshot_data: &[u8], region: &SelectedRegion) -> Result<Ve
     Ok(png_bytes)
 }
 
-#[cfg(not(target_os = "windows"))]
-pub fn crop_region(_screenshot_data: &[u8], _region: &SelectedRegion) -> Result<Vec<u8>, String> {
-    Err("Native region capture is only supported on Windows".to_string())
+#[cfg(target_os = "windows")]
+fn crop_png_region_to_png(screenshot_data: &[u8], region: &SelectedRegion) -> Result<Vec<u8>, String> {
+    use screenshots::image;
+
+    let img = image::load_from_memory(screenshot_data)
+        .map_err(|e| format!("Failed to decode screenshot: {}", e))?
+        .to_rgba8();
+
+    crop_region_to_png(&img, region)
 }
 
 /// Opens the region capture overlay and returns when user selects a region or cancels.
 #[cfg(target_os = "windows")]
-pub async fn open_region_picker(app: &AppHandle) -> RegionCaptureResult {
+pub async fn open_region_picker(app: &AppHandle, mode: NativeRegionCaptureMode) -> RegionCaptureResult {
     // Close any existing region capture window first and wait for it to be destroyed
     if let Some(existing_window) = app.get_webview_window("region_capture") {
         debug!("Closing existing region capture window");
@@ -244,17 +284,19 @@ pub async fn open_region_picker(app: &AppHandle) -> RegionCaptureResult {
         }
     }
 
-    // First, capture all monitors
-    let (screenshot_data, virtual_info) = match capture_all_monitors() {
-        Ok(result) => result,
+    // Compute virtual screen info (fast; no capture yet)
+    let virtual_info = match get_virtual_screen_info() {
+        Ok(info) => info,
         Err(e) => return RegionCaptureResult::Error(e),
     };
 
-    debug!(
-        "Screenshot captured: {} bytes, virtual screen: {:?}",
-        screenshot_data.len(),
-        virtual_info
-    );
+    let screenshot_data = match mode {
+        NativeRegionCaptureMode::LiveDesktop => None,
+        NativeRegionCaptureMode::ScreenshotBackground => match capture_virtual_screen_png(&virtual_info) {
+            Ok(data) => Some(data),
+            Err(e) => return RegionCaptureResult::Error(e),
+        },
+    };
 
     // Create a channel for receiving the result
     let (tx, rx) = oneshot::channel::<RegionCaptureResult>();
@@ -264,7 +306,7 @@ pub async fn open_region_picker(app: &AppHandle) -> RegionCaptureResult {
         let state = app.state::<ManagedRegionCaptureState>();
         let mut guard = state.lock().unwrap();
         guard.result_sender = Some(tx);
-        guard.screenshot_data = Some(screenshot_data.clone());
+        guard.screenshot_data = screenshot_data;
         guard.virtual_info = Some(virtual_info.clone());
     }
 
@@ -332,38 +374,64 @@ pub async fn open_region_picker(app: &AppHandle) -> RegionCaptureResult {
 }
 
 #[cfg(not(target_os = "windows"))]
-pub async fn open_region_picker(_app: &AppHandle) -> RegionCaptureResult {
+pub async fn open_region_picker(
+    _app: &AppHandle,
+    _mode: crate::settings::NativeRegionCaptureMode,
+) -> RegionCaptureResult {
     RegionCaptureResult::Error("Native region capture is only supported on Windows".to_string())
 }
 
 /// Called from the overlay when user selects a region.
 pub fn on_region_selected(app: &AppHandle, region: SelectedRegion) {
-    let state = app.state::<ManagedRegionCaptureState>();
-    let mut guard = state.lock().unwrap();
+    // Hide/close the overlay window immediately so it won't be included in the capture.
+    if let Some(window) = app.get_webview_window("region_capture") {
+        let _ = window.hide();
+        let _ = window.close();
+    }
 
-    // Get the screenshot data and crop the region
-    if let (Some(screenshot_data), Some(sender)) =
-        (guard.screenshot_data.take(), guard.result_sender.take())
-    {
-        match crop_region(&screenshot_data, &region) {
-            Ok(cropped_data) => {
-                let _ = sender.send(RegionCaptureResult::Selected {
-                    region,
-                    image_data: cropped_data,
-                });
+    let state = app.state::<ManagedRegionCaptureState>();
+    let (sender, virtual_info, screenshot_data) = {
+        let mut guard = state.lock().unwrap();
+        (
+            guard.result_sender.take(),
+            guard.virtual_info.take(),
+            guard.screenshot_data.take(),
+        )
+    };
+
+    let Some(sender) = sender else {
+        return;
+    };
+
+    let Some(virtual_info) = virtual_info else {
+        let _ = sender.send(RegionCaptureResult::Error(
+            "Virtual screen info missing".to_string(),
+        ));
+        return;
+    };
+
+    std::thread::spawn(move || {
+        // Give the window manager a moment to apply the hide before capturing.
+        std::thread::sleep(std::time::Duration::from_millis(50));
+
+        let result = (|| {
+            if let Some(screenshot_data) = screenshot_data {
+                crop_png_region_to_png(&screenshot_data, &region)
+            } else {
+                let canvas = capture_virtual_screen_rgba(&virtual_info)?;
+                crop_region_to_png(&canvas, &region)
+            }
+        })();
+
+        match result {
+            Ok(image_data) => {
+                let _ = sender.send(RegionCaptureResult::Selected { region, image_data });
             }
             Err(e) => {
                 let _ = sender.send(RegionCaptureResult::Error(e));
             }
         }
-    }
-
-    guard.virtual_info = None;
-
-    // Close the overlay window
-    if let Some(window) = app.get_webview_window("region_capture") {
-        let _ = window.close();
-    }
+    });
 }
 
 /// Called from the overlay when user cancels.

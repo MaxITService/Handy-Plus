@@ -322,6 +322,15 @@ pub fn hide_recording_overlay(app_handle: &AppHandle) {
     }
 }
 
+/// Immediately hides the recording overlay window (no animation delay).
+///
+/// Useful when the next operation is a screen capture, so we don't accidentally capture the overlay.
+pub fn hide_recording_overlay_immediately(app_handle: &AppHandle) {
+    if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        let _ = overlay_window.hide();
+    }
+}
+
 pub fn emit_levels(app_handle: &AppHandle, levels: &Vec<f32>) {
     // emit levels to main app
     let _ = app_handle.emit("mic-level", levels);

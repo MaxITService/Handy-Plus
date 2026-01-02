@@ -512,9 +512,25 @@ async changeConnectorPasswordSetting(password: string) : Promise<Result<null, st
     else return { status: "error", error: e  as any };
 }
 },
+async changeScreenshotCaptureMethodSetting(method: ScreenshotCaptureMethod) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_screenshot_capture_method_setting", { method }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeScreenshotCaptureCommandSetting(command: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_screenshot_capture_command_setting", { command }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeNativeRegionCaptureModeSetting(mode: NativeRegionCaptureMode) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_native_region_capture_mode_setting", { mode }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1111,7 +1127,7 @@ send_to_extension_enabled?: boolean; send_to_extension_push_to_talk?: boolean;
 /**
  * Whether the "Send Transcription + Selection to Extension" action is enabled (risky feature)
  */
-send_to_extension_with_selection_enabled?: boolean; send_to_extension_with_selection_push_to_talk?: boolean; send_to_extension_with_selection_allow_no_voice?: boolean; send_to_extension_with_selection_quick_tap_threshold_ms?: number; send_to_extension_with_selection_no_voice_system_prompt?: string; ai_replace_selection_push_to_talk?: boolean; mute_while_recording?: boolean; append_trailing_space?: boolean; connector_port?: number; connector_auto_open_enabled?: boolean; connector_auto_open_url?: string; screenshot_capture_method?: ScreenshotCaptureMethod; screenshot_capture_command?: string; screenshot_folder?: string; screenshot_require_recent?: boolean; screenshot_timeout_seconds?: number; screenshot_include_subfolders?: boolean; screenshot_allow_no_voice?: boolean; screenshot_quick_tap_threshold_ms?: number; screenshot_no_voice_default_prompt?: string; 
+send_to_extension_with_selection_enabled?: boolean; send_to_extension_with_selection_push_to_talk?: boolean; send_to_extension_with_selection_allow_no_voice?: boolean; send_to_extension_with_selection_quick_tap_threshold_ms?: number; send_to_extension_with_selection_no_voice_system_prompt?: string; ai_replace_selection_push_to_talk?: boolean; mute_while_recording?: boolean; append_trailing_space?: boolean; connector_port?: number; connector_auto_open_enabled?: boolean; connector_auto_open_url?: string; screenshot_capture_method?: ScreenshotCaptureMethod; native_region_capture_mode?: NativeRegionCaptureMode; screenshot_capture_command?: string; screenshot_folder?: string; screenshot_require_recent?: boolean; screenshot_timeout_seconds?: number; screenshot_include_subfolders?: boolean; screenshot_allow_no_voice?: boolean; screenshot_quick_tap_threshold_ms?: number; screenshot_no_voice_default_prompt?: string; 
 /**
  * Whether the "Send Transcription + Screenshot to Extension" action is enabled (risky feature)
  */
@@ -1201,6 +1217,15 @@ export type LogLevel = "trace" | "debug" | "info" | "warn" | "error"
 export type ModelInfo = { id: string; name: string; description: string; filename: string; url: string | null; size_mb: number; is_downloaded: boolean; is_downloading: boolean; partial_size: number; is_directory: boolean; engine_type: EngineType; accuracy_score: number; speed_score: number }
 export type ModelLoadStatus = { is_loaded: boolean; current_model: string | null }
 export type ModelUnloadTimeout = "never" | "immediately" | "min_2" | "min_5" | "min_10" | "min_15" | "hour_1" | "sec_5"
+export type NativeRegionCaptureMode = 
+/**
+ * Most performant: transparent picker over the live desktop.
+ */
+"live_desktop" | 
+/**
+ * Legacy: capture a full screenshot first and use it as the picker background.
+ */
+"screenshot_background"
 export type OverlayPosition = "none" | "top" | "bottom"
 export type PasteMethod = "ctrl_v" | "direct" | "none" | "shift_insert" | "ctrl_shift_v"
 export type PostProcessProvider = { id: string; label: string; base_url: string }
@@ -1208,7 +1233,7 @@ export type RecordingRetentionPeriod = "never" | "preserve_limit" | "days_3" | "
 /**
  * Response for get_data command
  */
-export type RegionCaptureData = { screenshot: string; virtual_screen: VirtualScreenInfo }
+export type RegionCaptureData = { screenshot: string | null; virtual_screen: VirtualScreenInfo }
 export type RemoteSttDebugMode = "normal" | "verbose"
 export type RemoteSttSettings = { base_url: string; model_id: string; debug_capture?: boolean; debug_mode?: RemoteSttDebugMode }
 export type ScreenshotCaptureMethod = "external_program" | "native"

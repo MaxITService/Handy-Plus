@@ -644,6 +644,13 @@
           "external": "External Program (ShareX / Command Line)",
           "native": "Native (Built-in Region Selector)"
         },
+        "nativeMode": {
+          "title": "Native Picker Mode",
+          "description": "Choose how the built-in region selector works. Live Desktop is the fastest.",
+          "placeholder": "Select a mode...",
+          "liveDesktop": "Live Desktop (Fast)",
+          "screenshotBackground": "Screenshot Background (Legacy)"
+        },
         "command": {
           "title": "Capture Command",
           "description": "Command to run for capturing a screenshot region. ShareX is recommended on Windows."

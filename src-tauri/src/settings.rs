@@ -162,6 +162,15 @@ pub enum ScreenshotCaptureMethod {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "snake_case")]
+pub enum NativeRegionCaptureMode {
+    /// Most performant: transparent picker over the live desktop.
+    LiveDesktop,
+    /// Legacy: capture a full screenshot first and use it as the picker background.
+    ScreenshotBackground,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[serde(rename_all = "snake_case")]
 pub enum ModelUnloadTimeout {
     Never,
     Immediately,
@@ -399,6 +408,8 @@ pub struct AppSettings {
     pub connector_auto_open_url: String,
     #[serde(default = "default_screenshot_capture_method")]
     pub screenshot_capture_method: ScreenshotCaptureMethod,
+    #[serde(default = "default_native_region_capture_mode")]
+    pub native_region_capture_mode: NativeRegionCaptureMode,
     #[serde(default = "default_screenshot_capture_command")]
     pub screenshot_capture_command: String,
     #[serde(default = "default_screenshot_folder")]
@@ -544,6 +555,10 @@ fn default_connector_auto_open_url() -> String {
 
 fn default_screenshot_capture_method() -> ScreenshotCaptureMethod {
     ScreenshotCaptureMethod::Native
+}
+
+fn default_native_region_capture_mode() -> NativeRegionCaptureMode {
+    NativeRegionCaptureMode::LiveDesktop
 }
 
 fn default_screenshot_capture_command() -> String {
@@ -919,6 +934,7 @@ pub fn get_default_settings() -> AppSettings {
         connector_auto_open_enabled: default_connector_auto_open_enabled(),
         connector_auto_open_url: default_connector_auto_open_url(),
         screenshot_capture_method: default_screenshot_capture_method(),
+        native_region_capture_mode: default_native_region_capture_mode(),
         screenshot_capture_command: default_screenshot_capture_command(),
         screenshot_folder: default_screenshot_folder(),
         screenshot_require_recent: true,

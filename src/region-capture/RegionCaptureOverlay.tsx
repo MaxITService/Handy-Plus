@@ -23,7 +23,7 @@ interface VirtualScreenInfo {
 }
 
 interface RegionCaptureData {
-  screenshot: string; // base64
+  screenshot: string | null; // base64 (legacy mode only)
   virtual_screen: VirtualScreenInfo;
 }
 
@@ -45,9 +45,9 @@ export default function RegionCaptureOverlay() {
   // Fetch data from backend when component mounts
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const data = await invoke<RegionCaptureData>("region_capture_get_data");
-        setScreenshot(`data:image/png;base64,${data.screenshot}`);
+        try {
+          const data = await invoke<RegionCaptureData>("region_capture_get_data");
+        setScreenshot(data.screenshot ? `data:image/png;base64,${data.screenshot}` : null);
         setVirtualScreen(data.virtual_screen);
       } catch (e) {
         console.error("Failed to get region capture data:", e);
@@ -66,10 +66,16 @@ export default function RegionCaptureOverlay() {
         invoke("region_capture_cancel");
       } else if (e.key === "Enter") {
         e.preventDefault();
-        if (state === "selected" && region && region.width > MIN_REGION_SIZE && region.height > MIN_REGION_SIZE) {
+        if (
+          state === "selected" &&
+          region &&
+          virtualScreen &&
+          region.width > MIN_REGION_SIZE &&
+          region.height > MIN_REGION_SIZE
+        ) {
           // Confirm - notify backend with region data
           // Convert from logical to physical coordinates
-          const scale = virtualScreen?.scale_factor || 1;
+          const scale = virtualScreen.scale_factor || 1;
           invoke("region_capture_confirm", {
             region: {
               x: Math.round(region.x * scale),
@@ -290,14 +296,6 @@ export default function RegionCaptureOverlay() {
     return "";
   };
 
-  if (!screenshot) {
-    return (
-      <div className="region-capture-container" style={{ background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div className="hint-text">{error ? `Error: ${error}` : "Loading screenshot..."}</div>
-      </div>
-    );
-  }
-
   return (
     <div
       ref={containerRef}
@@ -307,8 +305,10 @@ export default function RegionCaptureOverlay() {
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      {/* Screenshot background */}
-      <img src={screenshot} alt="" className="screenshot-background" draggable={false} />
+      {/* Optional screenshot background (legacy mode). When absent, desktop shows through. */}
+      {screenshot && (
+        <img src={screenshot} alt="" className="screenshot-background" draggable={false} />
+      )}
 
       {/* Dim overlays */}
       <div className="dim-overlay dim-top" style={dimStyles.top} />

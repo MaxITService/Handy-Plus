@@ -35,7 +35,7 @@ pub struct VirtualScreenInfo {
 /// Response for get_data command
 #[derive(Debug, Clone, serde::Serialize, specta::Type)]
 pub struct RegionCaptureData {
-    pub screenshot: String, // base64
+    pub screenshot: Option<String>, // base64 (legacy mode only)
     pub virtual_screen: VirtualScreenInfo,
 }
 
@@ -50,17 +50,16 @@ pub fn region_capture_get_data(app: AppHandle) -> Result<RegionCaptureData, Stri
         let state = app.state::<ManagedRegionCaptureState>();
         let guard = state.lock().unwrap();
 
-        let screenshot_data = guard
-            .screenshot_data
-            .as_ref()
-            .ok_or("No screenshot data available")?;
         let virtual_info = guard
             .virtual_info
             .as_ref()
             .ok_or("No virtual screen info available")?;
 
         Ok(RegionCaptureData {
-            screenshot: base64_encode(screenshot_data),
+            screenshot: guard
+                .screenshot_data
+                .as_ref()
+                .map(|data| base64_encode(data)),
             virtual_screen: virtual_info.clone(),
         })
     }
