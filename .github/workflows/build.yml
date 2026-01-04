@@ -57,6 +57,20 @@ jobs:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
 
+      - name: Restore PFX from secret (Windows)
+        if: contains(inputs.platform, 'windows') && inputs.sign-binaries
+        shell: pwsh
+        env:
+          WIN_PFX_B64: ${{ secrets.CODE_CERT_MAXITSERVICE_01_2026 }}
+          WIN_PFX_PASSWORD: ${{ secrets.WIN_PFX_PASSWORD }}
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          $b64 = $env:WIN_PFX_B64 -replace "`r","" -replace "`n",""
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($b64))
+
+          "PFX_PATH=$pfxPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "PFX_PASSWORD=$env:WIN_PFX_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Get version from tauri.conf.json
         id: get-version
         shell: bash
@@ -167,10 +181,6 @@ jobs:
           vulkan-components: Vulkan-Headers, Vulkan-Loader
           vulkan-use-cache: true
 
-      - name: Install trusted-signing-cli
-        if: contains(inputs.platform, 'windows') && inputs.sign-binaries
-        run: cargo install trusted-signing-cli
-
       - name: Prepare Vulkan SDK for Ubuntu 24.04
         if: contains(inputs.platform, 'ubuntu-24.04')
         run: |
@@ -249,9 +259,6 @@ jobs:
           APPLE_CERTIFICATE: ${{ inputs.sign-binaries && secrets.APPLE_CERTIFICATE || '' }}
           APPLE_CERTIFICATE_PASSWORD: ${{ inputs.sign-binaries && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
           APPLE_SIGNING_IDENTITY: ${{ inputs.sign-binaries && env.CERT_ID || '' }}
-          AZURE_CLIENT_ID: ${{ inputs.sign-binaries && secrets.AZURE_CLIENT_ID || '' }}
-          AZURE_CLIENT_SECRET: ${{ inputs.sign-binaries && secrets.AZURE_CLIENT_SECRET || '' }}
-          AZURE_TENANT_ID: ${{ inputs.sign-binaries && secrets.AZURE_TENANT_ID || '' }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ inputs.sign-binaries && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ inputs.sign-binaries && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
           WHISPER_NO_AVX: ${{ contains(inputs.platform, 'ubuntu') && 'ON' || '' }}
@@ -343,5 +350,4 @@ jobs:
           # Default Windows builds place bundles under release/, but cross-compiles (ARM64) nest under target/<triple>/release.
           path: |
             src-tauri/target/${{ inputs.target != '' && inputs.target != 'x86_64-pc-windows-msvc' && format('{0}/{1}', inputs.target, steps.build-profile.outputs.profile) || steps.build-profile.outputs.profile }}/bundle/msi/*.msi
-            src-tauri/target/${{ inputs.target != '' && inputs.target != 'x86_64-pc-windows-msvc' && format('{0}/{1}', inputs.target, steps.build-profile.outputs.profile) || steps.build-profile.outputs.profile }}/bundle/nsis/*.exe
           retention-days: 30

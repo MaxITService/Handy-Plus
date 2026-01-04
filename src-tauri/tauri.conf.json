@@ -38,7 +38,7 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "targets": "all",
+    "targets": "msi",
     "resources": ["resources/**/*"],
     "license": "MIT",
     "icon": [
@@ -67,14 +67,14 @@
       }
     },
     "windows": {
-      "signCommand": "trusted-signing-cli -e https://eus.codesigning.azure.net/ -a CJ-Signing -c cjpais-dev -d AivoRelay %1"
+      "signCommand": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"signtool sign /f $env:PFX_PATH /p $env:PFX_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /v %1\""
     }
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJBQjcyMDk1MjA2NjAxRjkKUldUNUFXWWdsU0MzdXRRZi8zYzhqV2FaNUVDbDd2Rk5VM1IvWWowVXdmRFNKQ1BrMXF5RFFsLy8K",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM4NjVDMjVCMEY3REY4OTYKUldTVytIMFBXOEpseUk1NCtIM0ROTklHdS9MVUNyNVZTM3c5ZFoxdXRRdWE5cjVUaWRpbUhTUHoK",
       "endpoints": [
-        "https://github.com/cjpais/Handy/releases/latest/download/latest.json"
+        "https://github.com/MaxITService/AIVORelay/releases/latest/download/latest.json"
       ]
     }
   }
