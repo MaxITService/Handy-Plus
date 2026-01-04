@@ -1,7 +1,7 @@
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::llm_operation::LlmOperationTracker;
 use crate::managers::remote_stt::RemoteSttManager;
-use crate::recording_session;
+use crate::session_manager;
 use crate::ManagedToggleState;
 use log::{debug, info, warn};
 use std::sync::Arc;
@@ -21,7 +21,7 @@ pub fn cancel_current_operation(app: &AppHandle) {
 
     // Take the active session if any - its Drop will handle cleanup
     // (unregistering cancel shortcut, removing mute, etc.)
-    if let Some((session, binding_id)) = recording_session::take_session(app) {
+    if let Some((session, binding_id)) = session_manager::take_session(app) {
         debug!(
             "Cancellation: took active session for binding '{}'",
             binding_id
@@ -35,7 +35,7 @@ pub fn cancel_current_operation(app: &AppHandle) {
     } else {
         // No Recording session - maybe we're in Processing state
         // exit_processing will set state to Idle if we were in Processing
-        recording_session::exit_processing(app);
+        session_manager::exit_processing(app);
         debug!("Cancellation: no active recording session, checked for Processing state");
     }
 

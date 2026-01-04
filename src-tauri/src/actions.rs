@@ -8,7 +8,7 @@ use crate::managers::history::HistoryManager;
 use crate::managers::llm_operation::LlmOperationTracker;
 use crate::managers::remote_stt::RemoteSttManager;
 use crate::managers::transcription::TranscriptionManager;
-use crate::recording_session::{self, ManagedSessionState};
+use crate::session_manager::{self, ManagedSessionState};
 use crate::settings::{
     get_settings, AppSettings, TranscriptionProvider, APPLE_INTELLIGENCE_PROVIDER_ID,
 };
@@ -334,7 +334,7 @@ fn start_recording_with_feedback(app: &AppHandle, binding_id: &str) -> bool {
 
     // Check if we're already recording or processing
     // During processing, we block new recordings to prevent overlapping operations
-    if !matches!(*state_guard, recording_session::SessionState::Idle) {
+    if !matches!(*state_guard, session_manager::SessionState::Idle) {
         debug!("start_recording_with_feedback: System busy (recording or processing), ignoring");
         return false;
     }
@@ -342,12 +342,12 @@ fn start_recording_with_feedback(app: &AppHandle, binding_id: &str) -> bool {
     // Mark as recording immediately to prevent concurrent starts
     // We'll update with the real session once recording actually starts
     // For now, create a placeholder session
-    let session = Arc::new(recording_session::RecordingSession::new_with_resources(
+    let session = Arc::new(session_manager::RecordingSession::new_with_resources(
         app, true, // cancel shortcut will be registered
         true, // mute may be applied (session tracks this for cleanup)
     ));
 
-    *state_guard = recording_session::SessionState::Recording {
+    *state_guard = session_manager::SessionState::Recording {
         session: Arc::clone(&session),
         binding_id: binding_id.to_string(),
     };
@@ -403,7 +403,7 @@ fn start_recording_with_feedback(app: &AppHandle, binding_id: &str) -> bool {
         // Take the session back and let it drop (which will clean up)
         let state = app.state::<ManagedSessionState>();
         let mut state_guard = state.lock().expect("Failed to lock session state");
-        *state_guard = recording_session::SessionState::Idle;
+        *state_guard = session_manager::SessionState::Idle;
         drop(state_guard);
 
         // Session's Drop will handle cleanup, but we also explicitly reset UI
@@ -525,18 +525,18 @@ fn prepare_stop_recording(app: &AppHandle, binding_id: &str) -> bool {
     let mut state_guard = state.lock().expect("Failed to lock session state");
 
     let session = match &*state_guard {
-        recording_session::SessionState::Recording {
+        session_manager::SessionState::Recording {
             binding_id: current_binding_id,
             session,
         } if current_binding_id == binding_id => {
             let session = Arc::clone(session);
             // Transition to Processing state
-            *state_guard = recording_session::SessionState::Processing {
+            *state_guard = session_manager::SessionState::Processing {
                 binding_id: binding_id.to_string(),
             };
             Some(session)
         }
-        recording_session::SessionState::Recording {
+        session_manager::SessionState::Recording {
             binding_id: current_binding_id,
             ..
         } => {
@@ -546,11 +546,11 @@ fn prepare_stop_recording(app: &AppHandle, binding_id: &str) -> bool {
             );
             None
         }
-        recording_session::SessionState::Processing { .. } => {
+        session_manager::SessionState::Processing { .. } => {
             debug!("prepare_stop_recording: Already in Processing state");
             None
         }
-        recording_session::SessionState::Idle => {
+        session_manager::SessionState::Idle => {
             debug!(
                 "prepare_stop_recording: No active session for binding {}",
                 binding_id
@@ -814,7 +814,7 @@ impl ShortcutAction for TranscribeAction {
                 match get_transcription_or_cleanup(&ah, &binding_id).await {
                     Some(res) => res,
                     None => {
-                        recording_session::exit_processing(&ah);
+                        session_manager::exit_processing(&ah);
                         return;
                     }
                 };
@@ -822,7 +822,7 @@ impl ShortcutAction for TranscribeAction {
             if transcription.is_empty() {
                 utils::hide_recording_overlay(&ah);
                 change_tray_icon(&ah, TrayIconState::Idle);
-                recording_session::exit_processing(&ah);
+                session_manager::exit_processing(&ah);
                 return;
             }
 
@@ -830,7 +830,7 @@ impl ShortcutAction for TranscribeAction {
                 match apply_post_processing_and_history(&ah, transcription, samples).await {
                     Some(text) => text,
                     None => {
-                        recording_session::exit_processing(&ah);
+                        session_manager::exit_processing(&ah);
                         return;
                     }
                 };
@@ -843,7 +843,7 @@ impl ShortcutAction for TranscribeAction {
             })
             .ok();
 
-            recording_session::exit_processing(&ah);
+            session_manager::exit_processing(&ah);
         });
     }
 }
@@ -879,7 +879,7 @@ impl ShortcutAction for SendToExtensionAction {
         let cm = Arc::clone(&app.state::<Arc<ConnectorManager>>());
         if !cm.is_online() {
             // Extension went offline - take session to trigger cleanup via Drop
-            let _ = recording_session::take_session_if_matches(app, binding_id);
+            let _ = session_manager::take_session_if_matches(app, binding_id);
             return;
         }
 
@@ -896,7 +896,7 @@ impl ShortcutAction for SendToExtensionAction {
                 match get_transcription_or_cleanup(&ah, &binding_id).await {
                     Some(res) => res,
                     None => {
-                        recording_session::exit_processing(&ah);
+                        session_manager::exit_processing(&ah);
                         return;
                     }
                 };
@@ -904,7 +904,7 @@ impl ShortcutAction for SendToExtensionAction {
             if transcription.is_empty() {
                 utils::hide_recording_overlay(&ah);
                 change_tray_icon(&ah, TrayIconState::Idle);
-                recording_session::exit_processing(&ah);
+                session_manager::exit_processing(&ah);
                 return;
             }
 
@@ -912,7 +912,7 @@ impl ShortcutAction for SendToExtensionAction {
                 match apply_post_processing_and_history(&ah, transcription, samples).await {
                     Some(text) => text,
                     None => {
-                        recording_session::exit_processing(&ah);
+                        session_manager::exit_processing(&ah);
                         return;
                     }
                 };
@@ -929,7 +929,7 @@ impl ShortcutAction for SendToExtensionAction {
             })
             .ok();
 
-            recording_session::exit_processing(&ah);
+            session_manager::exit_processing(&ah);
         });
     }
 }
@@ -965,7 +965,7 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
         let cm = Arc::clone(&app.state::<Arc<ConnectorManager>>());
         if !cm.is_online() {
             // Extension went offline - take session to trigger cleanup via Drop
-            let _ = recording_session::take_session_if_matches(app, binding_id);
+            let _ = session_manager::take_session_if_matches(app, binding_id);
             return;
         }
 
@@ -982,7 +982,7 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
                 match get_transcription_or_cleanup(&ah, &binding_id).await {
                     Some(res) => res,
                     None => {
-                        recording_session::exit_processing(&ah);
+                        session_manager::exit_processing(&ah);
                         return;
                     }
                 };
@@ -992,7 +992,7 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
                 if !settings.send_to_extension_with_selection_allow_no_voice {
                     utils::hide_recording_overlay(&ah);
                     change_tray_icon(&ah, TrayIconState::Idle);
-                    recording_session::exit_processing(&ah);
+                    session_manager::exit_processing(&ah);
                     return;
                 }
                 String::new()
@@ -1000,7 +1000,7 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
                 match apply_post_processing_and_history(&ah, transcription, samples).await {
                     Some(text) => text,
                     None => {
-                        recording_session::exit_processing(&ah);
+                        session_manager::exit_processing(&ah);
                         return;
                     }
                 }
@@ -1020,7 +1020,7 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
             })
             .ok();
 
-            recording_session::exit_processing(&ah);
+            session_manager::exit_processing(&ah);
         });
     }
 }
@@ -1305,7 +1305,7 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
         let cm = Arc::clone(&app.state::<Arc<ConnectorManager>>());
         if !cm.is_online() {
             // Extension went offline - take session to trigger cleanup via Drop
-            let _ = recording_session::take_session_if_matches(app, binding_id);
+            let _ = session_manager::take_session_if_matches(app, binding_id);
             return;
         }
 
@@ -1321,7 +1321,7 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
             let (voice_text, _) = match get_transcription_or_cleanup(&ah, &binding_id).await {
                 Some(res) => res,
                 None => {
-                    recording_session::exit_processing(&ah);
+                    session_manager::exit_processing(&ah);
                     return;
                 }
             };
@@ -1373,7 +1373,7 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
                         "Native screenshot capture is only supported on Windows.",
                     );
                 }
-                recording_session::exit_processing(&ah);
+                session_manager::exit_processing(&ah);
                 return;
             }
 
@@ -1387,7 +1387,7 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
                         screenshot_folder.display()
                     ),
                 );
-                recording_session::exit_processing(&ah);
+                session_manager::exit_processing(&ah);
                 return;
             }
             if !screenshot_folder.is_dir() {
@@ -1398,7 +1398,7 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
                         screenshot_folder.display()
                     ),
                 );
-                recording_session::exit_processing(&ah);
+                session_manager::exit_processing(&ah);
                 return;
             }
 
@@ -1436,7 +1436,7 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
                 }
             }
 
-            recording_session::exit_processing(&ah);
+            session_manager::exit_processing(&ah);
         });
     }
 }
@@ -1475,7 +1475,7 @@ impl ShortcutAction for AiReplaceSelectionAction {
             let (transcription, _) = match get_transcription_or_cleanup(&ah, &binding_id).await {
                 Some(res) => res,
                 None => {
-                    recording_session::exit_processing(&ah);
+                    session_manager::exit_processing(&ah);
                     return;
                 }
             };
@@ -1487,7 +1487,7 @@ impl ShortcutAction for AiReplaceSelectionAction {
                     emit_ai_replace_error(&ah, "No instruction captured.");
                     utils::hide_recording_overlay(&ah);
                     change_tray_icon(&ah, TrayIconState::Idle);
-                    recording_session::exit_processing(&ah);
+                    session_manager::exit_processing(&ah);
                     return;
                 }
                 // proceeding with empty transcription
@@ -1505,7 +1505,7 @@ impl ShortcutAction for AiReplaceSelectionAction {
                 emit_ai_replace_error(&ah, "Could not capture selection.");
                 utils::hide_recording_overlay(&ah);
                 change_tray_icon(&ah, TrayIconState::Idle);
-                recording_session::exit_processing(&ah);
+                session_manager::exit_processing(&ah);
                 return;
             }
 
@@ -1589,7 +1589,7 @@ impl ShortcutAction for AiReplaceSelectionAction {
                 }
             }
 
-            recording_session::exit_processing(&ah);
+            session_manager::exit_processing(&ah);
         });
     }
 }

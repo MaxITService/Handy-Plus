@@ -11,10 +11,10 @@ mod llm_client;
 mod managers;
 mod overlay;
 mod plus_overlay_state;
-mod recording_session;
 #[cfg(target_os = "windows")]
 mod region_capture;
 mod secure_keys;
+mod session_manager;
 mod settings;
 mod shortcut;
 mod signal_handle;
@@ -474,7 +474,7 @@ pub fn run() {
         ))
         .manage(Mutex::new(ShortcutToggleStates::default()))
         .manage(Mutex::new(PressTimestamps::default()))
-        .manage(Mutex::new(recording_session::SessionState::default()))
+        .manage(Mutex::new(session_manager::SessionState::default()))
         .setup(move |app| {
             let settings = get_settings(&app.handle());
             let tauri_log_level: tauri_plugin_log::LogLevel = settings.log_level.into();
