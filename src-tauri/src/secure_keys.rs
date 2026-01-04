@@ -12,8 +12,6 @@ const SERVICE_NAME: &str = "fi.maxits.aivorelay";
 /// Key type prefix for credential storage
 #[derive(Debug, Clone, Copy)]
 pub enum KeyType {
-    /// Remote STT API key (already existed)
-    RemoteStt,
     /// Post-processing LLM API key (per provider)
     PostProcess,
     /// AI Replace LLM API key (per provider)
@@ -23,7 +21,6 @@ pub enum KeyType {
 impl KeyType {
     fn prefix(&self) -> &'static str {
         match self {
-            KeyType::RemoteStt => "remote_stt_api_key",
             KeyType::PostProcess => "post_process_api_key",
             KeyType::AiReplace => "ai_replace_api_key",
         }
@@ -84,32 +81,6 @@ pub fn get_api_key(key_type: KeyType, provider_id: Option<&str>) -> Result<Strin
     }
 }
 
-#[cfg(target_os = "windows")]
-pub fn delete_api_key(key_type: KeyType, provider_id: Option<&str>) -> Result<()> {
-    let credential_name = key_type.credential_name(provider_id);
-    debug!(
-        "Deleting API key from credential manager: {}",
-        credential_name
-    );
-
-    let entry = keyring::Entry::new(SERVICE_NAME, &credential_name)?;
-    match entry.delete_password() {
-        Ok(()) => Ok(()),
-        Err(keyring::Error::NoEntry) => {
-            // Already doesn't exist
-            Ok(())
-        }
-        Err(e) => Err(anyhow!("Failed to delete API key: {}", e)),
-    }
-}
-
-#[cfg(target_os = "windows")]
-pub fn has_api_key(key_type: KeyType, provider_id: Option<&str>) -> bool {
-    get_api_key(key_type, provider_id)
-        .map(|key| !key.trim().is_empty())
-        .unwrap_or(false)
-}
-
 // ============================================================================
 // Non-Windows stubs
 // ============================================================================
@@ -122,16 +93,6 @@ pub fn set_api_key(_key_type: KeyType, _provider_id: Option<&str>, _key: &str) -
 #[cfg(not(target_os = "windows"))]
 pub fn get_api_key(_key_type: KeyType, _provider_id: Option<&str>) -> Result<String> {
     Err(anyhow!("Secure key storage is only available on Windows"))
-}
-
-#[cfg(not(target_os = "windows"))]
-pub fn delete_api_key(_key_type: KeyType, _provider_id: Option<&str>) -> Result<()> {
-    Err(anyhow!("Secure key storage is only available on Windows"))
-}
-
-#[cfg(not(target_os = "windows"))]
-pub fn has_api_key(_key_type: KeyType, _provider_id: Option<&str>) -> bool {
-    false
 }
 
 // ============================================================================
