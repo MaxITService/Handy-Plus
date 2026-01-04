@@ -532,10 +532,24 @@ pub fn change_post_process_api_key_setting(
     provider_id: String,
     api_key: String,
 ) -> Result<(), String> {
-    let mut settings = settings::get_settings(&app);
+    let settings = settings::get_settings(&app);
     validate_provider_exists(&settings, &provider_id)?;
-    settings.post_process_api_keys.insert(provider_id, api_key);
-    settings::write_settings(&app, settings);
+
+    // On Windows, store in secure storage
+    #[cfg(target_os = "windows")]
+    {
+        crate::secure_keys::set_post_process_api_key(&provider_id, &api_key)
+            .map_err(|e| format!("Failed to store API key: {}", e))?;
+    }
+
+    // On non-Windows, store in JSON settings (original behavior)
+    #[cfg(not(target_os = "windows"))]
+    {
+        let mut settings = settings;
+        settings.post_process_api_keys.insert(provider_id, api_key);
+        settings::write_settings(&app, settings);
+    }
+
     Ok(())
 }
 
@@ -666,7 +680,11 @@ pub async fn fetch_post_process_models(
         }
     }
 
-    // Get API key
+    // Get API key - on Windows, use secure storage
+    #[cfg(target_os = "windows")]
+    let api_key = crate::secure_keys::get_post_process_api_key(&provider_id);
+
+    #[cfg(not(target_os = "windows"))]
     let api_key = settings
         .post_process_api_keys
         .get(&provider_id)
@@ -873,10 +891,24 @@ pub fn change_ai_replace_api_key_setting(
     provider_id: String,
     api_key: String,
 ) -> Result<(), String> {
-    let mut settings = settings::get_settings(&app);
+    let settings = settings::get_settings(&app);
     validate_provider_exists(&settings, &provider_id)?;
-    settings.ai_replace_api_keys.insert(provider_id, api_key);
-    settings::write_settings(&app, settings);
+
+    // On Windows, store in secure storage
+    #[cfg(target_os = "windows")]
+    {
+        crate::secure_keys::set_ai_replace_api_key(&provider_id, &api_key)
+            .map_err(|e| format!("Failed to store API key: {}", e))?;
+    }
+
+    // On non-Windows, store in JSON settings (original behavior)
+    #[cfg(not(target_os = "windows"))]
+    {
+        let mut settings = settings;
+        settings.ai_replace_api_keys.insert(provider_id, api_key);
+        settings::write_settings(&app, settings);
+    }
+
     Ok(())
 }
 

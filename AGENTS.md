@@ -40,6 +40,8 @@ When adding new features, please prefer adding them in new files instead of edit
 - Uses OpenAI-compatible `/audio/transcriptions` endpoint
 - API keys stored in Windows Credential Manager via `keyring` crate
 
+**Note:** On Windows, **all LLM API keys** (Remote STT, Post-Processing, AI Replace) are stored securely in the Windows Credential Manager via `src-tauri/src/secure_keys.rs`. Existing keys from JSON settings are auto-migrated on first launch.
+
 #### Transcription Flow & Status Info
 
 When using Remote STT API, the **Recording Overlay** (`recording_overlay` window) shows visual status:

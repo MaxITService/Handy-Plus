@@ -184,6 +184,12 @@ async fn maybe_post_process_transcription(
     let operation_id = llm_tracker.start_operation();
     show_thinking_overlay(app);
 
+    // On Windows, use secure key storage
+    #[cfg(target_os = "windows")]
+    let api_key = crate::secure_keys::get_post_process_api_key(&provider.id);
+
+    // On non-Windows, use JSON settings
+    #[cfg(not(target_os = "windows"))]
     let api_key = settings
         .post_process_api_keys
         .get(&provider.id)

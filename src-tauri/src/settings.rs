@@ -988,28 +988,47 @@ impl AppSettings {
     }
 
     /// Get AI Replace API key for a provider.
-    /// Falls back to post-processing API key if not set.
+    /// On Windows, fetches from secure storage. Falls back to post-processing API key if not set.
     pub fn ai_replace_api_key(&self, provider_id: &str) -> String {
-        // If AI Replace is configured to use the same provider as post-processing,
-        // use the post-processing API key (ignore any AI Replace overrides).
-        if self.ai_replace_provider_id.as_deref() != Some(provider_id) {
-            return self
-                .post_process_api_keys
-                .get(provider_id)
-                .cloned()
-                .unwrap_or_default();
+        // On Windows, use secure key storage
+        #[cfg(target_os = "windows")]
+        {
+            // If AI Replace is configured to use the same provider as post-processing,
+            // use the post-processing API key (ignore any AI Replace overrides).
+            if self.ai_replace_provider_id.as_deref() != Some(provider_id) {
+                return crate::secure_keys::get_post_process_api_key(provider_id);
+            }
+
+            // Try AI Replace specific key first, then fall back to post-processing key
+            let ai_key = crate::secure_keys::get_ai_replace_api_key(provider_id);
+            if !ai_key.is_empty() {
+                return ai_key;
+            }
+            return crate::secure_keys::get_post_process_api_key(provider_id);
         }
 
-        self.ai_replace_api_keys
-            .get(provider_id)
-            .filter(|k| !k.is_empty())
-            .cloned()
-            .unwrap_or_else(|| {
-                self.post_process_api_keys
+        // On non-Windows, use JSON settings (original behavior)
+        #[cfg(not(target_os = "windows"))]
+        {
+            if self.ai_replace_provider_id.as_deref() != Some(provider_id) {
+                return self
+                    .post_process_api_keys
                     .get(provider_id)
                     .cloned()
-                    .unwrap_or_default()
-            })
+                    .unwrap_or_default();
+            }
+
+            self.ai_replace_api_keys
+                .get(provider_id)
+                .filter(|k| !k.is_empty())
+                .cloned()
+                .unwrap_or_else(|| {
+                    self.post_process_api_keys
+                        .get(provider_id)
+                        .cloned()
+                        .unwrap_or_default()
+                })
+        }
     }
 
     /// Get AI Replace model for a provider.
@@ -1039,15 +1058,24 @@ impl AppSettings {
 
     /// Get the fully resolved LLM configuration for a specific feature.
     /// This is the primary entry point for getting LLM settings with proper fallback chains.
+    /// On Windows, API keys are fetched from secure storage.
     pub fn llm_config_for(&self, feature: LlmFeature) -> Option<LlmConfig> {
         match feature {
             LlmFeature::PostProcessing => {
                 let provider = self.active_post_process_provider()?;
+
+                // On Windows, use secure key storage
+                #[cfg(target_os = "windows")]
+                let api_key = crate::secure_keys::get_post_process_api_key(&provider.id);
+
+                // On non-Windows, use JSON settings
+                #[cfg(not(target_os = "windows"))]
                 let api_key = self
                     .post_process_api_keys
                     .get(&provider.id)
                     .cloned()
                     .unwrap_or_default();
+
                 let model = self
                     .post_process_models
                     .get(&provider.id)
@@ -1096,6 +1124,36 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
                     if !settings.bindings.contains_key(&key) {
                         debug!("Adding missing binding: {}", key);
                         settings.bindings.insert(key, value);
+                        updated = true;
+                    }
+                }
+
+                // Migrate API keys from JSON to secure storage (Windows only)
+                #[cfg(target_os = "windows")]
+                {
+                    let (migrated, migrated_pp, migrated_ai) =
+                        crate::secure_keys::migrate_keys_from_settings(
+                            &settings.post_process_api_keys,
+                            &settings.ai_replace_api_keys,
+                        );
+
+                    if migrated {
+                        debug!(
+                            "Migrated API keys to secure storage. Post-process: {:?}, AI Replace: {:?}",
+                            migrated_pp, migrated_ai
+                        );
+
+                        // Clear migrated keys from JSON settings
+                        for provider_id in migrated_pp {
+                            settings
+                                .post_process_api_keys
+                                .insert(provider_id, String::new());
+                        }
+                        for provider_id in migrated_ai {
+                            settings
+                                .ai_replace_api_keys
+                                .insert(provider_id, String::new());
+                        }
                         updated = true;
                     }
                 }

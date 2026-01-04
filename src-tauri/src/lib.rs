@@ -14,6 +14,7 @@ mod plus_overlay_state;
 mod recording_session;
 #[cfg(target_os = "windows")]
 mod region_capture;
+mod secure_keys;
 mod settings;
 mod shortcut;
 mod signal_handle;
