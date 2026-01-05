@@ -64,12 +64,61 @@ jobs:
           WIN_PFX_B64: ${{ secrets.CODE_CERT_MAXITSERVICE_01_2026 }}
           WIN_PFX_PASSWORD: ${{ secrets.WIN_PFX_PASSWORD }}
         run: |
-          $pfxPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
-          $b64 = $env:WIN_PFX_B64 -replace "`r","" -replace "`n",""
-          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($b64))
+          Write-Host "========================================" -ForegroundColor Cyan
+          Write-Host " RESTORE PFX CERTIFICATE - DEBUG" -ForegroundColor Cyan
+          Write-Host "========================================" -ForegroundColor Cyan
 
+          # Check if secrets are available
+          if ([string]::IsNullOrWhiteSpace($env:WIN_PFX_B64)) {
+            Write-Host "ERROR: WIN_PFX_B64 secret is empty or not set!" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "WIN_PFX_B64 secret    = (set, $($env:WIN_PFX_B64.Length) chars)" -ForegroundColor Green
+
+          if ([string]::IsNullOrWhiteSpace($env:WIN_PFX_PASSWORD)) {
+            Write-Host "ERROR: WIN_PFX_PASSWORD secret is empty or not set!" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "WIN_PFX_PASSWORD      = (set, $($env:WIN_PFX_PASSWORD.Length) chars)" -ForegroundColor Green
+
+          # Decode and write PFX
+          $pfxPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          Write-Host "PFX output path       = $pfxPath"
+
+          try {
+            $b64 = $env:WIN_PFX_B64 -replace "`r","" -replace "`n",""
+            $bytes = [Convert]::FromBase64String($b64)
+            Write-Host "Base64 decoded        = $($bytes.Length) bytes" -ForegroundColor Green
+            [IO.File]::WriteAllBytes($pfxPath, $bytes)
+          }
+          catch {
+            Write-Host "ERROR: Failed to decode Base64 or write file: $($_.Exception.Message)" -ForegroundColor Red
+            exit 1
+          }
+
+          # Verify file was created
+          if (!(Test-Path $pfxPath)) {
+            Write-Host "ERROR: PFX file was not created!" -ForegroundColor Red
+            exit 1
+          }
+
+          $fileSize = (Get-Item $pfxPath).Length
+          Write-Host "PFX file created      = $fileSize bytes" -ForegroundColor Green
+
+          if ($fileSize -lt 100) {
+            Write-Host "ERROR: PFX file is too small, likely corrupted!" -ForegroundColor Red
+            exit 1
+          }
+
+          # Export to GITHUB_ENV
           "PFX_PATH=$pfxPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "PFX_PASSWORD=$env:WIN_PFX_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+          Write-Host ""
+          Write-Host "Environment variables exported to GITHUB_ENV:" -ForegroundColor Green
+          Write-Host "  PFX_PATH=$pfxPath"
+          Write-Host "  PFX_PASSWORD=(set)"
+          Write-Host "========================================" -ForegroundColor Cyan
 
       - name: Get version from tauri.conf.json
         id: get-version
