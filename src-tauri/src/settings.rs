@@ -92,6 +92,23 @@ pub struct LLMPrompt {
     pub prompt: String,
 }
 
+/// A custom transcription profile with its own language and translation settings.
+/// Each profile creates a separate shortcut binding (e.g., "transcribe_profile_abc123").
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+pub struct TranscriptionProfile {
+    /// Unique identifier (e.g., "profile_1704067200000")
+    pub id: String,
+    /// User-friendly name (e.g., "French to English", "Spanish Native")
+    pub name: String,
+    /// Language code for speech recognition (e.g., "fr", "es", "auto")
+    pub language: String,
+    /// Whether to translate the transcription to English
+    pub translate_to_english: bool,
+    /// Optional description shown in UI
+    #[serde(default)]
+    pub description: String,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct PostProcessProvider {
     pub id: String,
@@ -445,6 +462,10 @@ pub struct AppSettings {
     /// For Whisper: context/terms prompt. For Parakeet: comma-separated boost words.
     #[serde(default)]
     pub transcription_prompts: HashMap<String, String>,
+    /// Custom transcription profiles with per-profile language/translation settings.
+    /// Each profile creates a dynamic shortcut binding.
+    #[serde(default)]
+    pub transcription_profiles: Vec<TranscriptionProfile>,
 }
 
 fn default_model() -> String {
@@ -950,6 +971,7 @@ pub fn get_default_settings() -> AppSettings {
         connector_password_user_set: false,
         connector_pending_password: None,
         transcription_prompts: HashMap::new(),
+        transcription_profiles: Vec::new(),
     }
 }
 
@@ -958,6 +980,26 @@ impl AppSettings {
         self.post_process_providers
             .iter()
             .find(|provider| provider.id == self.post_process_provider_id)
+    }
+
+    /// Get a transcription profile by its ID.
+    pub fn transcription_profile(&self, profile_id: &str) -> Option<&TranscriptionProfile> {
+        self.transcription_profiles
+            .iter()
+            .find(|p| p.id == profile_id)
+    }
+
+    /// Get a transcription profile by its binding ID (e.g., "transcribe_profile_abc123").
+    /// Returns None if binding_id doesn't match the expected pattern.
+    pub fn transcription_profile_by_binding(
+        &self,
+        binding_id: &str,
+    ) -> Option<&TranscriptionProfile> {
+        if let Some(profile_id) = binding_id.strip_prefix("transcribe_") {
+            self.transcription_profile(profile_id)
+        } else {
+            None
+        }
     }
 
     pub fn post_process_provider(&self, provider_id: &str) -> Option<&PostProcessProvider> {

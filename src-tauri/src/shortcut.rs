@@ -38,6 +38,22 @@ pub fn init_shortcuts(app: &AppHandle) {
             error!("Failed to register shortcut {} during init: {}", id, e);
         }
     }
+
+    // Register transcription profile shortcuts
+    for profile in &user_settings.transcription_profiles {
+        let binding_id = format!("transcribe_{}", profile.id);
+        if let Some(binding) = user_settings.bindings.get(&binding_id) {
+            // Only register if the binding has a key assigned
+            if !binding.current_binding.is_empty() {
+                if let Err(e) = register_shortcut(app, binding.clone()) {
+                    error!(
+                        "Failed to register transcription profile shortcut {} during init: {}",
+                        binding_id, e
+                    );
+                }
+            }
+        }
+    }
 }
 
 #[derive(Serialize, Type)]
@@ -647,6 +663,126 @@ pub fn delete_post_process_prompt(app: AppHandle, id: String) -> Result<(), Stri
     if settings.post_process_selected_prompt_id.as_ref() == Some(&id) {
         settings.post_process_selected_prompt_id =
             settings.post_process_prompts.first().map(|p| p.id.clone());
+    }
+
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+// ============================================================================
+// Transcription Profile Management
+// ============================================================================
+
+/// Creates a new transcription profile with its own language/translation settings.
+/// This also creates a corresponding shortcut binding and registers it.
+#[tauri::command]
+#[specta::specta]
+pub fn add_transcription_profile(
+    app: AppHandle,
+    name: String,
+    language: String,
+    translate_to_english: bool,
+) -> Result<settings::TranscriptionProfile, String> {
+    let mut settings = settings::get_settings(&app);
+
+    // Generate unique ID using timestamp
+    let profile_id = format!("profile_{}", chrono::Utc::now().timestamp_millis());
+    let binding_id = format!("transcribe_{}", profile_id);
+
+    // Create the profile
+    let description = if translate_to_english {
+        format!("{} → English", name)
+    } else {
+        name.clone()
+    };
+
+    let new_profile = settings::TranscriptionProfile {
+        id: profile_id.clone(),
+        name: name.clone(),
+        language,
+        translate_to_english,
+        description: description.clone(),
+    };
+
+    // Create a corresponding shortcut binding (no default key assigned)
+    let binding = ShortcutBinding {
+        id: binding_id.clone(),
+        name: name.clone(),
+        description,
+        default_binding: String::new(), // User will set the shortcut
+        current_binding: String::new(),
+    };
+
+    // Add to settings
+    settings.transcription_profiles.push(new_profile.clone());
+    settings.bindings.insert(binding_id, binding);
+    settings::write_settings(&app, settings);
+
+    Ok(new_profile)
+}
+
+/// Updates an existing transcription profile.
+#[tauri::command]
+#[specta::specta]
+pub fn update_transcription_profile(
+    app: AppHandle,
+    id: String,
+    name: String,
+    language: String,
+    translate_to_english: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+
+    // Find and update the profile
+    let profile = settings
+        .transcription_profiles
+        .iter_mut()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("Profile with id '{}' not found", id))?;
+
+    let description = if translate_to_english {
+        format!("{} → English", name)
+    } else {
+        name.clone()
+    };
+
+    profile.name = name.clone();
+    profile.language = language;
+    profile.translate_to_english = translate_to_english;
+    profile.description = description.clone();
+
+    // Update the binding name/description as well
+    let binding_id = format!("transcribe_{}", id);
+    if let Some(binding) = settings.bindings.get_mut(&binding_id) {
+        binding.name = name;
+        binding.description = description;
+    }
+
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+/// Deletes a transcription profile and its associated shortcut binding.
+#[tauri::command]
+#[specta::specta]
+pub fn delete_transcription_profile(app: AppHandle, id: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+
+    // Find and remove the profile
+    let original_len = settings.transcription_profiles.len();
+    settings.transcription_profiles.retain(|p| p.id != id);
+
+    if settings.transcription_profiles.len() == original_len {
+        return Err(format!("Profile with id '{}' not found", id));
+    }
+
+    // Unregister and remove the shortcut binding
+    let binding_id = format!("transcribe_{}", id);
+    if let Some(binding) = settings.bindings.remove(&binding_id) {
+        // Only try to unregister if there was an actual shortcut set
+        if !binding.current_binding.is_empty() {
+            let _ = unregister_shortcut(&app, binding);
+        }
     }
 
     settings::write_settings(&app, settings);
@@ -1389,7 +1525,17 @@ pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<()
                 let shortcut_string = scut.into_string();
                 let settings = get_settings(ah);
 
-                if let Some(action) = ACTION_MAP.get(&binding_id_for_closure) {
+                // Look up action - for profile-based bindings (transcribe_profile_xxx),
+                // fall back to the "transcribe" action
+                let action = ACTION_MAP.get(&binding_id_for_closure).or_else(|| {
+                    if binding_id_for_closure.starts_with("transcribe_") {
+                        ACTION_MAP.get("transcribe")
+                    } else {
+                        None
+                    }
+                });
+
+                if let Some(action) = action {
                     if binding_id_for_closure == "cancel" {
                         let audio_manager = ah.state::<Arc<AudioRecordingManager>>();
                         if audio_manager.is_recording() && event.state == ShortcutState::Pressed {

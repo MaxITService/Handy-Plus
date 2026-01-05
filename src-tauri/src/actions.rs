@@ -441,14 +441,41 @@ pub enum TranscriptionOutcome {
 ///
 /// Returns a TranscriptionOutcome indicating success, cancellation, or error.
 async fn perform_transcription(app: &AppHandle, samples: Vec<f32>) -> TranscriptionOutcome {
+    perform_transcription_for_profile(app, samples, None).await
+}
+
+/// Performs transcription with optional profile overrides.
+/// When binding_id is provided and matches a transcription profile,
+/// uses that profile's language and translation settings.
+async fn perform_transcription_for_profile(
+    app: &AppHandle,
+    samples: Vec<f32>,
+    binding_id: Option<&str>,
+) -> TranscriptionOutcome {
     let settings = get_settings(app);
 
+    // Check if this binding corresponds to a transcription profile
+    let profile = binding_id.and_then(|id| settings.transcription_profile_by_binding(id));
+
     if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible {
-        log::info!(
-            "Transcription using Remote STT: base_url={}, model={}",
-            settings.remote_stt.base_url,
-            settings.remote_stt.model_id
-        );
+        // Remote STT doesn't currently support per-profile language/translate overrides
+        // Log the profile info if present
+        if let Some(p) = &profile {
+            log::info!(
+                "Transcription using Remote STT with profile '{}' (lang={}, translate={}): base_url={}, model={}",
+                p.name,
+                p.language,
+                p.translate_to_english,
+                settings.remote_stt.base_url,
+                settings.remote_stt.model_id
+            );
+        } else {
+            log::info!(
+                "Transcription using Remote STT: base_url={}, model={}",
+                settings.remote_stt.base_url,
+                settings.remote_stt.model_id
+            );
+        }
         let remote_manager = app.state::<Arc<RemoteSttManager>>();
         let operation_id = remote_manager.start_operation();
 
@@ -498,12 +525,27 @@ async fn perform_transcription(app: &AppHandle, samples: Vec<f32>) -> Transcript
             }
         }
     } else {
-        log::info!(
-            "Transcription using Local model: {}",
-            settings.selected_model
-        );
         let tm = app.state::<Arc<TranscriptionManager>>();
-        match tm.transcribe(samples) {
+
+        // Use profile overrides for local transcription if available
+        let result = if let Some(p) = &profile {
+            log::info!(
+                "Transcription using Local model '{}' with profile '{}' (lang={}, translate={})",
+                settings.selected_model,
+                p.name,
+                p.language,
+                p.translate_to_english
+            );
+            tm.transcribe_with_overrides(samples, Some(&p.language), Some(p.translate_to_english))
+        } else {
+            log::info!(
+                "Transcription using Local model: {}",
+                settings.selected_model
+            );
+            tm.transcribe(samples)
+        };
+
+        match result {
             Ok(text) => TranscriptionOutcome::Success(text),
             Err(err) => {
                 let err_str = format!("{}", err);
@@ -619,7 +661,7 @@ async fn get_transcription_or_cleanup(
             return Some((String::new(), samples));
         }
 
-        match perform_transcription(app, samples.clone()).await {
+        match perform_transcription_for_profile(app, samples.clone(), Some(binding_id)).await {
             TranscriptionOutcome::Success(text) => Some((text, samples)),
             TranscriptionOutcome::Cancelled => None,
             TranscriptionOutcome::Error {
