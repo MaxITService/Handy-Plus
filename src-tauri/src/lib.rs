@@ -309,6 +309,9 @@ pub fn run() {
         shortcut::update_post_process_prompt,
         shortcut::delete_post_process_prompt,
         shortcut::set_post_process_selected_prompt,
+        shortcut::add_transcription_profile,
+        shortcut::update_transcription_profile,
+        shortcut::delete_transcription_profile,
         shortcut::update_custom_words,
         shortcut::suspend_binding,
         shortcut::resume_binding,
@@ -413,6 +416,7 @@ pub fn run() {
         commands::region_capture::region_capture_get_data,
         commands::region_capture::region_capture_confirm,
         commands::region_capture::region_capture_cancel,
+        commands::voice_command::execute_voice_command,
         helpers::clamshell::is_laptop,
     ]);
 

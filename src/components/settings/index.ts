@@ -7,6 +7,7 @@ export { AboutSettings } from "./about/AboutSettings";
 export { PostProcessingSettings } from "./post-processing/PostProcessingSettings";
 export { BrowserConnectorSettings } from "./browser-connector/BrowserConnectorSettings";
 export { AiReplaceSelectionSettings } from "./ai-replace/AiReplaceSelectionSettings";
+export { default as VoiceCommandSettings } from "./voice-commands/VoiceCommandSettings";
 
 // Individual setting components
 export { MicrophoneSelector } from "./MicrophoneSelector";
@@ -29,3 +30,4 @@ export { HistoryLimit } from "./HistoryLimit";
 export { RecordingRetentionPeriodSelector } from "./RecordingRetentionPeriod";
 export { AutostartToggle } from "./AutostartToggle";
 export { UpdateChecksToggle } from "./UpdateChecksToggle";
+export { TranscriptionProfiles } from "./TranscriptionProfiles";
