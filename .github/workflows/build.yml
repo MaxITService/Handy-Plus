@@ -57,7 +57,7 @@ jobs:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
 
-      - name: Restore PFX from secret (Windows)
+      - name: Import Certificate to Windows Store
         if: contains(inputs.platform, 'windows') && inputs.sign-binaries
         shell: pwsh
         env:
@@ -65,7 +65,7 @@ jobs:
           WIN_PFX_PASSWORD: ${{ secrets.WIN_PFX_PASSWORD }}
         run: |
           Write-Host "========================================" -ForegroundColor Cyan
-          Write-Host " RESTORE PFX CERTIFICATE - DEBUG" -ForegroundColor Cyan
+          Write-Host " IMPORT CERTIFICATE TO WINDOWS STORE" -ForegroundColor Cyan
           Write-Host "========================================" -ForegroundColor Cyan
 
           # Check if secrets are available
@@ -110,14 +110,36 @@ jobs:
             exit 1
           }
 
-          # Export to GITHUB_ENV
-          "PFX_PATH=$pfxPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          "PFX_PASSWORD=$env:WIN_PFX_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
+          # Import certificate into Windows Certificate Store
           Write-Host ""
-          Write-Host "Environment variables exported to GITHUB_ENV:" -ForegroundColor Green
-          Write-Host "  PFX_PATH=$pfxPath"
-          Write-Host "  PFX_PASSWORD=(set)"
+          Write-Host "Importing certificate into Cert:\CurrentUser\My..." -ForegroundColor Yellow
+
+          try {
+            $securePassword = ConvertTo-SecureString -String $env:WIN_PFX_PASSWORD -Force -AsPlainText
+            $cert = Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword
+            
+            Write-Host "Certificate imported successfully!" -ForegroundColor Green
+            Write-Host "  Subject:    $($cert.Subject)"
+            Write-Host "  Thumbprint: $($cert.Thumbprint)"
+            Write-Host "  NotAfter:   $($cert.NotAfter)"
+          }
+          catch {
+            Write-Host "ERROR: Failed to import certificate: $($_.Exception.Message)" -ForegroundColor Red
+            exit 1
+          }
+
+          # Verify certificate is in store
+          $installedCert = Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Thumbprint -eq "C1F83B324662E8D224282F9D587B030426346A77" }
+          if ($installedCert) {
+            Write-Host ""
+            Write-Host "Certificate verified in store!" -ForegroundColor Green
+          } else {
+            Write-Host "WARNING: Certificate not found in store after import!" -ForegroundColor Yellow
+          }
+
+          # Clean up temp file
+          Remove-Item $pfxPath -Force -ErrorAction SilentlyContinue
+
           Write-Host "========================================" -ForegroundColor Cyan
 
       - name: Get version from tauri.conf.json

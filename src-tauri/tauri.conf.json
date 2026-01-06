@@ -67,7 +67,9 @@
       }
     },
     "windows": {
-      "signCommand": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& 'src-tauri/scripts/sign-windows.ps1' $args[0]\" %1"
+      "certificateThumbprint": "C1F83B324662E8D224282F9D587B030426346A77",
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com"
     }
   },
   "plugins": {
