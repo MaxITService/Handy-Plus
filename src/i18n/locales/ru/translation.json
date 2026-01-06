@@ -360,6 +360,11 @@
           "title": "Whisper.cpp",
           "description": "Высокопроизводительный вывод модели автоматического распознавания речи OpenAI Whisper",
           "details": "Handy использует Whisper.cpp для быстрой локальной обработки речи в текст. Спасибо великолепной работе Георгия Герганова и его участников."
+        },
+        "vulkan": {
+          "title": "Vulkan Loader",
+          "description": "Ускорение GPU для локальных моделей распознавания речи",
+          "details": "AivoRelay включает Vulkan Loader (vulkan-1.dll) для ускоренного вывода на GPU. Лицензия Apache 2.0, The Khronos Group."
         }
       }
     }

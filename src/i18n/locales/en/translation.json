@@ -605,6 +605,11 @@
           "title": "Whisper.cpp",
           "description": "High-performance inference of OpenAI's Whisper automatic speech recognition model",
           "details": "AivoRelay uses Whisper.cpp for fast, local speech-to-text processing. Thanks to the amazing work by Georgi Gerganov and contributors."
+        },
+        "vulkan": {
+          "title": "Vulkan Loader",
+          "description": "GPU acceleration for local speech recognition models",
+          "details": "AivoRelay bundles the Vulkan Loader (vulkan-1.dll) for GPU-accelerated inference. Licensed under Apache 2.0 by The Khronos Group."
         }
       }
     },

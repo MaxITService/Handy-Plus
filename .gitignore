@@ -30,3 +30,6 @@ recording_*
 WARP.MD
 src/bindings.ts
 ~
+
+# Bundled DLLs (copied during CI build)
+src-tauri/resources/vulkan-1.dll

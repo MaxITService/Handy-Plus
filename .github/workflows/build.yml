@@ -211,6 +211,31 @@ jobs:
           version: 1.4.309.0
           cache: true
 
+      - name: Bundle Vulkan Loader DLL (Windows x64)
+        if: contains(inputs.platform, 'windows') && !contains(inputs.target, 'aarch64')
+        shell: pwsh
+        run: |
+          Write-Host "Copying vulkan-1.dll to resources for bundling..."
+          $vulkanDll = Join-Path $env:VULKAN_SDK "Bin\vulkan-1.dll"
+          $resourcesDir = "src-tauri\resources"
+
+          if (Test-Path $vulkanDll) {
+            Copy-Item $vulkanDll -Destination $resourcesDir -Force
+            $size = [math]::Round((Get-Item "$resourcesDir\vulkan-1.dll").Length / 1MB, 2)
+            Write-Host "Successfully copied vulkan-1.dll ($size MB) to $resourcesDir"
+          } else {
+            Write-Host "WARNING: vulkan-1.dll not found at $vulkanDll"
+            # Try to find it in System32 as fallback
+            $systemDll = "C:\Windows\System32\vulkan-1.dll"
+            if (Test-Path $systemDll) {
+              Copy-Item $systemDll -Destination $resourcesDir -Force
+              Write-Host "Copied vulkan-1.dll from System32 instead"
+            } else {
+              Write-Host "ERROR: Could not find vulkan-1.dll anywhere!"
+              exit 1
+            }
+          }
+
       # humbletim/install-vulkan-sdk@v1.2 cannot target Windows ARM64 yet.
       # Download prebuilt binaries (Bin) + build headers/libs from source.
       # See https://github.com/humbletim/install-vulkan-sdk/pull/22 for prebuilt ARM64 support progress.
@@ -251,6 +276,23 @@ jobs:
           vulkan-query-version: 1.4.309.0
           vulkan-components: Vulkan-Headers, Vulkan-Loader
           vulkan-use-cache: true
+
+      - name: Bundle Vulkan Loader DLL (Windows ARM64)
+        if: contains(inputs.platform, 'windows') && contains(inputs.target, 'aarch64')
+        shell: pwsh
+        run: |
+          Write-Host "Copying vulkan-1.dll to resources for bundling (ARM64)..."
+          $vulkanDll = Join-Path $env:VULKAN_SDK "Bin\vulkan-1.dll"
+          $resourcesDir = "src-tauri\resources"
+
+          if (Test-Path $vulkanDll) {
+            Copy-Item $vulkanDll -Destination $resourcesDir -Force
+            $size = [math]::Round((Get-Item "$resourcesDir\vulkan-1.dll").Length / 1MB, 2)
+            Write-Host "Successfully copied vulkan-1.dll ($size MB) to $resourcesDir"
+          } else {
+            Write-Host "ERROR: vulkan-1.dll not found at $vulkanDll"
+            exit 1
+          }
 
       - name: Prepare Vulkan SDK for Ubuntu 24.04
         if: contains(inputs.platform, 'ubuntu-24.04')
