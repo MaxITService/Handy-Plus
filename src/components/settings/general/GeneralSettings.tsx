@@ -14,7 +14,7 @@ import { TranscriptionProfiles } from "../TranscriptionProfiles";
 
 export const GeneralSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { audioFeedbackEnabled } = useSettings();
+  const { audioFeedbackEnabled, settings } = useSettings();
   return (
     <div className="max-w-3xl w-full mx-auto space-y-8 pb-12">
       <SettingsGroup title={t("settings.general.title")}>
@@ -33,7 +33,7 @@ export const GeneralSettings: React.FC = () => {
         />
         <VolumeSlider disabled={!audioFeedbackEnabled} />
       </SettingsGroup>
-      <TranscriptionProfiles />
+      {(settings as any)?.beta_transcription_profiles_enabled && <TranscriptionProfiles />}
     </div>
   );
 };

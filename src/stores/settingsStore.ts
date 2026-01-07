@@ -197,6 +197,10 @@ const settingUpdaters: {
 // Fork-specific settings not yet present in generated bindings.
 (settingUpdaters as any).native_region_capture_mode = (value: any) =>
   invoke("change_native_region_capture_mode_setting", { mode: value });
+(settingUpdaters as any).beta_voice_commands_enabled = (value: any) =>
+  invoke("change_beta_voice_commands_enabled_setting", { enabled: value });
+(settingUpdaters as any).beta_transcription_profiles_enabled = (value: any) =>
+  invoke("change_beta_transcription_profiles_enabled_setting", { enabled: value });
 
 export const useSettingsStore = create<SettingsStore>()(
   subscribeWithSelector((set, get) => ({

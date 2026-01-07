@@ -658,6 +658,22 @@ async changeUpdateChecksSetting(enabled: boolean) : Promise<Result<null, string>
     else return { status: "error", error: e  as any };
 }
 },
+async changeBetaVoiceCommandsEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_beta_voice_commands_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeBetaTranscriptionProfilesEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_beta_transcription_profiles_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async triggerUpdateCheck() : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("trigger_update_check") };
@@ -1219,7 +1235,15 @@ voice_command_llm_fallback?: boolean;
 /**
  * System prompt for LLM command generation
  */
-voice_command_system_prompt?: string }
+voice_command_system_prompt?: string; 
+/**
+ * Whether Voice Commands beta feature is enabled in the UI (Debug menu toggle)
+ */
+beta_voice_commands_enabled?: boolean; 
+/**
+ * Whether Transcription Profiles beta feature is enabled in the UI (Debug menu toggle)
+ */
+beta_transcription_profiles_enabled?: boolean }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type BindingResponse = { success: boolean; binding: ShortcutBinding | null; error: string | null }
 export type ClipboardHandling = "dont_modify" | "copy_to_clipboard"

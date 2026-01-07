@@ -505,6 +505,13 @@ pub struct AppSettings {
     /// System prompt for LLM command generation
     #[serde(default = "default_voice_command_system_prompt")]
     pub voice_command_system_prompt: String,
+    // ==================== Beta Feature Flags ====================
+    /// Whether Voice Commands beta feature is enabled in the UI (Debug menu toggle)
+    #[serde(default)]
+    pub beta_voice_commands_enabled: bool,
+    /// Whether Transcription Profiles beta feature is enabled in the UI (Debug menu toggle)
+    #[serde(default)]
+    pub beta_transcription_profiles_enabled: bool,
 }
 
 fn default_model() -> String {
@@ -1053,6 +1060,9 @@ pub fn get_default_settings() -> AppSettings {
         voice_command_default_threshold: default_voice_command_threshold(),
         voice_command_llm_fallback: true,
         voice_command_system_prompt: default_voice_command_system_prompt(),
+        // Beta Feature Flags
+        beta_voice_commands_enabled: false,
+        beta_transcription_profiles_enabled: false,
     }
 }
 

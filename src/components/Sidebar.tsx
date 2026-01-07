@@ -65,7 +65,7 @@ export const SECTIONS_CONFIG = {
     labelKey: "sidebar.voiceCommands",
     icon: Terminal,
     component: VoiceCommandSettings,
-    enabled: () => isWindows,
+    enabled: (settings) => isWindows && (settings?.beta_voice_commands_enabled ?? false),
   },
   browserConnector: {
     labelKey: "sidebar.browserConnector",
