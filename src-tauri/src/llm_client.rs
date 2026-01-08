@@ -1,18 +1,44 @@
 use crate::settings::PostProcessProvider;
-use log::debug;
+use log::{debug, info, warn};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE, REFERER, USER_AGENT};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize)]
+/// Configuration for Extended Thinking / Reasoning (OpenRouter)
+#[derive(Debug, Clone, Default)]
+pub struct ReasoningConfig {
+    pub enabled: bool,
+    pub budget: u32, // min 1024 for OpenRouter/Anthropic
+}
+
+impl ReasoningConfig {
+    pub fn new(enabled: bool, budget: u32) -> Self {
+        Self {
+            enabled,
+            budget: if enabled { budget.max(1024) } else { budget },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 struct ChatMessage {
     role: String,
     content: String,
+}
+
+/// Reasoning object for OpenRouter API
+#[derive(Debug, Serialize)]
+struct ReasoningParams {
+    max_tokens: u32,
 }
 
 #[derive(Debug, Serialize)]
 struct ChatCompletionRequest {
     model: String,
     messages: Vec<ChatMessage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    max_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning: Option<ReasoningParams>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -28,6 +54,9 @@ struct ChatChoice {
 #[derive(Debug, Deserialize)]
 struct ChatMessageResponse {
     content: Option<String>,
+    /// Reasoning/thinking tokens returned by OpenRouter (logged but not included in response)
+    #[serde(default)]
+    reasoning: Option<String>,
 }
 
 /// Build headers for API requests based on provider type
@@ -76,16 +105,15 @@ fn create_client(provider: &PostProcessProvider, api_key: &str) -> Result<reqwes
         .map_err(|e| format!("Failed to build HTTP client: {}", e))
 }
 
-/// Send a chat completion request to an OpenAI-compatible API
-/// Returns Ok(Some(content)) on success, Ok(None) if response has no content,
-/// or Err on actual errors (HTTP, parsing, etc.)
-pub async fn send_chat_completion(
+/// Send a chat completion with Extended Thinking / Reasoning support
+pub async fn send_chat_completion_with_reasoning(
     provider: &PostProcessProvider,
     api_key: String,
     model: &str,
     prompt: String,
+    reasoning: ReasoningConfig,
 ) -> Result<Option<String>, String> {
-    send_chat_completion_with_messages(
+    send_chat_completion_with_messages_internal(
         provider,
         api_key,
         model,
@@ -93,18 +121,19 @@ pub async fn send_chat_completion(
             role: "user".to_string(),
             content: prompt,
         }],
+        reasoning,
     )
     .await
 }
 
-/// Send a chat completion with separate system and user prompts.
-/// Used by AI Replace which needs more control over the conversation structure.
-pub async fn send_chat_completion_with_system(
+/// Send a chat completion with system/user prompts and Extended Thinking support
+pub async fn send_chat_completion_with_system_and_reasoning(
     provider: &PostProcessProvider,
     api_key: String,
     model: &str,
     system_prompt: String,
     user_prompt: String,
+    reasoning: ReasoningConfig,
 ) -> Result<Option<String>, String> {
     let mut messages = Vec::new();
 
@@ -120,15 +149,17 @@ pub async fn send_chat_completion_with_system(
         content: user_prompt,
     });
 
-    send_chat_completion_with_messages(provider, api_key, model, messages).await
+    send_chat_completion_with_messages_internal(provider, api_key, model, messages, reasoning).await
 }
 
 /// Internal function that sends the actual chat completion request
-async fn send_chat_completion_with_messages(
+/// with optional reasoning and fail-soft retry
+async fn send_chat_completion_with_messages_internal(
     provider: &PostProcessProvider,
     api_key: String,
     model: &str,
     messages: Vec<ChatMessage>,
+    reasoning: ReasoningConfig,
 ) -> Result<Option<String>, String> {
     let base_url = provider.base_url.trim_end_matches('/');
     let url = format!("{}/chat/completions", base_url);
@@ -137,9 +168,25 @@ async fn send_chat_completion_with_messages(
 
     let client = create_client(provider, &api_key)?;
 
+    // Calculate max_tokens: if reasoning is enabled, ensure enough room for answer
+    // Formula: max(4000, reasoning_budget + 2000)
+    let (max_tokens, reasoning_params) = if reasoning.enabled {
+        let budget = reasoning.budget.max(1024);
+        let total = (budget + 2000).max(4000);
+        debug!(
+            "Extended Thinking enabled: reasoning_budget={}, max_tokens={}",
+            budget, total
+        );
+        (Some(total), Some(ReasoningParams { max_tokens: budget }))
+    } else {
+        (None, None)
+    };
+
     let request_body = ChatCompletionRequest {
         model: model.to_string(),
-        messages,
+        messages: messages.clone(),
+        max_tokens,
+        reasoning: reasoning_params,
     };
 
     let response = client
@@ -150,6 +197,57 @@ async fn send_chat_completion_with_messages(
         .map_err(|e| format!("HTTP request failed: {}", e))?;
 
     let status = response.status();
+
+    // Fail-soft retry: if we get 400 and reasoning was enabled, retry without reasoning
+    if status.as_u16() == 400 && reasoning.enabled {
+        let error_text = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Failed to read error response".to_string());
+
+        warn!(
+            "Extended Thinking request failed with 400, retrying without reasoning: {}",
+            error_text
+        );
+
+        // Retry without reasoning
+        let fallback_request = ChatCompletionRequest {
+            model: model.to_string(),
+            messages,
+            max_tokens: None,
+            reasoning: None,
+        };
+
+        let fallback_response = client
+            .post(&url)
+            .json(&fallback_request)
+            .send()
+            .await
+            .map_err(|e| format!("HTTP request failed (fallback): {}", e))?;
+
+        let fallback_status = fallback_response.status();
+        if !fallback_status.is_success() {
+            let fallback_error = fallback_response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Failed to read error response".to_string());
+            return Err(format!(
+                "API request failed with status {}: {}",
+                fallback_status, fallback_error
+            ));
+        }
+
+        let completion: ChatCompletionResponse = fallback_response
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse API response: {}", e))?;
+
+        return Ok(completion
+            .choices
+            .first()
+            .and_then(|choice| choice.message.content.clone()));
+    }
+
     if !status.is_success() {
         let error_text = response
             .text()
@@ -165,6 +263,22 @@ async fn send_chat_completion_with_messages(
         .json()
         .await
         .map_err(|e| format!("Failed to parse API response: {}", e))?;
+
+    // Log reasoning tokens if present (but don't include in response)
+    if let Some(choice) = completion.choices.first() {
+        if let Some(ref reasoning_text) = choice.message.reasoning {
+            let reasoning_preview = if reasoning_text.len() > 200 {
+                format!(
+                    "{}... ({} chars total)",
+                    &reasoning_text[..200],
+                    reasoning_text.len()
+                )
+            } else {
+                reasoning_text.clone()
+            };
+            info!("Extended Thinking reasoning tokens: {}", reasoning_preview);
+        }
+    }
 
     Ok(completion
         .choices

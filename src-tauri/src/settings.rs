@@ -111,6 +111,9 @@ pub struct TranscriptionProfile {
     /// Character limits are enforced based on the active model (e.g., Whisper: 896 chars)
     #[serde(default)]
     pub system_prompt: String,
+    /// Whether this profile participates in the cycle shortcut rotation
+    #[serde(default = "default_true")]
+    pub include_in_cycle: bool,
 }
 
 /// A voice command that triggers a script when the user speaks a matching phrase.
@@ -490,6 +493,13 @@ pub struct AppSettings {
     /// Each profile creates a dynamic shortcut binding.
     #[serde(default)]
     pub transcription_profiles: Vec<TranscriptionProfile>,
+    /// ID of the currently active profile. "default" means use global settings.
+    /// When the main "Transcribe" shortcut is pressed, this profile's settings are used.
+    #[serde(default = "default_active_profile_id")]
+    pub active_profile_id: String,
+    /// Whether to show an overlay notification when switching profiles
+    #[serde(default = "default_true")]
+    pub profile_switch_overlay_enabled: bool,
     // ==================== Voice Command Center ====================
     /// Whether the Voice Command feature is enabled
     #[serde(default)]
@@ -518,12 +528,31 @@ pub struct AppSettings {
     /// Whether to use Windows Terminal (wt) instead of classic PowerShell window
     #[serde(default = "default_true")]
     pub voice_command_use_windows_terminal: bool,
+    // ==================== Extended Thinking / Reasoning ====================
+    /// Whether to enable extended thinking (reasoning tokens) for post-processing LLM calls
+    #[serde(default)]
+    pub post_process_reasoning_enabled: bool,
+    /// Token budget for post-processing extended thinking (min: 1024, default: 2048)
+    #[serde(default = "default_reasoning_budget")]
+    pub post_process_reasoning_budget: u32,
+    /// Whether to enable extended thinking for AI Replace LLM calls
+    #[serde(default)]
+    pub ai_replace_reasoning_enabled: bool,
+    /// Token budget for AI Replace extended thinking (min: 1024, default: 2048)
+    #[serde(default = "default_reasoning_budget")]
+    pub ai_replace_reasoning_budget: u32,
+    /// Whether to enable extended thinking for Voice Command LLM fallback
+    #[serde(default)]
+    pub voice_command_reasoning_enabled: bool,
+    /// Token budget for Voice Command extended thinking (min: 1024, default: 2048)
+    #[serde(default = "default_reasoning_budget")]
+    pub voice_command_reasoning_budget: u32,
     // ==================== Beta Feature Flags ====================
     /// Whether Voice Commands beta feature is enabled in the UI (Debug menu toggle)
-    #[serde(default)]
+    #[serde(default = "default_true")]
     pub beta_voice_commands_enabled: bool,
     /// Whether Transcription Profiles beta feature is enabled in the UI (Debug menu toggle)
-    #[serde(default)]
+    #[serde(default = "default_true")]
     pub beta_transcription_profiles_enabled: bool,
 }
 
@@ -695,6 +724,16 @@ fn default_voice_command_ps_args() -> String {
 /// Default connector password - used for initial mutual authentication
 pub fn default_connector_password() -> String {
     "fklejqwhfiu342lhk3".to_string()
+}
+
+/// Default reasoning token budget for Extended Thinking (OpenRouter)
+fn default_reasoning_budget() -> u32 {
+    2048
+}
+
+/// Default active profile ID - "default" means use global transcription settings
+fn default_active_profile_id() -> String {
+    "default".to_string()
 }
 
 fn default_post_process_provider_id() -> String {
@@ -988,6 +1027,17 @@ pub fn get_default_settings() -> AppSettings {
             current_binding: "".to_string(),
         },
     );
+    // Cycle through transcription profiles
+    bindings.insert(
+        "cycle_profile".to_string(),
+        ShortcutBinding {
+            id: "cycle_profile".to_string(),
+            name: "Cycle Transcription Profile".to_string(),
+            description: "Switch to the next transcription profile in the rotation.".to_string(),
+            default_binding: "".to_string(),
+            current_binding: "".to_string(),
+        },
+    );
 
     AppSettings {
         bindings,
@@ -1070,6 +1120,8 @@ pub fn get_default_settings() -> AppSettings {
         connector_pending_password: None,
         transcription_prompts: HashMap::new(),
         transcription_profiles: Vec::new(),
+        active_profile_id: default_active_profile_id(),
+        profile_switch_overlay_enabled: true,
         // Voice Command Center
         voice_command_enabled: false,
         voice_command_push_to_talk: true,
@@ -1080,6 +1132,13 @@ pub fn get_default_settings() -> AppSettings {
         voice_command_ps_args: default_voice_command_ps_args(),
         voice_command_keep_window_open: false,
         voice_command_use_windows_terminal: true,
+        // Extended Thinking / Reasoning
+        post_process_reasoning_enabled: false,
+        post_process_reasoning_budget: default_reasoning_budget(),
+        ai_replace_reasoning_enabled: false,
+        ai_replace_reasoning_budget: default_reasoning_budget(),
+        voice_command_reasoning_enabled: false,
+        voice_command_reasoning_budget: default_reasoning_budget(),
         // Beta Feature Flags
         beta_voice_commands_enabled: false,
         beta_transcription_profiles_enabled: false,
@@ -1333,6 +1392,13 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
     };
 
     if ensure_post_process_defaults(&mut settings) {
+        store.set("settings", serde_json::to_value(&settings).unwrap());
+    }
+
+    // Force beta features to be enabled (removing "debug only" status)
+    if !settings.beta_voice_commands_enabled || !settings.beta_transcription_profiles_enabled {
+        settings.beta_voice_commands_enabled = true;
+        settings.beta_transcription_profiles_enabled = true;
         store.set("settings", serde_json::to_value(&settings).unwrap());
     }
 

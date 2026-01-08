@@ -1,26 +1,36 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Trash2, ChevronDown, ChevronUp, Globe } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronUp, Globe, Check, Play, RefreshCw } from "lucide-react";
 import { commands, TranscriptionProfile } from "@/bindings";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 import { SettingsGroup } from "../ui/SettingsGroup";
 import { SettingContainer } from "../ui/SettingContainer";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Dropdown } from "../ui/Dropdown";
+import { Badge } from "../ui/Badge";
+import { ToggleSwitch } from "../ui/ToggleSwitch";
 import { HandyShortcut } from "./HandyShortcut";
 import { useSettings } from "../../hooks/useSettings";
 import { LANGUAGES } from "../../lib/constants/languages";
 import { getModelPromptInfo } from "./TranscriptionSystemPrompt";
 
+interface ExtendedTranscriptionProfile extends TranscriptionProfile {
+  include_in_cycle: boolean;
+}
+
 interface ProfileCardProps {
-  profile: TranscriptionProfile;
+  profile: ExtendedTranscriptionProfile;
   isExpanded: boolean;
   onToggleExpand: () => void;
-  onUpdate: (profile: TranscriptionProfile) => Promise<void>;
+  onUpdate: (profile: ExtendedTranscriptionProfile) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   canDelete: boolean;
   promptLimit: number;
+  isActive: boolean;
+  onSetActive: (id: string) => Promise<void>;
 }
 
 const ProfileCard: React.FC<ProfileCardProps> = ({
@@ -31,6 +41,8 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
   onDelete,
   canDelete,
   promptLimit,
+  isActive,
+  onSetActive,
 }) => {
   const { t } = useTranslation();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -38,6 +50,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
   const [localLanguage, setLocalLanguage] = useState(profile.language);
   const [localTranslate, setLocalTranslate] = useState(profile.translate_to_english);
   const [localSystemPrompt, setLocalSystemPrompt] = useState(profile.system_prompt || "");
+  const [localIncludeInCycle, setLocalIncludeInCycle] = useState(profile.include_in_cycle);
 
   const bindingId = `transcribe_${profile.id}`;
 
@@ -60,6 +73,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
         language: localLanguage,
         translate_to_english: localTranslate,
         system_prompt: localSystemPrompt,
+        include_in_cycle: localIncludeInCycle,
       });
     } finally {
       setIsUpdating(false);
@@ -79,20 +93,28 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
     localName.trim() !== profile.name ||
     localLanguage !== profile.language ||
     localTranslate !== profile.translate_to_english ||
-    localSystemPrompt !== profile.system_prompt;
+    localSystemPrompt !== profile.system_prompt ||
+    localIncludeInCycle !== profile.include_in_cycle;
 
   return (
-    <div className="border border-mid-gray/30 rounded-lg bg-background/50">
+    <div className={`border rounded-lg transition-colors ${isActive ? "border-purple-500/50 bg-purple-500/5" : "border-mid-gray/30 bg-background/50"}`}>
       {/* Header - always visible */}
       <div
         className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-mid-gray/5 transition-colors"
         onClick={onToggleExpand}
       >
         <div className="flex items-center gap-3">
-          <Globe className="w-4 h-4 text-logo-primary" />
-          <div>
-            <span className="font-medium text-sm">{profile.name}</span>
-            <span className="text-xs text-mid-gray ml-2">
+          <Globe className={`w-4 h-4 ${isActive ? "text-purple-400" : "text-logo-primary"}`} />
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-sm">{profile.name}</span>
+              {isActive && (
+                <Badge variant="default" className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-[10px] px-1.5 py-0">
+                  {t("settings.transcriptionProfiles.active")}
+                </Badge>
+              )}
+            </div>
+            <span className="text-xs text-mid-gray">
               {languageLabel}
               {profile.translate_to_english && (
                 <span className="text-purple-400 ml-1">→ EN</span>
@@ -112,6 +134,56 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
       {/* Expanded content */}
       {isExpanded && (
         <div className="px-4 pb-4 pt-2 border-t border-mid-gray/20 space-y-4">
+          
+          {/* Active Profile & Cycle Controls */}
+          <div className="flex items-center gap-4 bg-mid-gray/5 p-3 rounded-lg border border-mid-gray/10">
+            <div className="flex-1">
+              <label className="text-xs font-semibold text-text/70 block mb-1">
+                {t("settings.transcriptionProfiles.active")}
+              </label>
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSetActive(profile.id);
+                }}
+                disabled={isActive || isUpdating}
+                variant={isActive ? "secondary" : "primary"}
+                size="sm"
+                className={`w-full justify-center ${isActive ? "opacity-100 cursor-default" : ""}`}
+              >
+                {isActive ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 mr-1.5" />
+                    {t("settings.transcriptionProfiles.active")}
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5 mr-1.5" />
+                    {t("settings.transcriptionProfiles.setActive")}
+                  </>
+                )}
+              </Button>
+            </div>
+            
+            <div className="flex-1">
+              <label className="text-xs font-semibold text-text/70 block mb-1">
+                 {t("settings.transcriptionProfiles.includeInCycle")}
+              </label>
+              <div className="flex items-center gap-2 h-8">
+                 <input
+                    type="checkbox"
+                    checked={localIncludeInCycle}
+                    onChange={(e) => setLocalIncludeInCycle(e.target.checked)}
+                    disabled={isUpdating}
+                    className="w-4 h-4 rounded border-mid-gray bg-background text-purple-500 focus:ring-purple-500/50"
+                 />
+                 <span className="text-xs text-mid-gray">
+                   {t("settings.transcriptionProfiles.includeInCycleDescription")}
+                 </span>
+              </div>
+            </div>
+          </div>
+
           {/* Shortcut */}
           <div className="space-y-2">
             <label className="text-xs font-semibold text-text/70">
@@ -238,7 +310,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
 
 export const TranscriptionProfiles: React.FC = () => {
   const { t } = useTranslation();
-  const { settings, refreshSettings } = useSettings();
+  const { settings, refreshSettings, updateSetting } = useSettings();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -246,10 +318,22 @@ export const TranscriptionProfiles: React.FC = () => {
   const [newTranslate, setNewTranslate] = useState(false);
   const [newSystemPrompt, setNewSystemPrompt] = useState("");
 
-  const profiles = settings?.transcription_profiles || [];
+  const profiles = (settings?.transcription_profiles || []) as ExtendedTranscriptionProfile[];
+  const activeProfileId = (settings as any)?.active_profile_id || "default";
+  const overlayEnabled = (settings as any)?.profile_switch_overlay_enabled ?? true;
+
+  // Listen for active profile changes from shortcuts
+  useEffect(() => {
+    const unlistenPromise = listen("active-profile-changed", () => {
+      refreshSettings();
+    });
+
+    return () => {
+      unlistenPromise.then(unlisten => unlisten());
+    };
+  }, [refreshSettings]);
 
   // Get prompt limit based on active transcription settings
-  // Profiles use the same model as the main transcription
   const promptLimit = useMemo(() => {
     const isRemote = settings?.transcription_provider === "remote_openai_compatible";
     const modelId = isRemote
@@ -288,15 +372,16 @@ export const TranscriptionProfiles: React.FC = () => {
     }
   };
 
-  const handleUpdate = async (profile: TranscriptionProfile) => {
+  const handleUpdate = async (profile: ExtendedTranscriptionProfile) => {
     try {
-      await commands.updateTranscriptionProfile(
-        profile.id,
-        profile.name,
-        profile.language,
-        profile.translate_to_english,
-        profile.system_prompt || ""
-      );
+      await invoke("update_transcription_profile", {
+        id: profile.id,
+        name: profile.name,
+        language: profile.language,
+        translateToEnglish: profile.translate_to_english,
+        systemPrompt: profile.system_prompt || "",
+        includeInCycle: profile.include_in_cycle, 
+      });
       await refreshSettings();
     } catch (error) {
       console.error("Failed to update profile:", error);
@@ -313,6 +398,21 @@ export const TranscriptionProfiles: React.FC = () => {
     } catch (error) {
       console.error("Failed to delete profile:", error);
     }
+  };
+
+  const handleSetActive = async (id: string) => {
+    try {
+        await invoke("set_active_profile", { id });
+        await refreshSettings();
+    } catch (e) {
+        console.error("Failed to set active profile", e);
+    }
+  };
+
+  const handleOverlayChange = async (enabled: boolean) => {
+      if (updateSetting) {
+          await updateSetting("profile_switch_overlay_enabled" as any, enabled);
+      }
   };
 
   return (
@@ -332,9 +432,36 @@ export const TranscriptionProfiles: React.FC = () => {
         </div>
       </SettingContainer>
 
-      {/* Existing profiles */}
-      {profiles.length > 0 && (
-        <SettingContainer
+      {/* General Settings: Cycle Shortcut & Overlay */}
+      <SettingContainer
+          title="General Settings"
+          description=""
+          descriptionMode="inline"
+          layout="stacked"
+          grouped={true}
+        >
+        <div className="space-y-4">
+             {/* Cycle Shortcut */}
+            <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                    <span className="text-sm font-medium">{t("settings.transcriptionProfiles.includeInCycleDescription")}</span>
+                    <span className="text-xs text-mid-gray">Global shortcut to cycle through active profiles</span>
+                </div>
+                 <HandyShortcut shortcutId="cycle_profile" />
+            </div>
+
+            {/* Overlay Toggle */}
+            <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                    <span className="text-sm font-medium">{t("settings.transcriptionProfiles.showOverlayOnSwitch")}</span>
+                    <span className="text-xs text-mid-gray">{t("settings.transcriptionProfiles.showOverlayOnSwitchDescription")}</span>
+                </div>
+                <ToggleSwitch checked={overlayEnabled} onChange={handleOverlayChange} />
+            </div>
+        </div>
+      </SettingContainer>
+
+      <SettingContainer
           title={t("settings.transcriptionProfiles.existingProfiles")}
           description=""
           descriptionMode="inline"
@@ -342,6 +469,42 @@ export const TranscriptionProfiles: React.FC = () => {
           grouped={true}
         >
           <div className="space-y-2">
+            {/* Default Profile Card */}
+            <div className={`border rounded-lg transition-colors ${activeProfileId === "default" ? "border-purple-500/50 bg-purple-500/5" : "border-mid-gray/30 bg-background/50"}`}>
+                <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-3">
+                        <RefreshCw className={`w-4 h-4 ${activeProfileId === "default" ? "text-purple-400" : "text-mid-gray"}`} />
+                        <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm">{t("settings.transcriptionProfiles.defaultProfile")}</span>
+                                {activeProfileId === "default" && (
+                                    <Badge variant="default" className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-[10px] px-1.5 py-0">
+                                    {t("settings.transcriptionProfiles.active")}
+                                    </Badge>
+                                )}
+                            </div>
+                            <span className="text-xs text-mid-gray">{t("settings.transcriptionProfiles.defaultProfileDescription")}</span>
+                        </div>
+                    </div>
+                    <div>
+                         <Button
+                            onClick={() => handleSetActive("default")}
+                            disabled={activeProfileId === "default"}
+                            variant={activeProfileId === "default" ? "secondary" : "primary"}
+                            size="sm"
+                            className={activeProfileId === "default" ? "opacity-100 cursor-default" : ""}
+                        >
+                            {activeProfileId === "default" ? (
+                                <Check className="w-4 h-4" />
+                            ) : (
+                                <span className="text-xs">{t("settings.transcriptionProfiles.setActive")}</span>
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Custom Profiles */}
             {profiles.map((profile) => (
               <ProfileCard
                 key={profile.id}
@@ -354,11 +517,12 @@ export const TranscriptionProfiles: React.FC = () => {
                 onDelete={handleDelete}
                 canDelete={true}
                 promptLimit={promptLimit}
+                isActive={activeProfileId === profile.id}
+                onSetActive={handleSetActive}
               />
             ))}
           </div>
-        </SettingContainer>
-      )}
+      </SettingContainer>
 
       {/* Create new profile */}
       <SettingContainer

@@ -434,3 +434,41 @@ pub fn show_command_confirm_overlay(
     // Emit the payload to the window
     let _ = window.emit("show-command-confirm", payload);
 }
+
+// ============================================================================
+// Profile Switch Overlay (Transcription Profiles)
+// ============================================================================
+
+/// Shows a brief overlay notification when switching transcription profiles.
+/// Uses the existing recording overlay to display the profile name, then auto-hides.
+pub fn show_profile_switch_overlay(app_handle: &AppHandle, profile_name: &str) {
+    let settings = settings::get_settings(app_handle);
+    if settings.overlay_position == OverlayPosition::None {
+        return;
+    }
+
+    if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        // Update position
+        if let Some((x, y)) = calculate_overlay_position(app_handle) {
+            let _ = overlay_window
+                .set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
+        }
+
+        let _ = overlay_window.show();
+
+        #[cfg(target_os = "windows")]
+        force_overlay_topmost(&overlay_window);
+
+        // Emit profile name for display
+        let _ = overlay_window.emit("show-profile-switch", profile_name);
+
+        // Auto-hide after a short delay
+        let window_clone = overlay_window.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(1500));
+            let _ = window_clone.emit("hide-overlay", ());
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            let _ = window_clone.hide();
+        });
+    }
+}

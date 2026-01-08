@@ -6,7 +6,7 @@
 /**
  * Extended overlay state type including new states
  */
-export type ExtendedOverlayState = "recording" | "sending" | "transcribing" | "thinking" | "error";
+export type ExtendedOverlayState = "recording" | "sending" | "transcribing" | "thinking" | "error" | "profile_switch";
 
 /**
  * Error categories matching Rust OverlayErrorCategory enum

@@ -539,6 +539,99 @@ pub fn change_post_process_enabled_setting(app: AppHandle, enabled: bool) -> Res
     Ok(())
 }
 
+// ============================================================================
+// Extended Thinking / Reasoning Settings
+// ============================================================================
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_post_process_reasoning_enabled_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.post_process_reasoning_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_post_process_reasoning_budget_setting(
+    app: AppHandle,
+    budget: u32,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    // Enforce minimum of 1024 per OpenRouter requirements
+    settings.post_process_reasoning_budget = budget.max(1024);
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_ai_replace_reasoning_enabled_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.ai_replace_reasoning_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_ai_replace_reasoning_budget_setting(
+    app: AppHandle,
+    budget: u32,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.ai_replace_reasoning_budget = budget.max(1024);
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_voice_command_reasoning_enabled_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.voice_command_reasoning_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_voice_command_reasoning_budget_setting(
+    app: AppHandle,
+    budget: u32,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.voice_command_reasoning_budget = budget.max(1024);
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+// ============================================================================
+// Transcription Profile Settings
+// ============================================================================
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_profile_switch_overlay_enabled_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.profile_switch_overlay_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn change_post_process_base_url_setting(
@@ -746,6 +839,7 @@ pub fn add_transcription_profile(
         translate_to_english,
         description: description.clone(),
         system_prompt,
+        include_in_cycle: true, // Include in cycle by default
     };
 
     // Create a corresponding shortcut binding (no default key assigned)
@@ -775,6 +869,7 @@ pub fn update_transcription_profile(
     language: String,
     translate_to_english: bool,
     system_prompt: String,
+    include_in_cycle: bool,
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
 
@@ -796,6 +891,7 @@ pub fn update_transcription_profile(
     profile.translate_to_english = translate_to_english;
     profile.description = description.clone();
     profile.system_prompt = system_prompt;
+    profile.include_in_cycle = include_in_cycle;
 
     // Update the binding name/description as well
     let binding_id = format!("transcribe_{}", id);
@@ -822,6 +918,11 @@ pub fn delete_transcription_profile(app: AppHandle, id: String) -> Result<(), St
         return Err(format!("Profile with id '{}' not found", id));
     }
 
+    // If the deleted profile was valid, check if it was active
+    if settings.active_profile_id == id {
+        settings.active_profile_id = "default".to_string();
+    }
+
     // Unregister and remove the shortcut binding
     let binding_id = format!("transcribe_{}", id);
     if let Some(binding) = settings.bindings.remove(&binding_id) {
@@ -833,6 +934,84 @@ pub fn delete_transcription_profile(app: AppHandle, id: String) -> Result<(), St
 
     settings::write_settings(&app, settings);
     Ok(())
+}
+
+/// Get the currently active transcription profile ID.
+#[tauri::command]
+#[specta::specta]
+pub fn get_active_profile(app: AppHandle) -> String {
+    let settings = settings::get_settings(&app);
+    settings.active_profile_id.clone()
+}
+
+/// Set the active transcription profile.
+/// Use "default" to revert to global settings.
+#[tauri::command]
+#[specta::specta]
+pub fn set_active_profile(app: AppHandle, id: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+
+    // Validate: must be "default" or an existing profile ID
+    if id != "default" && !settings.transcription_profiles.iter().any(|p| p.id == id) {
+        return Err(format!("Profile '{}' not found", id));
+    }
+
+    settings.active_profile_id = id.clone();
+    settings::write_settings(&app, settings.clone());
+
+    // Show overlay notification if enabled
+    if settings.profile_switch_overlay_enabled {
+        let profile_name = if id == "default" {
+            "Default".to_string()
+        } else {
+            settings
+                .transcription_profiles
+                .iter()
+                .find(|p| p.id == id)
+                .map(|p| p.name.clone())
+                .unwrap_or_else(|| id.clone())
+        };
+        crate::overlay::show_profile_switch_overlay(&app, &profile_name);
+    }
+
+    // Emit event for UI sync
+    let _ = app.emit("active-profile-changed", id);
+
+    Ok(())
+}
+
+/// Cycle to the next transcription profile in the rotation.
+/// Only profiles with include_in_cycle=true participate.
+/// "default" profile is always included as the first option.
+#[tauri::command]
+#[specta::specta]
+pub fn cycle_to_next_profile(app: AppHandle) -> Result<String, String> {
+    let settings = settings::get_settings(&app);
+
+    // Build list of cycleable profile IDs: "default" first, then profiles with include_in_cycle=true
+    let mut cycle_ids: Vec<String> = vec!["default".to_string()];
+    for profile in &settings.transcription_profiles {
+        if profile.include_in_cycle {
+            cycle_ids.push(profile.id.clone());
+        }
+    }
+
+    if cycle_ids.len() <= 1 {
+        return Err("No profiles available for cycling".to_string());
+    }
+
+    // Find current index and move to next
+    let current_idx = cycle_ids
+        .iter()
+        .position(|id| id == &settings.active_profile_id)
+        .unwrap_or(0);
+    let next_idx = (current_idx + 1) % cycle_ids.len();
+    let next_id = cycle_ids[next_idx].clone();
+
+    // Use set_active_profile to handle the rest (overlay, events, etc.)
+    set_active_profile(app, next_id.clone())?;
+
+    Ok(next_id)
 }
 
 #[tauri::command]

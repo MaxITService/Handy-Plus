@@ -18,6 +18,7 @@ import { ModelSelect } from "../PostProcessingSettingsApi/ModelSelect";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { useAiReplaceProviderState } from "./useAiReplaceProviderState";
 import { useSettings } from "../../../hooks/useSettings";
+import { ExtendedThinkingSection } from "../ExtendedThinkingSection";
 
 const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -32,7 +33,9 @@ const LlmConfigSection: React.FC<{
   description: string;
   state: any; // Can be from usePostProcessProviderState or useAiReplaceProviderState
   showBaseUrl?: boolean;
-}> = ({ title, description, state, showBaseUrl = true }) => {
+  /** Setting prefix for Extended Thinking: "post_process" or "ai_replace" */
+  reasoningSettingPrefix?: "post_process" | "ai_replace";
+}> = ({ title, description, state, showBaseUrl = true, reasoningSettingPrefix }) => {
   const { t } = useTranslation();
 
   return (
@@ -188,6 +191,11 @@ const LlmConfigSection: React.FC<{
               </ResetButton>
             </div>
           </SettingContainer>
+
+          {/* Extended Thinking Section - shown for non-Apple providers */}
+          {reasoningSettingPrefix && !state.isAppleProvider && (
+            <ExtendedThinkingSection settingPrefix={reasoningSettingPrefix} />
+          )}
         </>
       )}
     </div>
@@ -205,6 +213,7 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         title={t("settings.postProcessing.api.transcription.title")}
         description={t("settings.postProcessing.api.transcription.description")}
         state={postProcessState}
+        reasoningSettingPrefix="post_process"
       />
 
       <LlmConfigSection
@@ -212,6 +221,7 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         description={t("settings.postProcessing.api.aiReplace.description")}
         state={aiReplaceState}
         showBaseUrl={false} // Base URL is shared per provider
+        reasoningSettingPrefix="ai_replace"
       />
     </div>
   );

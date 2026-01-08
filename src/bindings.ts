@@ -181,6 +181,54 @@ async changePostProcessEnabledSetting(enabled: boolean) : Promise<Result<null, s
     else return { status: "error", error: e  as any };
 }
 },
+async changePostProcessReasoningEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_post_process_reasoning_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changePostProcessReasoningBudgetSetting(budget: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_post_process_reasoning_budget_setting", { budget }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeAiReplaceReasoningEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_ai_replace_reasoning_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeAiReplaceReasoningBudgetSetting(budget: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_ai_replace_reasoning_budget_setting", { budget }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeVoiceCommandReasoningEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_voice_command_reasoning_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeVoiceCommandReasoningBudgetSetting(budget: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_voice_command_reasoning_budget_setting", { budget }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changePostProcessBaseUrlSetting(providerId: string, baseUrl: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_post_process_base_url_setting", { providerId, baseUrl }) };
@@ -280,9 +328,9 @@ async addTranscriptionProfile(name: string, language: string, translateToEnglish
 /**
  * Updates an existing transcription profile.
  */
-async updateTranscriptionProfile(id: string, name: string, language: string, translateToEnglish: boolean, systemPrompt: string) : Promise<Result<null, string>> {
+async updateTranscriptionProfile(id: string, name: string, language: string, translateToEnglish: boolean, systemPrompt: string, includeInCycle: boolean) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("update_transcription_profile", { id, name, language, translateToEnglish, systemPrompt }) };
+    return { status: "ok", data: await TAURI_INVOKE("update_transcription_profile", { id, name, language, translateToEnglish, systemPrompt, includeInCycle }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -294,6 +342,45 @@ async updateTranscriptionProfile(id: string, name: string, language: string, tra
 async deleteTranscriptionProfile(id: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_transcription_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get the currently active transcription profile ID.
+ */
+async getActiveProfile() : Promise<string> {
+    return await TAURI_INVOKE("get_active_profile");
+},
+/**
+ * Set the active transcription profile.
+ * Use "default" to revert to global settings.
+ */
+async setActiveProfile(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_active_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Cycle to the next transcription profile in the rotation.
+ * Only profiles with include_in_cycle=true participate.
+ * "default" profile is always included as the first option.
+ */
+async cycleToNextProfile() : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cycle_to_next_profile") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeProfileSwitchOverlayEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_profile_switch_overlay_enabled_setting", { enabled }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1240,6 +1327,15 @@ transcription_prompts?: Partial<{ [key in string]: string }>;
  */
 transcription_profiles?: TranscriptionProfile[]; 
 /**
+ * ID of the currently active profile. "default" means use global settings.
+ * When the main "Transcribe" shortcut is pressed, this profile's settings are used.
+ */
+active_profile_id?: string; 
+/**
+ * Whether to show an overlay notification when switching profiles
+ */
+profile_switch_overlay_enabled?: boolean; 
+/**
  * Whether the Voice Command feature is enabled
  */
 voice_command_enabled?: boolean; 
@@ -1275,6 +1371,30 @@ voice_command_keep_window_open?: boolean;
  * Whether to use Windows Terminal (wt) instead of classic PowerShell window
  */
 voice_command_use_windows_terminal?: boolean; 
+/**
+ * Whether to enable extended thinking (reasoning tokens) for post-processing LLM calls
+ */
+post_process_reasoning_enabled?: boolean; 
+/**
+ * Token budget for post-processing extended thinking (min: 1024, default: 2048)
+ */
+post_process_reasoning_budget?: number; 
+/**
+ * Whether to enable extended thinking for AI Replace LLM calls
+ */
+ai_replace_reasoning_enabled?: boolean; 
+/**
+ * Token budget for AI Replace extended thinking (min: 1024, default: 2048)
+ */
+ai_replace_reasoning_budget?: number; 
+/**
+ * Whether to enable extended thinking for Voice Command LLM fallback
+ */
+voice_command_reasoning_enabled?: boolean; 
+/**
+ * Token budget for Voice Command extended thinking (min: 1024, default: 2048)
+ */
+voice_command_reasoning_budget?: number; 
 /**
  * Whether Voice Commands beta feature is enabled in the UI (Debug menu toggle)
  */
@@ -1426,7 +1546,11 @@ description?: string;
  * Optional system prompt for STT models (context hints, terminology, etc.)
  * Character limits are enforced based on the active model (e.g., Whisper: 896 chars)
  */
-system_prompt?: string }
+system_prompt?: string; 
+/**
+ * Whether this profile participates in the cycle shortcut rotation
+ */
+include_in_cycle?: boolean }
 export type TranscriptionProvider = "local" | "remote_openai_compatible"
 /**
  * Information about the virtual screen (all monitors combined).

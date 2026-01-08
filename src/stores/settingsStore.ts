@@ -202,6 +202,26 @@ const settingUpdaters: {
 (settingUpdaters as any).beta_transcription_profiles_enabled = (value: any) =>
   invoke("change_beta_transcription_profiles_enabled_setting", { enabled: value });
 
+// Extended Thinking / Reasoning settings
+(settingUpdaters as any).post_process_reasoning_enabled = (value: any) =>
+  invoke("change_post_process_reasoning_enabled_setting", { enabled: value });
+(settingUpdaters as any).post_process_reasoning_budget = (value: any) =>
+  invoke("change_post_process_reasoning_budget_setting", { budget: value });
+(settingUpdaters as any).ai_replace_reasoning_enabled = (value: any) =>
+  invoke("change_ai_replace_reasoning_enabled_setting", { enabled: value });
+(settingUpdaters as any).ai_replace_reasoning_budget = (value: any) =>
+  invoke("change_ai_replace_reasoning_budget_setting", { budget: value });
+(settingUpdaters as any).voice_command_reasoning_enabled = (value: any) =>
+  invoke("change_voice_command_reasoning_enabled_setting", { enabled: value });
+(settingUpdaters as any).voice_command_reasoning_budget = (value: any) =>
+  invoke("change_voice_command_reasoning_budget_setting", { budget: value });
+
+// Transcription Profiles settings
+(settingUpdaters as any).active_profile_id = (value: any) =>
+  invoke("set_active_profile", { id: value });
+(settingUpdaters as any).profile_switch_overlay_enabled = (value: any) =>
+  invoke("change_profile_switch_overlay_enabled_setting", { enabled: value });
+
 export const useSettingsStore = create<SettingsStore>()(
   subscribeWithSelector((set, get) => ({
     settings: null,

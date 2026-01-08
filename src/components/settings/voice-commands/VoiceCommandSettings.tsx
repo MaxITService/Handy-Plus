@@ -5,6 +5,7 @@ import { VoiceCommand, commands } from "@/bindings";
 import { HandyShortcut } from "../HandyShortcut";
 import { listen } from "@tauri-apps/api/event";
 import type { VoiceCommandResultPayload } from "@/command-confirm/CommandConfirmOverlay";
+import { ExtendedThinkingSection } from "../ExtendedThinkingSection";
 
 const DEFAULT_VOICE_COMMAND_SYSTEM_PROMPT = `You are a Windows command generator. The user will describe what they want to do, and you must generate a SINGLE PowerShell one-liner command that accomplishes it.
 
@@ -314,6 +315,13 @@ export default function VoiceCommandSettings() {
                   ↺
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Extended Thinking Section - for Voice Commands LLM */}
+          {(settings.voice_command_llm_fallback ?? true) && (
+            <div className="setting-row extended-thinking-row">
+              <ExtendedThinkingSection settingPrefix="voice_command" grouped={false} />
             </div>
           )}
 

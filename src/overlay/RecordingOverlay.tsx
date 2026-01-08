@@ -23,6 +23,7 @@ const RecordingOverlay: React.FC = () => {
   const [state, setState] = useState<ExtendedOverlayState>("recording");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [levels, setLevels] = useState<number[]>(Array(16).fill(0));
+  const [profileName, setProfileName] = useState<string>("");
   const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
 
   useEffect(() => {
@@ -49,6 +50,13 @@ const RecordingOverlay: React.FC = () => {
         setIsVisible(true);
       });
 
+      // Listen for profile switch event
+      const unlistenProfileSwitch = await listen<string>("show-profile-switch", (event) => {
+        setProfileName(event.payload);
+        setState("profile_switch");
+        setIsVisible(true);
+      });
+
       // Listen for hide-overlay event from Rust
       const unlistenHide = await listen("hide-overlay", () => {
         setIsVisible(false);
@@ -71,6 +79,7 @@ const RecordingOverlay: React.FC = () => {
       // Cleanup function
       return () => {
         unlistenShow();
+        unlistenProfileSwitch();
         unlistenHide();
         unlistenLevel();
       };
@@ -89,6 +98,8 @@ const RecordingOverlay: React.FC = () => {
         return <ThinkingIcon />;
       case "error":
         return <span className="overlay-icon-emoji">❌</span>;
+      case "profile_switch":
+        return <TranscriptionIcon />;
       case "transcribing":
       default:
         return <TranscriptionIcon />;
@@ -126,6 +137,9 @@ const RecordingOverlay: React.FC = () => {
         )}
         {state === "error" && (
           <div className="error-text">{errorMessage || "Failed"}</div>
+        )}
+        {state === "profile_switch" && (
+          <div className="transcribing-text">{profileName}</div>
         )}
       </div>
 

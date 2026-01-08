@@ -19,7 +19,7 @@ use crate::utils::{
 };
 use crate::ManagedToggleState;
 use ferrous_opencc::{config::BuiltinConfig, OpenCC};
-use log::{debug, error};
+use log::{debug, error, warn};
 use once_cell::sync::Lazy;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -43,6 +43,8 @@ struct SendToExtensionWithSelectionAction;
 struct SendScreenshotToExtensionAction;
 
 struct RepastLastAction;
+
+struct CycleProfileAction;
 
 enum PostProcessTranscriptionOutcome {
     Skipped,
@@ -196,9 +198,21 @@ async fn maybe_post_process_transcription(
         .cloned()
         .unwrap_or_default();
 
-    // Send the chat completion request
-    match crate::llm_client::send_chat_completion(&provider, api_key, &model, processed_prompt)
-        .await
+    // Build reasoning config from settings
+    let reasoning_config = crate::llm_client::ReasoningConfig::new(
+        settings.post_process_reasoning_enabled,
+        settings.post_process_reasoning_budget,
+    );
+
+    // Send the chat completion request with optional reasoning
+    match crate::llm_client::send_chat_completion_with_reasoning(
+        &provider,
+        api_key,
+        &model,
+        processed_prompt,
+        reasoning_config,
+    )
+    .await
     {
         Ok(Some(content)) => {
             if llm_tracker.is_cancelled(operation_id) {
@@ -450,8 +464,21 @@ async fn perform_transcription_for_profile(
 ) -> TranscriptionOutcome {
     let settings = get_settings(app);
 
-    // Check if this binding corresponds to a transcription profile
-    let profile = binding_id.and_then(|id| settings.transcription_profile_by_binding(id));
+    // Determine which profile to use:
+    // 1. If binding_id matches a specific profile (transcribe_profile_xxx), use that profile
+    // 2. If binding_id is "transcribe" AND active_profile_id is not "default", use active profile
+    // 3. Otherwise, use global settings (no profile)
+    let profile = if let Some(id) = binding_id {
+        if id == "transcribe" && settings.active_profile_id != "default" {
+            // Main transcribe shortcut with active profile set
+            settings.transcription_profile(&settings.active_profile_id)
+        } else {
+            // Profile-specific shortcut or no active profile
+            settings.transcription_profile_by_binding(id)
+        }
+    } else {
+        None
+    };
 
     if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible {
         // Remote STT doesn't currently support per-profile language/translate overrides
@@ -822,13 +849,20 @@ async fn ai_replace_with_llm(
 
     let api_key = settings.ai_replace_api_key(&provider.id);
 
-    // Use the new HTTP-based LLM client
-    match crate::llm_client::send_chat_completion_with_system(
+    // Build reasoning config from settings
+    let reasoning_config = crate::llm_client::ReasoningConfig::new(
+        settings.ai_replace_reasoning_enabled,
+        settings.ai_replace_reasoning_budget,
+    );
+
+    // Use the HTTP-based LLM client with optional reasoning
+    match crate::llm_client::send_chat_completion_with_system_and_reasoning(
         &provider,
         api_key,
         &model,
         system_prompt,
         user_prompt,
+        reasoning_config,
     )
     .await
     {
@@ -1747,6 +1781,30 @@ impl ShortcutAction for RepastLastAction {
 }
 
 // ============================================================================
+// Cycle Transcription Profile Action
+// ============================================================================
+
+impl ShortcutAction for CycleProfileAction {
+    fn start(&self, app: &AppHandle, _binding_id: &str, _shortcut_str: &str) {
+        debug!("CycleProfileAction::start called");
+
+        // Call the cycle function directly (it handles overlay and events)
+        match crate::shortcut::cycle_to_next_profile(app.clone()) {
+            Ok(next_id) => {
+                debug!("Cycled to profile: {}", next_id);
+            }
+            Err(e) => {
+                warn!("Failed to cycle profile: {}", e);
+            }
+        }
+    }
+
+    fn stop(&self, _app: &AppHandle, _binding_id: &str, _shortcut_str: &str) {
+        // Cycling is instant, nothing to do on stop
+    }
+}
+
+// ============================================================================
 // Voice Command Action (Windows only)
 // ============================================================================
 
@@ -1872,12 +1930,19 @@ pub async fn generate_command_with_llm(
         .cloned()
         .unwrap_or_default();
 
-    match crate::llm_client::send_chat_completion_with_system(
+    // Build reasoning config from settings
+    let reasoning_config = crate::llm_client::ReasoningConfig::new(
+        settings.voice_command_reasoning_enabled,
+        settings.voice_command_reasoning_budget,
+    );
+
+    match crate::llm_client::send_chat_completion_with_system_and_reasoning(
         &provider,
         api_key,
         &model,
         system_prompt,
         user_prompt,
+        reasoning_config,
     )
     .await
     {
@@ -2050,6 +2115,10 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
     map.insert(
         "test".to_string(),
         Arc::new(TestAction) as Arc<dyn ShortcutAction>,
+    );
+    map.insert(
+        "cycle_profile".to_string(),
+        Arc::new(CycleProfileAction) as Arc<dyn ShortcutAction>,
     );
     #[cfg(target_os = "windows")]
     map.insert(

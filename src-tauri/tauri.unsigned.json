@@ -29,9 +29,7 @@
       "assetProtocol": {
         "enable": true,
         "scope": {
-          "allow": [
-            "**"
-          ],
+          "allow": ["**"],
           "requireLiteralLeadingDot": false
         }
       }
@@ -44,9 +42,7 @@
     "shortDescription": "AivoRelay - AI Voice Relay",
     "createUpdaterArtifacts": true,
     "targets": "msi",
-    "resources": [
-      "resources/**/*"
-    ],
+    "resources": ["resources/**/*"],
     "license": "MIT",
     "icon": [
       "icons/32x32.png",
@@ -77,7 +73,7 @@
       "certificateThumbprint": null,
       "digestAlgorithm": null,
       "timestampUrl": null,
-      "tsp": null
+      "tsp": false
     }
   },
   "plugins": {
