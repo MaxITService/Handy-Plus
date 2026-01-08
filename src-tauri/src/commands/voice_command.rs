@@ -4,6 +4,78 @@
 
 use log::{debug, error, info};
 use std::process::Command;
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+#[cfg(target_os = "windows")]
+const CREATE_NEW_CONSOLE: u32 = 0x00000010;
+
+#[cfg(target_os = "windows")]
+fn parse_ps_args(ps_args: &str) -> Vec<String> {
+    let mut args = Vec::new();
+    let mut current = String::new();
+    let mut chars = ps_args.chars().peekable();
+    let mut in_single = false;
+    let mut in_double = false;
+
+    while let Some(ch) = chars.next() {
+        if in_single {
+            if ch == '\'' {
+                if matches!(chars.peek(), Some('\'')) {
+                    current.push('\'');
+                    chars.next();
+                } else {
+                    in_single = false;
+                }
+            } else {
+                current.push(ch);
+            }
+            continue;
+        }
+
+        if in_double {
+            match ch {
+                '"' => {
+                    in_double = false;
+                }
+                '`' => {
+                    if let Some(next) = chars.next() {
+                        current.push(next);
+                    } else {
+                        current.push('`');
+                    }
+                }
+                _ => current.push(ch),
+            }
+            continue;
+        }
+
+        match ch {
+            '\'' => in_single = true,
+            '"' => in_double = true,
+            '`' => {
+                if let Some(next) = chars.next() {
+                    current.push(next);
+                } else {
+                    current.push('`');
+                }
+            }
+            c if c.is_whitespace() => {
+                if !current.is_empty() {
+                    args.push(current.clone());
+                    current.clear();
+                }
+            }
+            _ => current.push(ch),
+        }
+    }
+
+    if !current.is_empty() {
+        args.push(current);
+    }
+
+    args
+}
 
 /// Executes a PowerShell command after user confirmation.
 ///
@@ -37,39 +109,42 @@ pub fn execute_voice_command(
     if keep_window_open {
         // Open a visible terminal window that stays open after command completes
         // Use -NoExit to keep the window open
-        let ps_args_with_noexit = format!("{} -NoExit", ps_args);
+        let mut ps_args_vec = parse_ps_args(&ps_args);
+        if !ps_args_vec
+            .iter()
+            .any(|arg| arg.eq_ignore_ascii_case("-NoExit"))
+        {
+            ps_args_vec.push("-NoExit".to_string());
+        }
 
         if use_windows_terminal {
             // Use Windows Terminal (wt) with PowerShell
             // wt new-tab powershell <args> -Command "<command>"
-            let wt_args = format!(
-                "new-tab powershell {} -Command \"{}\"",
-                ps_args_with_noexit, command
-            );
+            let mut display_args = vec!["new-tab".to_string(), "--".to_string(), "powershell".to_string()];
+            display_args.extend(ps_args_vec.clone());
+            display_args.push("-Command".to_string());
+            display_args.push(command.clone());
 
-            info!("Opening Windows Terminal: wt {}", wt_args);
+            info!("Opening Windows Terminal: wt {}", display_args.join(" "));
 
             Command::new("wt")
-                .args(wt_args.split_whitespace().take(2).collect::<Vec<_>>())
+                .arg("new-tab")
+                .arg("--")
                 .arg("powershell")
-                .args(ps_args_with_noexit.split_whitespace())
+                .args(&ps_args_vec)
                 .arg("-Command")
                 .arg(&command)
                 .spawn()
                 .map_err(|e| format!("Failed to open Windows Terminal: {}", e))?;
         } else {
-            // Use classic PowerShell window via Start-Process
-            // This opens a separate powershell.exe window
-            let start_args = format!(
-                "Start-Process powershell -ArgumentList '{} -Command \"{}\"'",
-                ps_args_with_noexit,
-                command.replace("\"", "`\"")
-            );
-
-            info!("Opening PowerShell window: {}", start_args);
+            // Use classic PowerShell window by spawning a new console
+            info!("Opening PowerShell window in a new console");
 
             Command::new("powershell")
-                .args(["-NoProfile", "-Command", &start_args])
+                .creation_flags(CREATE_NEW_CONSOLE)
+                .args(&ps_args_vec)
+                .arg("-Command")
+                .arg(&command)
                 .spawn()
                 .map_err(|e| format!("Failed to open PowerShell window: {}", e))?;
         }
@@ -77,13 +152,10 @@ pub fn execute_voice_command(
         Ok("Command opened in terminal window".to_string())
     } else {
         // Silent execution with output capture (original behavior)
-        // Parse ps_args string into individual arguments
-        let args: Vec<&str> = ps_args.split_whitespace().collect();
+        let ps_args_vec = parse_ps_args(&ps_args);
 
         let mut cmd = Command::new("powershell");
-        for arg in &args {
-            cmd.arg(arg);
-        }
+        cmd.args(&ps_args_vec);
         cmd.arg("-Command").arg(&command);
 
         let output = cmd

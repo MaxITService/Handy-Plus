@@ -145,6 +145,12 @@ export default function VoiceCommandSettings() {
   
   if (!settings) return null;
 
+  const executionArgs = settings.voice_command_ps_args ?? DEFAULT_PS_ARGS;
+  const executionInfo = t("voiceCommands.executionInfo", {
+    args: executionArgs,
+    defaultValue: `Commands run via: powershell ${executionArgs} -Command "<your command>"`,
+  });
+
   // Listen for execution results
   useEffect(() => {
     const unlisten = listen<VoiceCommandResultPayload>("voice-command-result", (event) => {
@@ -328,7 +334,7 @@ export default function VoiceCommandSettings() {
                 <input
                   type="text"
                   className="ps-args-input"
-                  value={settings.voice_command_ps_args ?? DEFAULT_PS_ARGS}
+                  value={executionArgs}
                   onChange={(e) => updateSetting("voice_command_ps_args", e.target.value)}
                   placeholder="-NoProfile -NonInteractive"
                 />
@@ -381,7 +387,7 @@ export default function VoiceCommandSettings() {
             <div className="execution-info">
               <span className="info-icon">ℹ️</span>
               <span>
-                {t("voiceCommands.executionInfo", "Commands run via: powershell {args} -Command \"<your command>\"")}
+                {executionInfo}
               </span>
             </div>
           </div>
