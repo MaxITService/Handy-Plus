@@ -238,7 +238,9 @@
       "includeInCycle": "Include in Cycle",
       "includeInCycleDescription": "Include when cycling profiles via shortcut.",
       "showOverlayOnSwitch": "Show Overlay on Switch",
-      "showOverlayOnSwitchDescription": "Show a brief notification when switching profiles."
+      "showOverlayOnSwitchDescription": "Show a brief notification when switching profiles.",
+      "transcribeActiveProfile": "Transcribe (Active Profile)",
+      "transcribeActiveProfileDescription": "This shortcut always uses the currently active profile. Switch profiles above or use the cycle shortcut."
     },
     "sound": {
       "title": "Sound",

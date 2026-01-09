@@ -1,7 +1,13 @@
 use crate::input;
 use crate::settings;
 use crate::settings::OverlayPosition;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize};
+
+/// Counter used to cancel pending profile switch overlay auto-hide timers.
+/// Each time a recording overlay is shown, this is incremented, and existing
+/// profile switch timers check if their generation still matches.
+static PROFILE_OVERLAY_GENERATION: AtomicU64 = AtomicU64::new(0);
 
 #[cfg(not(target_os = "macos"))]
 use log::debug;
@@ -210,6 +216,10 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
 
 /// Shows the recording overlay window with fade-in animation
 pub fn show_recording_overlay(app_handle: &AppHandle) {
+    // Cancel any pending profile switch overlay auto-hide timer
+    // by incrementing the generation counter
+    PROFILE_OVERLAY_GENERATION.fetch_add(1, Ordering::SeqCst);
+
     // Check if overlay should be shown based on position setting
     let settings = settings::get_settings(app_handle);
     if settings.overlay_position == OverlayPosition::None {
@@ -462,12 +472,29 @@ pub fn show_profile_switch_overlay(app_handle: &AppHandle, profile_name: &str) {
         // Emit profile name for display
         let _ = overlay_window.emit("show-profile-switch", profile_name);
 
-        // Auto-hide after a short delay
+        // Capture the current generation before spawning the timer thread.
+        // If a recording starts before the timer fires, the generation will change
+        // and we'll skip hiding the overlay.
+        let generation_at_start = PROFILE_OVERLAY_GENERATION.load(Ordering::SeqCst);
+
+        // Auto-hide after a short delay (unless a recording has started)
         let window_clone = overlay_window.clone();
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_millis(1500));
+
+            // Check if generation changed (recording started) - if so, don't hide
+            if PROFILE_OVERLAY_GENERATION.load(Ordering::SeqCst) != generation_at_start {
+                return;
+            }
+
             let _ = window_clone.emit("hide-overlay", ());
             std::thread::sleep(std::time::Duration::from_millis(300));
+
+            // Check again before actually hiding the window
+            if PROFILE_OVERLAY_GENERATION.load(Ordering::SeqCst) != generation_at_start {
+                return;
+            }
+
             let _ = window_clone.hide();
         });
     }

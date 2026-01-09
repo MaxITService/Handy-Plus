@@ -1030,6 +1030,18 @@ pub fn get_default_settings() -> AppSettings {
             current_binding: "".to_string(),
         },
     );
+    // Default profile shortcut (optional - uses global settings when active)
+    bindings.insert(
+        "transcribe_default".to_string(),
+        ShortcutBinding {
+            id: "transcribe_default".to_string(),
+            name: "Transcribe (Default Profile)".to_string(),
+            description: "Transcribe using global language settings, regardless of active profile."
+                .to_string(),
+            default_binding: "".to_string(),
+            current_binding: "".to_string(),
+        },
+    );
     // Cycle through transcription profiles
     bindings.insert(
         "cycle_profile".to_string(),

@@ -932,7 +932,11 @@ impl ShortcutAction for TranscribeAction {
         let start_time = Instant::now();
         debug!("TranscribeAction::start called for binding: {}", binding_id);
 
-        start_recording_with_feedback(app, binding_id);
+        if !start_recording_with_feedback(app, binding_id) {
+            // Recording failed to start (e.g., system busy) - reset toggle state
+            // so next press will try to start again instead of calling stop
+            reset_toggle_state(app, binding_id);
+        }
 
         debug!(
             "TranscribeAction::start completed in {:?}",
@@ -1007,7 +1011,9 @@ impl ShortcutAction for SendToExtensionAction {
             return;
         }
 
-        start_recording_with_feedback(app, binding_id);
+        if !start_recording_with_feedback(app, binding_id) {
+            reset_toggle_state(app, binding_id);
+        }
 
         debug!(
             "SendToExtensionAction::start completed in {:?}",
@@ -1093,7 +1099,9 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
             return;
         }
 
-        start_recording_with_feedback(app, binding_id);
+        if !start_recording_with_feedback(app, binding_id) {
+            reset_toggle_state(app, binding_id);
+        }
 
         debug!(
             "SendToExtensionWithSelectionAction::start completed in {:?}",
@@ -1433,7 +1441,9 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
             return;
         }
 
-        start_recording_with_feedback(app, binding_id);
+        if !start_recording_with_feedback(app, binding_id) {
+            reset_toggle_state(app, binding_id);
+        }
 
         debug!(
             "SendScreenshotToExtensionAction::start completed in {:?}",
@@ -1595,7 +1605,9 @@ impl ShortcutAction for AiReplaceSelectionAction {
             return;
         }
 
-        start_recording_with_feedback(app, binding_id);
+        if !start_recording_with_feedback(app, binding_id) {
+            reset_toggle_state(app, binding_id);
+        }
 
         debug!(
             "AiReplaceSelectionAction::start completed in {:?}",
@@ -2038,7 +2050,9 @@ impl ShortcutAction for VoiceCommandAction {
             binding_id
         );
 
-        start_recording_with_feedback(app, binding_id);
+        if !start_recording_with_feedback(app, binding_id) {
+            reset_toggle_state(app, binding_id);
+        }
 
         debug!(
             "VoiceCommandAction::start completed in {:?}",

@@ -520,6 +520,40 @@ export const TranscriptionProfiles: React.FC = () => {
         </div>
       </SettingContainer>
 
+      {/* Transcribe with Active Profile - MAIN SHORTCUT */}
+      <SettingContainer
+        title=""
+        description=""
+        descriptionMode="inline"
+        layout="stacked"
+        grouped={true}
+      >
+        <div className="p-4 bg-gradient-to-r from-purple-500/15 to-pink-500/10 border border-purple-500/40 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-text">
+                  {t("settings.transcriptionProfiles.transcribeActiveProfile")}
+                </span>
+                <Badge
+                  variant="secondary"
+                  className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-[10px] px-1.5 py-0"
+                >
+                  {activeProfileId === "default"
+                    ? t("settings.transcriptionProfiles.defaultProfile")
+                    : profiles.find((p) => p.id === activeProfileId)?.name ||
+                      activeProfileId}
+                </Badge>
+              </div>
+              <span className="text-xs text-mid-gray">
+                {t("settings.transcriptionProfiles.transcribeActiveProfileDescription")}
+              </span>
+            </div>
+            <HandyShortcut shortcutId="transcribe" />
+          </div>
+        </div>
+      </SettingContainer>
+
       {/* General Settings: Cycle Shortcut & Overlay */}
       <SettingContainer
         title="General Settings"
@@ -642,12 +676,12 @@ export const TranscriptionProfiles: React.FC = () => {
             {/* Expanded content - Global settings */}
             {expandedId === "default" && (
               <div className="px-4 pb-4 pt-2 border-t border-mid-gray/20 space-y-4">
-                {/* Shortcut */}
+                {/* Optional Shortcut for Default profile */}
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-text/70">
                     {t("settings.transcriptionProfiles.shortcut")}
                   </label>
-                  <HandyShortcut shortcutId="transcribe" grouped={true} />
+                  <HandyShortcut shortcutId="transcribe_default" grouped={true} />
                 </div>
 
                 {/* Language & Push-to-Talk in a row */}
