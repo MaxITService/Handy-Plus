@@ -23,6 +23,7 @@ import { Badge } from "../ui/Badge";
 import { ToggleSwitch } from "../ui/ToggleSwitch";
 import { HandyShortcut } from "./HandyShortcut";
 import { useSettings } from "../../hooks/useSettings";
+import { useModels } from "../../hooks/useModels";
 import { LANGUAGES } from "../../lib/constants/languages";
 import { getModelPromptInfo } from "./TranscriptionSystemPrompt";
 
@@ -371,6 +372,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
 export const TranscriptionProfiles: React.FC = () => {
   const { t } = useTranslation();
   const { settings, refreshSettings, updateSetting } = useSettings();
+  const { getModelInfo } = useModels();
   const [expandedId, setExpandedId] = useState<string | null>("default");
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -409,11 +411,22 @@ export const TranscriptionProfiles: React.FC = () => {
     settings?.selected_model,
   ]);
 
+  // Get model info for prompt configuration (same logic as TranscriptionSystemPrompt)
+  const modelInfo = useMemo(() => {
+    if (!activeModelId) {
+      return { supportsPrompt: true, charLimit: 896, modelId: "" };
+    }
+    const isRemote = settings?.transcription_provider === "remote_openai_compatible";
+    if (isRemote) {
+      return getModelPromptInfo(activeModelId);
+    }
+    // For local models, get engine_type from model info
+    const localModelInfo = getModelInfo(activeModelId);
+    return getModelPromptInfo(activeModelId, localModelInfo?.engine_type);
+  }, [activeModelId, settings?.transcription_provider, getModelInfo]);
+
   // Get prompt limit based on active transcription settings
-  const promptLimit = useMemo(() => {
-    const info = getModelPromptInfo(activeModelId);
-    return info.supportsPrompt ? info.charLimit : 0;
-  }, [activeModelId]);
+  const promptLimit = modelInfo.supportsPrompt ? modelInfo.charLimit : 0;
 
   const newPromptLength = newSystemPrompt.length;
   const isNewPromptOverLimit = promptLimit > 0 && newPromptLength > promptLimit;
@@ -674,48 +687,50 @@ export const TranscriptionProfiles: React.FC = () => {
                   </div>
                 </div>
 
-                {/* System Prompt */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-text/70">
-                      {t("settings.general.transcriptionSystemPrompt.title")}
-                    </label>
-                    {promptLimit > 0 && (
-                      <span
-                        className={`text-xs ${(settings?.transcription_prompts?.[activeModelId] || "").length > promptLimit ? "text-red-400" : "text-mid-gray"}`}
-                      >
-                        {
-                          (
-                            settings?.transcription_prompts?.[
-                              activeModelId
-                            ] || ""
-                          ).length
-                        }
-                        /{promptLimit}
-                      </span>
-                    )}
-                  </div>
-                  <textarea
-                    value={
-                      settings?.transcription_prompts?.[
-                        activeModelId
-                      ] || ""
-                    }
-                    onChange={async (e) => {
-                      if (activeModelId) {
-                        await commands.changeTranscriptionPromptSetting(
-                          activeModelId,
-                          e.target.value,
-                        );
-                        refreshSettings();
+                {/* System Prompt - only show if model supports prompts */}
+                {modelInfo.supportsPrompt && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-text/70">
+                        {t("settings.general.transcriptionSystemPrompt.title")}
+                      </label>
+                      {promptLimit > 0 && (
+                        <span
+                          className={`text-xs ${(settings?.transcription_prompts?.[activeModelId] || "").length > promptLimit ? "text-red-400" : "text-mid-gray"}`}
+                        >
+                          {
+                            (
+                              settings?.transcription_prompts?.[
+                                activeModelId
+                              ] || ""
+                            ).length
+                          }
+                          /{promptLimit}
+                        </span>
+                      )}
+                    </div>
+                    <textarea
+                      value={
+                        settings?.transcription_prompts?.[
+                          activeModelId
+                        ] || ""
                       }
-                    }}
-                    placeholder={t(
-                      "settings.general.transcriptionSystemPrompt.placeholder",
-                    )}
-                    className="w-full h-20 px-3 py-2 bg-background border border-mid-gray/30 rounded-lg text-sm text-text placeholder-mid-gray/50 resize-none focus:outline-none focus:border-purple-500/50"
-                  />
-                </div>
+                      onChange={async (e) => {
+                        if (activeModelId) {
+                          await commands.changeTranscriptionPromptSetting(
+                            activeModelId,
+                            e.target.value,
+                          );
+                          refreshSettings();
+                        }
+                      }}
+                      placeholder={t(
+                        "settings.general.transcriptionSystemPrompt.placeholder",
+                      )}
+                      className="w-full h-20 px-3 py-2 bg-background border border-mid-gray/30 rounded-lg text-sm text-text placeholder-mid-gray/50 resize-none focus:outline-none focus:border-purple-500/50"
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
