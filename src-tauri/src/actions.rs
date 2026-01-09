@@ -361,9 +361,32 @@ fn start_recording_with_feedback(app: &AppHandle, binding_id: &str) -> bool {
         true, // mute may be applied (session tracks this for cleanup)
     ));
 
+    // Capture the effective profile ID at recording start time.
+    // This ensures transcription uses the profile that was active when recording started,
+    // even if the user switches profiles mid-recording.
+    let captured_profile_id =
+        if binding_id == "transcribe" && settings.active_profile_id != "default" {
+            // Main transcribe shortcut with an active profile - capture that profile ID
+            Some(settings.active_profile_id.clone())
+        } else if binding_id.starts_with("transcribe_profile_") {
+            // Profile-specific shortcut - extract and capture the profile ID
+            binding_id
+                .strip_prefix("transcribe_")
+                .map(|s| s.to_string())
+        } else {
+            // No profile to capture (ai_replace, send_to_extension, etc.)
+            None
+        };
+
+    debug!(
+        "start_recording_with_feedback: captured_profile_id={:?} for binding={}",
+        captured_profile_id, binding_id
+    );
+
     *state_guard = session_manager::SessionState::Recording {
         session: Arc::clone(&session),
         binding_id: binding_id.to_string(),
+        captured_profile_id,
     };
 
     // Now release the lock before doing I/O operations
@@ -455,30 +478,33 @@ pub enum TranscriptionOutcome {
 ///
 /// Returns a TranscriptionOutcome indicating success, cancellation, or error.
 /// Performs transcription with optional profile overrides.
-/// When binding_id is provided and matches a transcription profile,
-/// uses that profile's language and translation settings.
+///
+/// The captured_profile_id parameter is the profile that was active when recording started.
+/// This ensures transcription uses the correct profile even if the user switches profiles
+/// mid-recording. If None, no profile is used (global settings apply).
 async fn perform_transcription_for_profile(
     app: &AppHandle,
     samples: Vec<f32>,
     binding_id: Option<&str>,
+    captured_profile_id: Option<String>,
 ) -> TranscriptionOutcome {
     let settings = get_settings(app);
 
-    // Determine which profile to use:
-    // 1. If binding_id matches a specific profile (transcribe_profile_xxx), use that profile
-    // 2. If binding_id is "transcribe" AND active_profile_id is not "default", use active profile
-    // 3. Otherwise, use global settings (no profile)
-    let profile = if let Some(id) = binding_id {
-        if id == "transcribe" && settings.active_profile_id != "default" {
-            // Main transcribe shortcut with active profile set
-            settings.transcription_profile(&settings.active_profile_id)
-        } else {
-            // Profile-specific shortcut or no active profile
-            settings.transcription_profile_by_binding(id)
-        }
+    // Use the captured profile ID from recording start, not the current active_profile_id.
+    // This ensures that if the user switches profiles mid-recording, we still use
+    // the profile that was active when recording started.
+    let profile = if let Some(profile_id) = &captured_profile_id {
+        settings.transcription_profile(profile_id)
     } else {
         None
     };
+
+    debug!(
+        "perform_transcription_for_profile: binding_id={:?}, captured_profile_id={:?}, resolved_profile={:?}",
+        binding_id,
+        captured_profile_id,
+        profile.as_ref().map(|p| &p.name)
+    );
 
     if settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible {
         // Remote STT doesn't currently support per-profile language/translate overrides
@@ -607,24 +633,29 @@ async fn perform_transcription_for_profile(
 /// The session's finish() method handles cleanup (unregistering cancel shortcut).
 /// Pass the binding_id to ensure we only stop our own recording.
 ///
+/// Returns Some(captured_profile_id) on success, None if no active session.
+/// The captured_profile_id is the profile that was active when recording started.
+///
 /// IMPORTANT: After calling this, the caller MUST call exit_processing() when
 /// the async work is complete (success or error).
-fn prepare_stop_recording(app: &AppHandle, binding_id: &str) -> bool {
+fn prepare_stop_recording(app: &AppHandle, binding_id: &str) -> Option<Option<String>> {
     // Take the session and transition to Processing state
     let state = app.state::<ManagedSessionState>();
     let mut state_guard = state.lock().expect("Failed to lock session state");
 
-    let session = match &*state_guard {
+    let result = match &*state_guard {
         session_manager::SessionState::Recording {
             binding_id: current_binding_id,
             session,
+            captured_profile_id,
         } if current_binding_id == binding_id => {
             let session = Arc::clone(session);
+            let captured = captured_profile_id.clone();
             // Transition to Processing state
             *state_guard = session_manager::SessionState::Processing {
                 binding_id: binding_id.to_string(),
             };
-            Some(session)
+            Some((session, captured))
         }
         session_manager::SessionState::Recording {
             binding_id: current_binding_id,
@@ -652,7 +683,7 @@ fn prepare_stop_recording(app: &AppHandle, binding_id: &str) -> bool {
     // Release lock before doing I/O
     drop(state_guard);
 
-    if let Some(session) = session {
+    if let Some((session, captured_profile_id)) = result {
         // Explicitly finish the session to trigger cleanup
         // This unregisters the cancel shortcut exactly once
         session.finish();
@@ -670,17 +701,21 @@ fn prepare_stop_recording(app: &AppHandle, binding_id: &str) -> bool {
         rm.remove_mute();
 
         play_feedback_sound(app, SoundType::Stop);
-        true
+        Some(captured_profile_id)
     } else {
-        false
+        None
     }
 }
 
 /// Asynchronously stops recording and performs transcription.
 /// Handles errors by cleaning up the UI and returning None.
+///
+/// The captured_profile_id is the profile that was active when recording started,
+/// ensuring transcription uses the correct profile even if the user switches mid-recording.
 async fn get_transcription_or_cleanup(
     app: &AppHandle,
     binding_id: &str,
+    captured_profile_id: Option<String>,
 ) -> Option<(String, Vec<f32>)> {
     let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
 
@@ -700,7 +735,14 @@ async fn get_transcription_or_cleanup(
             return Some((String::new(), samples));
         }
 
-        match perform_transcription_for_profile(app, samples.clone(), Some(binding_id)).await {
+        match perform_transcription_for_profile(
+            app,
+            samples.clone(),
+            Some(binding_id),
+            captured_profile_id,
+        )
+        .await
+        {
             TranscriptionOutcome::Success(text) => Some((text, samples)),
             TranscriptionOutcome::Cancelled => None,
             TranscriptionOutcome::Error {
@@ -899,16 +941,17 @@ impl ShortcutAction for TranscribeAction {
     }
 
     fn stop(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
-        if !prepare_stop_recording(app, binding_id) {
-            return; // No active session - nothing to do
-        }
+        let captured_profile_id = match prepare_stop_recording(app, binding_id) {
+            Some(profile_id) => profile_id,
+            None => return, // No active session - nothing to do
+        };
 
         let ah = app.clone();
         let binding_id = binding_id.to_string();
 
         tauri::async_runtime::spawn(async move {
             let (transcription, samples) =
-                match get_transcription_or_cleanup(&ah, &binding_id).await {
+                match get_transcription_or_cleanup(&ah, &binding_id, captured_profile_id).await {
                     Some(res) => res,
                     None => {
                         session_manager::exit_processing(&ah);
@@ -980,7 +1023,7 @@ impl ShortcutAction for SendToExtensionAction {
             return;
         }
 
-        if !prepare_stop_recording(app, binding_id) {
+        if prepare_stop_recording(app, binding_id).is_none() {
             return; // No active session - nothing to do
         }
 
@@ -990,7 +1033,7 @@ impl ShortcutAction for SendToExtensionAction {
 
         tauri::async_runtime::spawn(async move {
             let (transcription, samples) =
-                match get_transcription_or_cleanup(&ah, &binding_id).await {
+                match get_transcription_or_cleanup(&ah, &binding_id, None).await {
                     Some(res) => res,
                     None => {
                         session_manager::exit_processing(&ah);
@@ -1066,7 +1109,7 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
             return;
         }
 
-        if !prepare_stop_recording(app, binding_id) {
+        if prepare_stop_recording(app, binding_id).is_none() {
             return; // No active session - nothing to do
         }
 
@@ -1076,7 +1119,7 @@ impl ShortcutAction for SendToExtensionWithSelectionAction {
 
         tauri::async_runtime::spawn(async move {
             let (transcription, samples) =
-                match get_transcription_or_cleanup(&ah, &binding_id).await {
+                match get_transcription_or_cleanup(&ah, &binding_id, None).await {
                     Some(res) => res,
                     None => {
                         session_manager::exit_processing(&ah);
@@ -1406,7 +1449,7 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
             return;
         }
 
-        if !prepare_stop_recording(app, binding_id) {
+        if prepare_stop_recording(app, binding_id).is_none() {
             return; // No active session - nothing to do
         }
 
@@ -1415,7 +1458,7 @@ impl ShortcutAction for SendScreenshotToExtensionAction {
         let binding_id = binding_id.to_string();
 
         tauri::async_runtime::spawn(async move {
-            let (voice_text, _) = match get_transcription_or_cleanup(&ah, &binding_id).await {
+            let (voice_text, _) = match get_transcription_or_cleanup(&ah, &binding_id, None).await {
                 Some(res) => res,
                 None => {
                     session_manager::exit_processing(&ah);
@@ -1561,7 +1604,7 @@ impl ShortcutAction for AiReplaceSelectionAction {
     }
 
     fn stop(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
-        if !prepare_stop_recording(app, binding_id) {
+        if prepare_stop_recording(app, binding_id).is_none() {
             return; // No active session - nothing to do
         }
 
@@ -1569,13 +1612,14 @@ impl ShortcutAction for AiReplaceSelectionAction {
         let binding_id = binding_id.to_string();
 
         tauri::async_runtime::spawn(async move {
-            let (transcription, _) = match get_transcription_or_cleanup(&ah, &binding_id).await {
-                Some(res) => res,
-                None => {
-                    session_manager::exit_processing(&ah);
-                    return;
-                }
-            };
+            let (transcription, _) =
+                match get_transcription_or_cleanup(&ah, &binding_id, None).await {
+                    Some(res) => res,
+                    None => {
+                        session_manager::exit_processing(&ah);
+                        return;
+                    }
+                };
 
             let settings = get_settings(&ah);
 
@@ -2003,7 +2047,7 @@ impl ShortcutAction for VoiceCommandAction {
     }
 
     fn stop(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
-        if !prepare_stop_recording(app, binding_id) {
+        if prepare_stop_recording(app, binding_id).is_none() {
             return;
         }
 
@@ -2011,13 +2055,14 @@ impl ShortcutAction for VoiceCommandAction {
         let binding_id = binding_id.to_string();
 
         tauri::async_runtime::spawn(async move {
-            let (transcription, _) = match get_transcription_or_cleanup(&ah, &binding_id).await {
-                Some(res) => res,
-                None => {
-                    session_manager::exit_processing(&ah);
-                    return;
-                }
-            };
+            let (transcription, _) =
+                match get_transcription_or_cleanup(&ah, &binding_id, None).await {
+                    Some(res) => res,
+                    None => {
+                        session_manager::exit_processing(&ah);
+                        return;
+                    }
+                };
 
             if transcription.trim().is_empty() {
                 emit_voice_command_error(&ah, "No command detected");

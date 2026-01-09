@@ -28,6 +28,10 @@ pub enum SessionState {
     Recording {
         session: Arc<RecordingSession>,
         binding_id: String,
+        /// The profile ID that was active when recording started.
+        /// This is used to ensure transcription uses the correct profile
+        /// even if the user switches profiles mid-recording.
+        captured_profile_id: Option<String>,
     },
     /// Recording finished, now processing (transcription, LLM, etc.)
     /// New recordings are blocked during this state, only cancellation is allowed.
@@ -165,6 +169,7 @@ pub fn take_session(app: &AppHandle) -> Option<(Arc<RecordingSession>, String)> 
         SessionState::Recording {
             session,
             binding_id,
+            captured_profile_id: _,
         } => {
             debug!("take_session: Took session for {}", binding_id);
             Some((session, binding_id))
