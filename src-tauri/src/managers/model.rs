@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use tar::Archive;
 use tauri::{AppHandle, Emitter, Manager};
+use tokio_util::sync::CancellationToken;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub enum EngineType {
@@ -49,6 +50,8 @@ pub struct ModelManager {
     app_handle: AppHandle,
     models_dir: PathBuf,
     available_models: Mutex<HashMap<String, ModelInfo>>,
+    /// Cancellation tokens for active downloads, keyed by model_id
+    cancellation_tokens: Mutex<HashMap<String, CancellationToken>>,
 }
 
 impl ModelManager {
@@ -187,6 +190,7 @@ impl ModelManager {
             app_handle: app_handle.clone(),
             models_dir,
             available_models: Mutex::new(available_models),
+            cancellation_tokens: Mutex::new(HashMap::new()),
         };
 
         // Migrate any bundled models to user directory
@@ -348,6 +352,13 @@ impl ModelManager {
             0
         };
 
+        // Create cancellation token for this download
+        let cancel_token = CancellationToken::new();
+        {
+            let mut tokens = self.cancellation_tokens.lock().unwrap();
+            tokens.insert(model_id.to_string(), cancel_token.clone());
+        }
+
         // Mark as downloading
         {
             let mut models = self.available_models.lock().unwrap();
@@ -436,37 +447,71 @@ impl ModelManager {
             .app_handle
             .emit("model-download-progress", &initial_progress);
 
-        // Download with progress
-        while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|e| {
-                // Mark as not downloading on error
-                {
-                    let mut models = self.available_models.lock().unwrap();
-                    if let Some(model) = models.get_mut(model_id) {
-                        model.is_downloading = false;
+        // Download with progress, checking for cancellation
+        loop {
+            tokio::select! {
+                _ = cancel_token.cancelled() => {
+                    info!("Download cancelled for model: {}", model_id);
+                    // Mark as not downloading
+                    {
+                        let mut models = self.available_models.lock().unwrap();
+                        if let Some(model) = models.get_mut(model_id) {
+                            model.is_downloading = false;
+                        }
+                    }
+                    // Remove cancellation token
+                    {
+                        let mut tokens = self.cancellation_tokens.lock().unwrap();
+                        tokens.remove(model_id);
+                    }
+                    // Emit cancellation event
+                    let _ = self.app_handle.emit("model-download-cancelled", model_id);
+                    return Err(anyhow::anyhow!("Download cancelled by user"));
+                }
+                chunk_result = stream.next() => {
+                    match chunk_result {
+                        Some(Ok(chunk)) => {
+                            file.write_all(&chunk)?;
+                            downloaded += chunk.len() as u64;
+
+                            let percentage = if total_size > 0 {
+                                (downloaded as f64 / total_size as f64) * 100.0
+                            } else {
+                                0.0
+                            };
+
+                            // Emit progress event
+                            let progress = DownloadProgress {
+                                model_id: model_id.to_string(),
+                                downloaded,
+                                total: total_size,
+                                percentage,
+                            };
+
+                            let _ = self.app_handle.emit("model-download-progress", &progress);
+                        }
+                        Some(Err(e)) => {
+                            // Mark as not downloading on error
+                            {
+                                let mut models = self.available_models.lock().unwrap();
+                                if let Some(model) = models.get_mut(model_id) {
+                                    model.is_downloading = false;
+                                }
+                            }
+                            // Remove cancellation token
+                            {
+                                let mut tokens = self.cancellation_tokens.lock().unwrap();
+                                tokens.remove(model_id);
+                            }
+                            return Err(e.into());
+                        }
+                        None => {
+                            // Stream finished
+                            break;
+                        }
                     }
                 }
-                e
-            })?;
-
-            file.write_all(&chunk)?;
-            downloaded += chunk.len() as u64;
-
-            let percentage = if total_size > 0 {
-                (downloaded as f64 / total_size as f64) * 100.0
-            } else {
-                0.0
-            };
-
-            // Emit progress event
-            let progress = DownloadProgress {
-                model_id: model_id.to_string(),
-                downloaded,
-                total: total_size,
-                percentage,
-            };
-
-            let _ = self.app_handle.emit("model-download-progress", &progress);
+            }
         }
 
         file.flush()?;
@@ -566,7 +611,7 @@ impl ModelManager {
             fs::rename(&partial_path, &model_path)?;
         }
 
-        // Update download status
+        // Update download status and remove cancellation token
         {
             let mut models = self.available_models.lock().unwrap();
             if let Some(model) = models.get_mut(model_id) {
@@ -574,6 +619,10 @@ impl ModelManager {
                 model.is_downloaded = true;
                 model.partial_size = 0;
             }
+        }
+        {
+            let mut tokens = self.cancellation_tokens.lock().unwrap();
+            tokens.remove(model_id);
         }
 
         // Emit completion event
@@ -694,25 +743,48 @@ impl ModelManager {
     pub fn cancel_download(&self, model_id: &str) -> Result<()> {
         debug!("ModelManager: cancel_download called for: {}", model_id);
 
-        let _model_info = {
+        let model_info = {
             let models = self.available_models.lock().unwrap();
             models.get(model_id).cloned()
         };
 
-        let _model_info =
-            _model_info.ok_or_else(|| anyhow::anyhow!("Model not found: {}", model_id))?;
+        let model_info =
+            model_info.ok_or_else(|| anyhow::anyhow!("Model not found: {}", model_id))?;
+
+        // Cancel the download task via cancellation token
+        {
+            let tokens = self.cancellation_tokens.lock().unwrap();
+            if let Some(token) = tokens.get(model_id) {
+                token.cancel();
+                info!("Cancellation signal sent for model: {}", model_id);
+            } else {
+                debug!("No active download found for model: {}", model_id);
+            }
+        }
 
         // Mark as not downloading
         {
             let mut models = self.available_models.lock().unwrap();
             if let Some(model) = models.get_mut(model_id) {
                 model.is_downloading = false;
+                model.partial_size = 0;
             }
         }
 
-        // Note: The actual download cancellation would need to be handled
-        // by the download task itself. This just updates the state.
-        // The partial file is kept so the download can be resumed later.
+        // Delete the partial file so the model returns to "downloadable" state
+        let partial_path = self
+            .models_dir
+            .join(format!("{}.partial", &model_info.filename));
+        if partial_path.exists() {
+            if let Err(e) = fs::remove_file(&partial_path) {
+                warn!("Failed to delete partial file {:?}: {}", partial_path, e);
+            } else {
+                info!(
+                    "Deleted partial file for cancelled download: {:?}",
+                    partial_path
+                );
+            }
+        }
 
         // Update download status to reflect current state
         self.update_download_status()?;

@@ -72,65 +72,68 @@ pub fn change_binding(
 ) -> Result<BindingResponse, String> {
     let mut settings = settings::get_settings(&app);
 
-    // Get the binding to modify
-    let binding_to_modify = match settings.bindings.get(&id) {
-        Some(binding) => binding.clone(),
-        None => {
-            let error_msg = format!("Binding with id '{}' not found", id);
-            warn!("change_binding error: {}", error_msg);
-            return Ok(BindingResponse {
-                success: false,
-                binding: None,
-                error: Some(error_msg),
-            });
-        }
-    };
+    // Get the binding to modify - unified error handling via Err
+    let binding_to_modify = settings
+        .bindings
+        .get(&id)
+        .cloned()
+        .ok_or_else(|| format!("Binding with id '{}' not found", id))?;
+
     // If this is the cancel binding, just update the settings and return
     // It's managed dynamically, so we don't register/unregister here
     if id == "cancel" {
-        if let Some(mut b) = settings.bindings.get(&id).cloned() {
-            b.current_binding = binding;
-            settings.bindings.insert(id.clone(), b.clone());
-            settings::write_settings(&app, settings);
-            return Ok(BindingResponse {
-                success: true,
-                binding: Some(b.clone()),
-                error: None,
-            });
-        }
+        let mut b = binding_to_modify;
+        b.current_binding = binding;
+        settings.bindings.insert(id.clone(), b.clone());
+        settings::write_settings(&app, settings);
+        return Ok(BindingResponse {
+            success: true,
+            binding: Some(b),
+            error: None,
+        });
     }
 
-    // Unregister the existing binding
-    if let Err(e) = unregister_shortcut(&app, binding_to_modify.clone()) {
-        let error_msg = format!("Failed to unregister shortcut: {}", e);
-        error!("change_binding error: {}", error_msg);
-    }
-
-    // Validate the new shortcut before we touch the current registration
+    // 1. Validate the new shortcut BEFORE unregistering the old one
+    //    This prevents losing the shortcut if the new one is invalid
     if let Err(e) = validate_shortcut_string(&binding) {
         warn!("change_binding validation error: {}", e);
         return Err(e);
     }
 
-    // Create an updated binding
-    let mut updated_binding = binding_to_modify;
+    // 2. Create the updated binding
+    let mut updated_binding = binding_to_modify.clone();
     updated_binding.current_binding = binding;
 
-    // Register the new binding
-    if let Err(e) = register_shortcut(&app, updated_binding.clone()) {
-        let error_msg = format!("Failed to register shortcut: {}", e);
-        error!("change_binding error: {}", error_msg);
-        return Ok(BindingResponse {
-            success: false,
-            binding: None,
-            error: Some(error_msg),
-        });
+    // 3. Unregister the existing binding
+    //    We proceed even if this fails (shortcut might already be unregistered)
+    if let Err(e) = unregister_shortcut(&app, binding_to_modify.clone()) {
+        warn!(
+            "change_binding: failed to unregister old shortcut (proceeding anyway): {}",
+            e
+        );
     }
 
-    // Update the binding in the settings
+    // 4. Register the new binding WITH ROLLBACK on failure
+    if let Err(e) = register_shortcut(&app, updated_binding.clone()) {
+        error!("change_binding: failed to register new shortcut: {}", e);
+
+        // Rollback: attempt to restore the old binding
+        if let Err(rollback_err) = register_shortcut(&app, binding_to_modify) {
+            error!(
+                "change_binding: CRITICAL - failed to rollback to old shortcut: {}",
+                rollback_err
+            );
+        } else {
+            warn!("change_binding: rolled back to previous shortcut");
+        }
+
+        return Err(format!("Failed to register shortcut: {}", e));
+    }
+
+    // 5. Update the binding in the settings
     settings.bindings.insert(id, updated_binding.clone());
 
-    // Save the settings
+    // 6. Save the settings
     settings::write_settings(&app, settings);
 
     // Return the updated binding

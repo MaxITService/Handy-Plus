@@ -21,6 +21,7 @@ interface ModelDropdownProps {
   downloadProgress: Map<string, DownloadProgress>;
   onModelSelect: (modelId: string) => void;
   onModelDownload: (modelId: string) => void;
+  onModelDownloadCancel: (modelId: string) => void;
   onModelDelete: (modelId: string) => Promise<void>;
   onError?: (error: string) => void;
   isRemoteProvider?: boolean;
@@ -33,6 +34,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
   downloadProgress,
   onModelSelect,
   onModelDownload,
+  onModelDownloadCancel,
   onModelDelete,
   onError,
   isRemoteProvider = false,
@@ -55,6 +57,12 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
     }
   };
 
+  const handleCancelClick = (e: React.MouseEvent, modelId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onModelDownloadCancel(modelId);
+  };
+
   const handleModelClick = (modelId: string) => {
     if (downloadProgress.has(modelId)) {
       return; // Don't allow interaction while downloading
@@ -64,7 +72,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
 
   const handleDownloadClick = (modelId: string) => {
     if (downloadProgress.has(modelId)) {
-      return; // Don't allow interaction while downloading
+      return; 
     }
     onModelDownload(modelId);
   };
@@ -204,83 +212,94 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
       )}
 
       {/* Downloadable Models */}
-      {downloadableModels.length > 0 && (
-        <div>
-          {(availableModels.length > 0 || isFirstRun) && (
-            <div className="border-t border-mid-gray/10 my-1" />
-          )}
-          <div className="px-3 py-1 text-xs font-medium text-text/80">
-            {isFirstRun
-              ? t("modelSelector.chooseModel")
-              : t("modelSelector.downloadModels")}
-          </div>
-          {downloadableModels.map((model) => {
-            const isDownloading = downloadProgress.has(model.id);
-            const progress = downloadProgress.get(model.id);
+      {downloadableModels.map((model) => {
+        const isDownloading = downloadProgress.has(model.id);
+        const progress = downloadProgress.get(model.id);
 
-            return (
-              <div
-                key={model.id}
-                onClick={() => handleDownloadClick(model.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    handleDownloadClick(model.id);
-                  }
-                }}
-                tabIndex={0}
-                role="button"
-                aria-disabled={isDownloading}
-                className={`w-full px-3 py-2 text-left hover:bg-mid-gray/10 transition-colors cursor-pointer focus:outline-none ${
-                  isDownloading
-                    ? "opacity-50 cursor-not-allowed hover:bg-transparent"
-                    : ""
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm">
-                      {getTranslatedModelName(model, t)}
-                      {model.id === "parakeet-tdt-0.6b-v3" && isFirstRun && (
-                        <span className="ml-2 text-xs bg-logo-primary/20 text-logo-primary px-1.5 py-0.5 rounded">
-                          {t("onboarding.recommended")}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-text/40 italic pr-4">
-                      {getTranslatedModelDescription(model, t)}
-                    </div>
-                    <div className="mt-1 text-xs text-text/50 tabular-nums">
-                      {t("modelSelector.downloadSize")} ·{" "}
-                      {formatModelSize(Number(model.size_mb))}
-                    </div>
-                  </div>
-                  <div className="text-xs text-logo-primary tabular-nums">
-                    {isDownloading && progress
-                      ? `${Math.max(0, Math.min(100, Math.round(progress.percentage)))}%`
-                      : t("modelSelector.download")}
-                  </div>
+        return (
+          <div
+            key={model.id}
+            onClick={() => !isDownloading && handleDownloadClick(model.id)}
+            onKeyDown={(e) => {
+              if ((e.key === "Enter" || e.key === " ") && !isDownloading) {
+                e.preventDefault();
+                handleDownloadClick(model.id);
+              }
+            }}
+            tabIndex={isDownloading ? -1 : 0}
+            role="button"
+            aria-disabled={isDownloading}
+            className={`group w-full px-3 py-2 text-left hover:bg-mid-gray/10 transition-colors focus:outline-none ${
+              isDownloading
+                ? "bg-logo-primary/5 cursor-default"
+                : "cursor-pointer"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm">
+                  {getTranslatedModelName(model, t)}
+                  {model.id === "parakeet-tdt-0.6b-v3" && isFirstRun && (
+                    <span className="ml-2 text-xs bg-logo-primary/20 text-logo-primary px-1.5 py-0.5 rounded">
+                      {t("onboarding.recommended")}
+                    </span>
+                  )}
                 </div>
-
-                {isDownloading && progress && (
-                  <div className="mt-2">
-                    <ProgressBar
-                      progress={[
-                        {
-                          id: model.id,
-                          percentage: progress.percentage,
-                          label: model.name,
-                        },
-                      ]}
-                      size="small"
-                    />
-                  </div>
+                <div className="text-xs text-text/40 italic pr-4">
+                  {getTranslatedModelDescription(model, t)}
+                </div>
+                <div className="mt-1 text-xs text-text/50 tabular-nums">
+                  {t("modelSelector.downloadSize")} ·{" "}
+                  {formatModelSize(Number(model.size_mb))}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-xs text-logo-primary tabular-nums">
+                  {isDownloading && progress
+                    ? `${Math.max(0, Math.min(100, Math.round(progress.percentage)))}%`
+                    : t("modelSelector.download")}
+                </div>
+                {isDownloading && (
+                  <button
+                    onClick={(e) => handleCancelClick(e, model.id)}
+                    className="p-1 text-mid-gray hover:text-red-400 hover:bg-red-500/10 rounded transition-all opacity-0 group-hover:opacity-100"
+                    title={t("common.cancel")}
+                  >
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
                 )}
               </div>
-            );
-          })}
-        </div>
-      )}
+            </div>
+
+            {isDownloading && progress && (
+              <div className="mt-2 text-logo-primary/30">
+                <ProgressBar
+                  progress={[
+                    {
+                      id: model.id,
+                      percentage: progress.percentage,
+                      label: model.name,
+                    },
+                  ]}
+                  size="small"
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {/* No Models Available */}
       {availableModels.length === 0 && downloadableModels.length === 0 && (

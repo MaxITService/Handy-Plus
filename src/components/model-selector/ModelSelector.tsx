@@ -183,6 +183,26 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
       },
     );
 
+    // Listen for model download cancellation
+    const downloadCancelledUnlisten = listen<string>(
+      "model-download-cancelled",
+      (event) => {
+        const modelId = event.payload;
+        setModelDownloadProgress((prev) => {
+          const newMap = new Map(prev);
+          newMap.delete(modelId);
+          return newMap;
+        });
+        setDownloadStats((prev) => {
+          const newStats = new Map(prev);
+          newStats.delete(modelId);
+          return newStats;
+        });
+        setModelStatus("unloaded");
+        loadModels(); // Refresh models list to show "Download" button again
+      },
+    );
+
     // Listen for extraction events
     const extractionStartedUnlisten = listen<string>(
       "model-extraction-started",
@@ -247,6 +267,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
       modelStateUnlisten.then((fn) => fn());
       downloadProgressUnlisten.then((fn) => fn());
       downloadCompleteUnlisten.then((fn) => fn());
+      downloadCancelledUnlisten.then((fn) => fn());
       extractionStartedUnlisten.then((fn) => fn());
       extractionCompletedUnlisten.then((fn) => fn());
       extractionFailedUnlisten.then((fn) => fn());
@@ -451,6 +472,13 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             downloadProgress={modelDownloadProgress}
             onModelSelect={handleModelSelect}
             onModelDownload={handleModelDownload}
+            onModelDownloadCancel={async (modelId) => {
+              try {
+                await commands.cancelDownload(modelId);
+              } catch (err) {
+                onError?.(`${err}`);
+              }
+            }}
             onModelDelete={handleModelDelete}
             onError={onError}
             isRemoteProvider={isRemoteProvider}

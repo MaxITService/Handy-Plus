@@ -96,6 +96,7 @@ dependencies = [
  "tauri-plugin-updater",
  "tauri-specta",
  "tokio",
+ "tokio-util",
  "tower-http",
  "transcribe-rs",
  "vad-rs",
