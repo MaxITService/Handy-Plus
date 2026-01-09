@@ -31,6 +31,16 @@ use tauri::{AppHandle, Emitter, Manager};
 pub trait ShortcutAction: Send + Sync {
     fn start(&self, app: &AppHandle, binding_id: &str, shortcut_str: &str);
     fn stop(&self, app: &AppHandle, binding_id: &str, shortcut_str: &str);
+
+    /// Returns true if this action is instant (fires on every keypress).
+    /// Instant actions bypass toggle state management entirely - each press
+    /// triggers `start()` without tracking start/stop state.
+    ///
+    /// Examples: profile cycling, repaste, cancel - these are one-shot
+    /// operations that make no sense as "toggle on/off" actions.
+    fn is_instant(&self) -> bool {
+        false
+    }
 }
 
 // Transcribe Action
@@ -1758,6 +1768,10 @@ impl ShortcutAction for CancelAction {
     fn stop(&self, _app: &AppHandle, _binding_id: &str, _shortcut_str: &str) {
         // Nothing to do on stop for cancel
     }
+
+    fn is_instant(&self) -> bool {
+        true
+    }
 }
 
 // Test Action
@@ -1844,6 +1858,10 @@ impl ShortcutAction for RepastLastAction {
     fn stop(&self, _app: &AppHandle, _binding_id: &str, _shortcut_str: &str) {
         // Repaste is instant, nothing to do on stop
     }
+
+    fn is_instant(&self) -> bool {
+        true
+    }
 }
 
 // ============================================================================
@@ -1879,6 +1897,10 @@ impl ShortcutAction for CycleProfileAction {
 
     fn stop(&self, _app: &AppHandle, _binding_id: &str, _shortcut_str: &str) {
         // Cycling is instant, nothing to do on stop
+    }
+
+    fn is_instant(&self) -> bool {
+        true
     }
 }
 

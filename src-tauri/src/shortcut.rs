@@ -1836,6 +1836,16 @@ pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<()
                         _ => settings.push_to_talk,
                     };
 
+                    // Handle instant actions first - they fire on every press
+                    // without any toggle state management
+                    if action.is_instant() {
+                        if event.state == ShortcutState::Pressed {
+                            action.start(ah, &binding_id_for_closure, &shortcut_string);
+                        }
+                        // Instant actions don't need stop() on release
+                        return;
+                    }
+
                     if use_push_to_talk {
                         if event.state == ShortcutState::Pressed {
                             action.start(ah, &binding_id_for_closure, &shortcut_string);
