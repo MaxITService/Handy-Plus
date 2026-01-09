@@ -57,45 +57,72 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
 }) => {
   const { t } = useTranslation();
   const [isUpdating, setIsUpdating] = useState(false);
-  const [localName, setLocalName] = useState(profile.name);
-  const [localLanguage, setLocalLanguage] = useState(profile.language);
-  const [localTranslate, setLocalTranslate] = useState(
-    profile.translate_to_english,
-  );
-  const [localSystemPrompt, setLocalSystemPrompt] = useState(
-    profile.system_prompt || "",
-  );
-  const [localIncludeInCycle, setLocalIncludeInCycle] = useState(
-    profile.include_in_cycle,
-  );
-  const [localPushToTalk, setLocalPushToTalk] = useState(
-    profile.push_to_talk ?? true,
-  );
 
   const bindingId = `transcribe_${profile.id}`;
 
   const languageLabel = useMemo(() => {
-    const lang = LANGUAGES.find((l) => l.value === localLanguage);
+    const lang = LANGUAGES.find((l) => l.value === profile.language);
     return lang?.label || t("settings.general.language.auto");
-  }, [localLanguage, t]);
+  }, [profile.language, t]);
 
-  const promptLength = localSystemPrompt.length;
+  const promptLength = (profile.system_prompt || "").length;
   const isOverLimit = promptLimit > 0 && promptLength > promptLimit;
 
-  const handleSave = async () => {
-    if (!localName.trim()) return;
-    if (isOverLimit) return;
+  // Instant update handlers
+  const handleNameChange = async (newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === profile.name) return;
     setIsUpdating(true);
     try {
-      await onUpdate({
-        ...profile,
-        name: localName.trim(),
-        language: localLanguage,
-        translate_to_english: localTranslate,
-        system_prompt: localSystemPrompt,
-        include_in_cycle: localIncludeInCycle,
-        push_to_talk: localPushToTalk,
-      });
+      await onUpdate({ ...profile, name: trimmed });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleLanguageChange = async (newLanguage: string) => {
+    if (newLanguage === profile.language) return;
+    setIsUpdating(true);
+    try {
+      await onUpdate({ ...profile, language: newLanguage });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleTranslateChange = async (newTranslate: boolean) => {
+    setIsUpdating(true);
+    try {
+      await onUpdate({ ...profile, translate_to_english: newTranslate });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSystemPromptChange = async (newPrompt: string) => {
+    if (newPrompt === (profile.system_prompt || "")) return;
+    if (promptLimit > 0 && newPrompt.length > promptLimit) return;
+    setIsUpdating(true);
+    try {
+      await onUpdate({ ...profile, system_prompt: newPrompt });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleIncludeInCycleChange = async (newValue: boolean) => {
+    setIsUpdating(true);
+    try {
+      await onUpdate({ ...profile, include_in_cycle: newValue });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handlePushToTalkChange = async (newValue: boolean) => {
+    setIsUpdating(true);
+    try {
+      await onUpdate({ ...profile, push_to_talk: newValue });
     } finally {
       setIsUpdating(false);
     }
@@ -109,14 +136,6 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
       setIsUpdating(false);
     }
   };
-
-  const isDirty =
-    localName.trim() !== profile.name ||
-    localLanguage !== profile.language ||
-    localTranslate !== profile.translate_to_english ||
-    localSystemPrompt !== profile.system_prompt ||
-    localIncludeInCycle !== profile.include_in_cycle ||
-    localPushToTalk !== (profile.push_to_talk ?? true);
 
   return (
     <div
@@ -152,6 +171,20 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {canDelete && (
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete();
+              }}
+              variant="secondary"
+              size="sm"
+              disabled={isUpdating}
+              className="text-red-400 hover:text-red-300 hover:border-red-400/50 p-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          )}
           {isExpanded ? (
             <ChevronUp className="w-4 h-4 text-mid-gray" />
           ) : (
@@ -200,8 +233,8 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
               <div className="flex items-center gap-2 h-8">
                 <input
                   type="checkbox"
-                  checked={localIncludeInCycle}
-                  onChange={(e) => setLocalIncludeInCycle(e.target.checked)}
+                  checked={profile.include_in_cycle}
+                  onChange={(e) => handleIncludeInCycleChange(e.target.checked)}
                   disabled={isUpdating}
                   className="w-4 h-4 rounded border-mid-gray bg-background text-purple-500 focus:ring-purple-500/50"
                 />
@@ -219,8 +252,8 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
               </label>
               <div className="flex items-center gap-2 h-8">
                 <ToggleSwitch
-                  checked={localPushToTalk}
-                  onChange={setLocalPushToTalk}
+                  checked={profile.push_to_talk ?? true}
+                  onChange={handlePushToTalkChange}
                   disabled={isUpdating}
                 />
                 <span className="text-xs text-mid-gray">
@@ -245,8 +278,8 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
             </label>
             <Input
               type="text"
-              value={localName}
-              onChange={(e) => setLocalName(e.target.value)}
+              defaultValue={profile.name}
+              onBlur={(e) => handleNameChange(e.target.value)}
               placeholder={t(
                 "settings.transcriptionProfiles.profileNamePlaceholder",
               )}
@@ -261,12 +294,12 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
               {t("settings.transcriptionProfiles.language")}
             </label>
             <Dropdown
-              selectedValue={localLanguage}
+              selectedValue={profile.language}
               options={LANGUAGES.map((l) => ({
                 value: l.value,
                 label: l.label,
               }))}
-              onSelect={(value) => value && setLocalLanguage(value)}
+              onSelect={(value) => value && handleLanguageChange(value)}
               placeholder={t("settings.general.language.auto")}
               disabled={isUpdating}
             />
@@ -286,8 +319,8 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
               </span>
             </div>
             <textarea
-              value={localSystemPrompt}
-              onChange={(e) => setLocalSystemPrompt(e.target.value)}
+              defaultValue={profile.system_prompt || ""}
+              onBlur={(e) => handleSystemPromptChange(e.target.value)}
               placeholder={t(
                 "settings.transcriptionProfiles.systemPromptPlaceholder",
               )}
@@ -325,43 +358,18 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
             </div>
             <button
               type="button"
-              onClick={() => setLocalTranslate(!localTranslate)}
+              onClick={() => handleTranslateChange(!profile.translate_to_english)}
               disabled={isUpdating}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                localTranslate ? "bg-purple-500" : "bg-mid-gray/30"
+                profile.translate_to_english ? "bg-purple-500" : "bg-mid-gray/30"
               } ${isUpdating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  localTranslate ? "translate-x-6" : "translate-x-1"
+                  profile.translate_to_english ? "translate-x-6" : "translate-x-1"
                 }`}
               />
             </button>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2 pt-2">
-            <Button
-              onClick={handleSave}
-              variant="primary"
-              size="sm"
-              disabled={
-                !isDirty || !localName.trim() || isUpdating || isOverLimit
-              }
-            >
-              {t("settings.transcriptionProfiles.saveChanges")}
-            </Button>
-            {canDelete && (
-              <Button
-                onClick={handleDelete}
-                variant="secondary"
-                size="sm"
-                disabled={isUpdating}
-                className="text-red-400 hover:text-red-300 hover:border-red-400/50"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
           </div>
         </div>
       )}
