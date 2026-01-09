@@ -154,8 +154,7 @@ pub fn reset_binding(app: AppHandle, id: String) -> Result<BindingResponse, Stri
 pub fn change_ptt_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
 
-    // TODO if the setting is currently false, we probably want to
-    // cancel any ongoing recordings or actions
+    // Update the setting
     settings.push_to_talk = enabled;
 
     settings::write_settings(&app, settings);
