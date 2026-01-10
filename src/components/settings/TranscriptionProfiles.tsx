@@ -139,30 +139,32 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
 
   return (
     <div
-      className={`border rounded-lg transition-colors ${isActive ? "border-purple-500/50 bg-purple-500/5" : "border-mid-gray/30 bg-background/50"}`}
+      className={`min-w-0 border rounded-lg transition-colors ${isActive ? "border-purple-500/50 bg-purple-500/5" : "border-mid-gray/30 bg-background/50"}`}
     >
       {/* Header - always visible */}
       <div
-        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-mid-gray/5 transition-colors"
+        className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer hover:bg-mid-gray/5 transition-colors"
         onClick={onToggleExpand}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <Globe
             className={`w-4 h-4 ${isActive ? "text-purple-400" : "text-logo-primary"}`}
           />
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-sm">{profile.name}</span>
+          <div className="flex flex-col min-w-0">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
+              <span className="font-medium text-sm break-words">
+                {profile.name}
+              </span>
               {isActive && (
                 <Badge
                   variant="secondary"
-                  className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-[10px] px-1.5 py-0"
+                  className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-[10px] px-1.5 py-0 max-w-full truncate"
                 >
                   {t("settings.transcriptionProfiles.active")}
                 </Badge>
               )}
             </div>
-            <span className="text-xs text-mid-gray">
+            <span className="text-xs text-mid-gray break-words">
               {languageLabel}
               {profile.translate_to_english && (
                 <span className="text-purple-400 ml-1">→ EN</span>
@@ -170,7 +172,26 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSetActive(profile.id);
+            }}
+            disabled={isActive || isUpdating}
+            variant={isActive ? "secondary" : "primary"}
+            size="sm"
+            className={isActive ? "opacity-100 cursor-default" : ""}
+            title={isActive ? t("settings.transcriptionProfiles.active") : undefined}
+          >
+            {isActive ? (
+              <Check className="w-4 h-4" />
+            ) : (
+              <span className="text-xs">
+                {t("settings.transcriptionProfiles.setActive")}
+              </span>
+            )}
+          </Button>
           {canDelete && (
             <Button
               onClick={(e) => {
@@ -195,42 +216,14 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
 
       {/* Expanded content */}
       {isExpanded && (
-        <div className="px-4 pb-4 pt-2 border-t border-mid-gray/20 space-y-4">
-          {/* Active Profile & Cycle Controls */}
-          <div className="flex items-center gap-4 bg-mid-gray/5 p-3 rounded-lg border border-mid-gray/10">
-            <div className="flex-1">
-              <label className="text-xs font-semibold text-text/70 block mb-1">
-                {t("settings.transcriptionProfiles.active")}
-              </label>
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSetActive(profile.id);
-                }}
-                disabled={isActive || isUpdating}
-                variant={isActive ? "secondary" : "primary"}
-                size="sm"
-                className={`w-full justify-center ${isActive ? "opacity-100 cursor-default" : ""}`}
-              >
-                {isActive ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 mr-1.5" />
-                    {t("settings.transcriptionProfiles.active")}
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-3.5 h-3.5 mr-1.5" />
-                    {t("settings.transcriptionProfiles.setActive")}
-                  </>
-                )}
-              </Button>
-            </div>
-
-            <div className="flex-1">
-              <label className="text-xs font-semibold text-text/70 block mb-1">
+        <div className="px-4 pb-4 pt-3 border-t border-mid-gray/20 space-y-3">
+          {/* Cycle & Push-to-Talk Controls */}
+          <div className="grid gap-3 md:grid-cols-2 bg-mid-gray/5 p-3 rounded-lg border border-mid-gray/10">
+            <div className="min-w-0">
+              <label className="text-xs font-semibold text-text/70 block mb-2">
                 {t("settings.transcriptionProfiles.includeInCycle")}
               </label>
-              <div className="flex items-center gap-2 h-8">
+              <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={profile.include_in_cycle}
@@ -238,7 +231,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
                   disabled={isUpdating}
                   className="w-4 h-4 rounded border-mid-gray bg-background text-purple-500 focus:ring-purple-500/50"
                 />
-                <span className="text-xs text-mid-gray">
+                <span className="text-xs text-mid-gray leading-snug">
                   {t(
                     "settings.transcriptionProfiles.includeInCycleDescription",
                   )}
@@ -246,63 +239,99 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
               </div>
             </div>
 
-            <div className="flex-1">
-              <label className="text-xs font-semibold text-text/70 block mb-1">
+            <div className="min-w-0">
+              <label className="text-xs font-semibold text-text/70 block mb-2">
                 {t("settings.general.pushToTalk.label")}
               </label>
-              <div className="flex items-center gap-2 h-8">
+              <div className="flex items-center gap-2">
                 <ToggleSwitch
                   checked={profile.push_to_talk ?? true}
                   onChange={handlePushToTalkChange}
                   disabled={isUpdating}
                 />
-                <span className="text-xs text-mid-gray">
+                <span className="text-xs text-mid-gray leading-snug">
                   {t("settings.general.pushToTalk.description")}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Shortcut */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-text/70">
-              {t("settings.transcriptionProfiles.shortcut")}
-            </label>
-            <HandyShortcut shortcutId={bindingId} grouped={true} />
-          </div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {/* Shortcut */}
+            <div className="space-y-2 min-w-0">
+              <label className="text-xs font-semibold text-text/70">
+                {t("settings.transcriptionProfiles.shortcut")}
+              </label>
+              <HandyShortcut shortcutId={bindingId} grouped={true} />
+            </div>
 
-          {/* Profile Name */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-text/70">
-              {t("settings.transcriptionProfiles.profileName")}
-            </label>
-            <Input
-              type="text"
-              defaultValue={profile.name}
-              onBlur={(e) => handleNameChange(e.target.value)}
-              placeholder={t(
-                "settings.transcriptionProfiles.profileNamePlaceholder",
-              )}
-              variant="compact"
-              disabled={isUpdating}
-            />
-          </div>
+            {/* Profile Name */}
+            <div className="space-y-2 min-w-0">
+              <label className="text-xs font-semibold text-text/70">
+                {t("settings.transcriptionProfiles.profileName")}
+              </label>
+              <Input
+                type="text"
+                defaultValue={profile.name}
+                onBlur={(e) => handleNameChange(e.target.value)}
+                placeholder={t(
+                  "settings.transcriptionProfiles.profileNamePlaceholder",
+                )}
+                variant="compact"
+                disabled={isUpdating}
+              />
+            </div>
 
-          {/* Language Selection */}
-          <div className="space-y-2 relative z-20">
-            <label className="text-xs font-semibold text-text/70">
-              {t("settings.transcriptionProfiles.language")}
-            </label>
-            <Dropdown
-              selectedValue={profile.language}
-              options={LANGUAGES.map((l) => ({
-                value: l.value,
-                label: l.label,
-              }))}
-              onSelect={(value) => value && handleLanguageChange(value)}
-              placeholder={t("settings.general.language.auto")}
-              disabled={isUpdating}
-            />
+            {/* Language Selection */}
+            <div className="space-y-2 relative z-20 min-w-0">
+              <label className="text-xs font-semibold text-text/70">
+                {t("settings.transcriptionProfiles.language")}
+              </label>
+              <Dropdown
+                selectedValue={profile.language}
+                options={LANGUAGES.map((l) => ({
+                  value: l.value,
+                  label: l.label,
+                }))}
+                onSelect={(value) => value && handleLanguageChange(value)}
+                placeholder={t("settings.general.language.auto")}
+                disabled={isUpdating}
+              />
+            </div>
+
+            {/* Translate to English Toggle */}
+            <div className="space-y-2 min-w-0">
+              <label className="text-xs font-semibold text-text/70">
+                {t("settings.transcriptionProfiles.translateToEnglish")}
+              </label>
+              <div className="flex flex-col gap-2 rounded-md border border-mid-gray/10 bg-mid-gray/5 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-mid-gray leading-snug">
+                  {t(
+                    "settings.transcriptionProfiles.translateToEnglishDescription",
+                  )}
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleTranslateChange(!profile.translate_to_english)
+                  }
+                  disabled={isUpdating}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
+                    profile.translate_to_english
+                      ? "bg-purple-500"
+                      : "bg-mid-gray/30"
+                  } ${isUpdating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      profile.translate_to_english
+                        ? "translate-x-6"
+                        : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* System Prompt */}
@@ -344,33 +373,6 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
             )}
           </div>
 
-          {/* Translate to English Toggle */}
-          <div className="flex items-center justify-between">
-            <div>
-              <label className="text-xs font-semibold text-text/70">
-                {t("settings.transcriptionProfiles.translateToEnglish")}
-              </label>
-              <p className="text-xs text-mid-gray mt-0.5">
-                {t(
-                  "settings.transcriptionProfiles.translateToEnglishDescription",
-                )}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleTranslateChange(!profile.translate_to_english)}
-              disabled={isUpdating}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                profile.translate_to_english ? "bg-purple-500" : "bg-mid-gray/30"
-              } ${isUpdating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  profile.translate_to_english ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
-          </div>
         </div>
       )}
     </div>
@@ -381,13 +383,29 @@ export const TranscriptionProfiles: React.FC = () => {
   const { t } = useTranslation();
   const { settings, refreshSettings, updateSetting } = useSettings();
   const { getModelInfo } = useModels();
-  const [expandedId, setExpandedId] = useState<string | null>("default");
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(
+    () => new Set(["default"]),
+  );
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [newLanguage, setNewLanguage] = useState("auto");
   const [newTranslate, setNewTranslate] = useState(false);
   const [newSystemPrompt, setNewSystemPrompt] = useState("");
   const [newPushToTalk, setNewPushToTalk] = useState(true);
+
+  const isExpanded = (id: string) => expandedIds.has(id);
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   const profiles = (settings?.transcription_profiles ||
     []) as ExtendedTranscriptionProfile[];
@@ -458,7 +476,11 @@ export const TranscriptionProfiles: React.FC = () => {
         setNewTranslate(false);
         setNewSystemPrompt("");
         setNewPushToTalk(true);
-        setExpandedId(result.data.id);
+        setExpandedIds((prev) => {
+          const next = new Set(prev);
+          next.add(result.data.id);
+          return next;
+        });
       }
     } catch (error) {
       console.error("Failed to create profile:", error);
@@ -488,9 +510,12 @@ export const TranscriptionProfiles: React.FC = () => {
     try {
       await commands.deleteTranscriptionProfile(id);
       await refreshSettings();
-      if (expandedId === id) {
-        setExpandedId(null);
-      }
+      setExpandedIds((prev) => {
+        if (!prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     } catch (error) {
       console.error("Failed to delete profile:", error);
     }
@@ -536,10 +561,10 @@ export const TranscriptionProfiles: React.FC = () => {
         layout="stacked"
         grouped={true}
       >
-        <div className="p-4 bg-gradient-to-r from-purple-500/15 to-pink-500/10 border border-purple-500/40 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
+        <div className="p-3 bg-gradient-to-r from-purple-500/15 to-pink-500/10 border border-purple-500/40 rounded-lg">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-semibold text-text">
                   {t("settings.transcriptionProfiles.transcribeActiveProfile")}
                 </span>
@@ -557,7 +582,9 @@ export const TranscriptionProfiles: React.FC = () => {
                 {t("settings.transcriptionProfiles.transcribeActiveProfileDescription")}
               </span>
             </div>
-            <HandyShortcut shortcutId="transcribe" />
+            <div className="shrink-0">
+              <HandyShortcut shortcutId="transcribe" />
+            </div>
           </div>
         </div>
       </SettingContainer>
@@ -570,36 +597,40 @@ export const TranscriptionProfiles: React.FC = () => {
         layout="stacked"
         grouped={true}
       >
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Cycle Shortcut */}
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col">
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+            <div className="flex flex-col min-w-0">
               <span className="text-sm font-medium">
                 {t("settings.transcriptionProfiles.includeInCycleDescription")}
               </span>
-              <span className="text-xs text-mid-gray">
+              <span className="text-xs text-mid-gray leading-snug">
                 Global shortcut to cycle through active profiles
               </span>
             </div>
-            <HandyShortcut shortcutId="cycle_profile" />
+            <div className="shrink-0">
+              <HandyShortcut shortcutId="cycle_profile" />
+            </div>
           </div>
 
           {/* Overlay Toggle */}
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col">
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+            <div className="flex flex-col min-w-0">
               <span className="text-sm font-medium">
                 {t("settings.transcriptionProfiles.showOverlayOnSwitch")}
               </span>
-              <span className="text-xs text-mid-gray">
+              <span className="text-xs text-mid-gray leading-snug">
                 {t(
                   "settings.transcriptionProfiles.showOverlayOnSwitchDescription",
                 )}
               </span>
             </div>
-            <ToggleSwitch
-              checked={overlayEnabled}
-              onChange={handleOverlayChange}
-            />
+            <div className="shrink-0">
+              <ToggleSwitch
+                checked={overlayEnabled}
+                onChange={handleOverlayChange}
+              />
+            </div>
           </div>
         </div>
       </SettingContainer>
@@ -611,25 +642,23 @@ export const TranscriptionProfiles: React.FC = () => {
         layout="stacked"
         grouped={true}
       >
-        <div className="space-y-2">
+        <div className="space-y-3">
           {/* Default Profile Card - Expandable with global settings */}
           <div
-            className={`border rounded-lg transition-colors ${activeProfileId === "default" ? "border-purple-500/50 bg-purple-500/5" : "border-mid-gray/30 bg-background/50"}`}
+            className={`min-w-0 border rounded-lg transition-colors ${activeProfileId === "default" ? "border-purple-500/50 bg-purple-500/5" : "border-mid-gray/30 bg-background/50"}`}
           >
             {/* Header - clickable to expand */}
             <div
-              className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-mid-gray/5 transition-colors"
-              onClick={() =>
-                setExpandedId(expandedId === "default" ? null : "default")
-              }
+              className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer hover:bg-mid-gray/5 transition-colors"
+              onClick={() => toggleExpanded("default")}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 <RefreshCw
                   className={`w-4 h-4 ${activeProfileId === "default" ? "text-purple-400" : "text-mid-gray"}`}
                 />
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">
+                <div className="flex flex-col min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                    <span className="font-medium text-sm break-words">
                       {t("settings.transcriptionProfiles.defaultProfile")}
                     </span>
                     {activeProfileId === "default" && (
@@ -641,14 +670,14 @@ export const TranscriptionProfiles: React.FC = () => {
                       </Badge>
                     )}
                   </div>
-                  <span className="text-xs text-mid-gray">
+                  <span className="text-xs text-mid-gray break-words">
                     {t(
                       "settings.transcriptionProfiles.defaultProfileDescription",
                     )}
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <Button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -664,6 +693,7 @@ export const TranscriptionProfiles: React.FC = () => {
                       ? "opacity-100 cursor-default"
                       : ""
                   }
+                  title={activeProfileId === "default" ? t("settings.transcriptionProfiles.active") : undefined}
                 >
                   {activeProfileId === "default" ? (
                     <Check className="w-4 h-4" />
@@ -673,7 +703,7 @@ export const TranscriptionProfiles: React.FC = () => {
                     </span>
                   )}
                 </Button>
-                {expandedId === "default" ? (
+                {isExpanded("default") ? (
                   <ChevronUp className="w-4 h-4 text-mid-gray" />
                 ) : (
                   <ChevronDown className="w-4 h-4 text-mid-gray" />
@@ -682,8 +712,8 @@ export const TranscriptionProfiles: React.FC = () => {
             </div>
 
             {/* Expanded content - Global settings */}
-            {expandedId === "default" && (
-              <div className="px-4 pb-4 pt-2 border-t border-mid-gray/20 space-y-4">
+            {isExpanded("default") && (
+              <div className="px-4 pb-4 pt-3 border-t border-mid-gray/20 space-y-3">
                 {/* Optional Shortcut for Default profile */}
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-text/70">
@@ -693,8 +723,8 @@ export const TranscriptionProfiles: React.FC = () => {
                 </div>
 
                 {/* Language & Push-to-Talk in a row */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="space-y-2 min-w-0">
                     <label className="text-xs font-semibold text-text/70">
                       {t("settings.general.language.title")}
                     </label>
@@ -710,11 +740,11 @@ export const TranscriptionProfiles: React.FC = () => {
                       }))}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 min-w-0">
                     <label className="text-xs font-semibold text-text/70">
                       {t("settings.general.pushToTalk.label")}
                     </label>
-                    <div className="flex items-center gap-2 h-9">
+                    <div className="flex items-start gap-2">
                       <ToggleSwitch
                         checked={settings?.push_to_talk ?? true}
                         onChange={(checked) =>
@@ -722,7 +752,7 @@ export const TranscriptionProfiles: React.FC = () => {
                           updateSetting("push_to_talk" as any, checked)
                         }
                       />
-                      <span className="text-xs text-mid-gray">
+                      <span className="text-xs text-mid-gray leading-snug">
                         {t("settings.general.pushToTalk.description")}
                       </span>
                     </div>
@@ -782,10 +812,8 @@ export const TranscriptionProfiles: React.FC = () => {
             <ProfileCard
               key={profile.id}
               profile={profile}
-              isExpanded={expandedId === profile.id}
-              onToggleExpand={() =>
-                setExpandedId(expandedId === profile.id ? null : profile.id)
-              }
+              isExpanded={isExpanded(profile.id)}
+              onToggleExpand={() => toggleExpanded(profile.id)}
               onUpdate={handleUpdate}
               onDelete={handleDelete}
               canDelete={true}
@@ -806,8 +834,8 @@ export const TranscriptionProfiles: React.FC = () => {
         grouped={true}
       >
         <div className="space-y-3 p-3 border border-dashed border-mid-gray/30 rounded-lg overflow-visible">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="space-y-1 min-w-0">
               <label className="text-xs font-semibold text-text/70">
                 {t("settings.transcriptionProfiles.profileName")}
               </label>
@@ -822,7 +850,7 @@ export const TranscriptionProfiles: React.FC = () => {
                 disabled={isCreating}
               />
             </div>
-            <div className="space-y-1 relative z-10">
+            <div className="space-y-1 relative z-10 min-w-0">
               <label className="text-xs font-semibold text-text/70">
                 {t("settings.transcriptionProfiles.language")}
               </label>
@@ -875,8 +903,8 @@ export const TranscriptionProfiles: React.FC = () => {
             )}
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <label className="text-xs font-semibold text-text/70">
                 {t("settings.transcriptionProfiles.translateToEnglish")}
               </label>
@@ -885,7 +913,7 @@ export const TranscriptionProfiles: React.FC = () => {
               type="button"
               onClick={() => setNewTranslate(!newTranslate)}
               disabled={isCreating}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
                 newTranslate ? "bg-purple-500" : "bg-mid-gray/30"
               } ${isCreating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
             >
@@ -897,8 +925,8 @@ export const TranscriptionProfiles: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <label className="text-xs font-semibold text-text/70">
                 {t("settings.general.pushToTalk.label")}
               </label>
@@ -907,7 +935,7 @@ export const TranscriptionProfiles: React.FC = () => {
               type="button"
               onClick={() => setNewPushToTalk(!newPushToTalk)}
               disabled={isCreating}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
                 newPushToTalk ? "bg-purple-500" : "bg-mid-gray/30"
               } ${isCreating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
             >
