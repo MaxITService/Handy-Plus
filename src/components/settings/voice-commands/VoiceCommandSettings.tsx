@@ -477,9 +477,21 @@ export default function VoiceCommandSettings() {
                   <div key={entry.id} className={`log-entry ${entry.isError ? "error" : "success"}`}>
                     <div className="log-entry-header">
                       <span className="log-time">{formatTime(entry.timestamp)}</span>
-                      <span className={`log-status ${entry.isError ? "error" : entry.wasOpenedInWindow ? "opened" : "success"}`}>
-                        {entry.isError ? "ERROR" : entry.wasOpenedInWindow ? "OPENED" : "OK"}
-                      </span>
+                      <div className="log-entry-actions">
+                        <button
+                          className="btn-copy-entry"
+                          onClick={() => {
+                            const text = `${entry.command}${entry.output ? `\n${entry.output}` : ""}`;
+                            navigator.clipboard.writeText(text);
+                          }}
+                          title={t("voiceCommands.copyEntry", "Copy command")}
+                        >
+                          📋
+                        </button>
+                        <span className={`log-status ${entry.isError ? "error" : entry.wasOpenedInWindow ? "opened" : "success"}`}>
+                          {entry.isError ? "ERROR" : entry.wasOpenedInWindow ? "OPENED" : "OK"}
+                        </span>
+                      </div>
                     </div>
                     <div className="log-command">{entry.command}</div>
                     {entry.spokenText && (
@@ -738,6 +750,26 @@ export default function VoiceCommandSettings() {
         .log-status.opened {
           background: rgba(33, 150, 243, 0.2);
           color: #2196f3;
+        }
+        .log-entry-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .btn-copy-entry {
+          background: transparent;
+          border: none;
+          padding: 2px 4px;
+          cursor: pointer;
+          opacity: 0.5;
+          font-size: 12px;
+          transition: opacity 0.2s;
+        }
+        .btn-copy-entry:hover {
+          opacity: 1;
+        }
+        .log-entry:hover .btn-copy-entry {
+          opacity: 0.7;
         }
         .log-command {
           color: #4fc3f7;
