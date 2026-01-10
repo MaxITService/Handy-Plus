@@ -1067,7 +1067,7 @@ export default function VoiceCommandSettings() {
           font-weight: 500;
         }
         .btn-add {
-          background: linear-gradient(135deg, #8a2be2 0%, #9c27b0 100%);
+          background: #9b5de5;
           color: white;
           border: none;
           padding: 8px 16px;
@@ -1317,7 +1317,7 @@ export default function VoiceCommandSettings() {
           font-style: italic;
         }
         .btn-mock-test {
-          background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+          background: #9b5de5;
           color: white;
           border: none;
           padding: 10px 20px;
@@ -1330,7 +1330,7 @@ export default function VoiceCommandSettings() {
         }
         .btn-mock-test:hover:not(:disabled) {
           transform: scale(1.02);
-          box-shadow: 0 4px 12px rgba(196, 69, 105, 0.3);
+          box-shadow: 0 4px 12px rgba(155, 93, 229, 0.3);
         }
         .btn-mock-test:disabled {
           opacity: 0.6;

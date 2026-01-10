@@ -177,9 +177,7 @@
 
 .btn-premium {
   position: relative;
-  background: linear-gradient(135deg,
-      var(--color-accent-primary) 0%,
-      var(--color-accent-secondary) 100%);
+  background: var(--color-accent-primary);
   border: none;
   border-radius: 6px;
   padding: 8px 16px;
@@ -189,7 +187,7 @@
   overflow: hidden;
   transition: all 0.2s ease;
   box-shadow:
-    0 2px 8px rgba(255, 77, 141, 0.3),
+    0 2px 8px rgba(155, 93, 229, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
@@ -214,7 +212,7 @@
 .btn-premium:hover {
   transform: translateY(-1px);
   box-shadow:
-    0 4px 16px rgba(255, 77, 141, 0.4),
+    0 4px 16px rgba(155, 93, 229, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
@@ -292,9 +290,7 @@
 }
 
 .toggle-adobe.active {
-  background: linear-gradient(135deg,
-      var(--color-accent-primary) 0%,
-      var(--color-accent-secondary) 100%);
+  background: var(--color-accent-primary);
 }
 
 .toggle-adobe::after {

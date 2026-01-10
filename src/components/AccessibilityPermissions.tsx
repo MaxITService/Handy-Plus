@@ -65,7 +65,7 @@ const AccessibilityPermissions: React.FC = () => {
     request: {
       text: t("accessibility.openSettings"),
       className:
-        "px-4 py-2 text-sm font-medium bg-gradient-to-r from-[#ff4d8d] to-[#9b5de5] text-white rounded-md hover:shadow-[0_4px_16px_rgba(255,77,141,0.4)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer",
+        "px-4 py-2 text-sm font-medium bg-[#9b5de5] text-white rounded-md hover:shadow-[0_4px_16px_rgba(155,93,229,0.35)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer",
     },
     verify: {
       text: t("accessibility.openSettings"),

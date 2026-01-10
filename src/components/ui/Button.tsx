@@ -17,7 +17,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variantClasses = {
     primary:
-      "text-white bg-gradient-to-r from-[#ff4d8d] to-[#9b5de5] border-none hover:shadow-[0_4px_16px_rgba(255,77,141,0.4)] hover:-translate-y-0.5 active:translate-y-0",
+      "text-white bg-[#9b5de5] border-none hover:shadow-[0_4px_16px_rgba(155,93,229,0.35)] hover:-translate-y-0.5 active:translate-y-0",
     secondary:
       "bg-[#1a1a1a]/70 border border-[#333333] text-[#f5f5f5] backdrop-blur-sm hover:bg-[#222222]/80 hover:border-[#3d3d3d] hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)]",
     danger:

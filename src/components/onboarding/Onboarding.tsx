@@ -121,7 +121,7 @@ const Onboarding: React.FC<OnboardingProps> = ({
                     {t("onboarding.mode.local.description")}
                   </p>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#ff4d8d] to-[#9b5de5] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="w-10 h-10 rounded-full bg-[#9b5de5] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
@@ -148,7 +148,7 @@ const Onboarding: React.FC<OnboardingProps> = ({
                   )}
                 </div>
                 {isWindows && (
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#ff4d8d] to-[#9b5de5] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="w-10 h-10 rounded-full bg-[#9b5de5] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
