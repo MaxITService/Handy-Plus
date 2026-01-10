@@ -585,6 +585,30 @@ async changeAiReplaceModelSetting(providerId: string, model: string) : Promise<R
     else return { status: "error", error: e  as any };
 }
 },
+async setVoiceCommandProvider(providerId: string | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_voice_command_provider", { providerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeVoiceCommandApiKeySetting(providerId: string, apiKey: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_voice_command_api_key_setting", { providerId, apiKey }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeVoiceCommandModelSetting(providerId: string, model: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_voice_command_model_setting", { providerId, model }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeSendToExtensionEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_send_to_extension_enabled_setting", { enabled }) };
@@ -1452,6 +1476,18 @@ ai_replace_reasoning_enabled?: boolean;
  */
 ai_replace_reasoning_budget?: number; 
 /**
+ * Voice Command LLM provider ID (separate from post-processing)
+ */
+voice_command_provider_id?: string | null; 
+/**
+ * Voice Command API keys per provider
+ */
+voice_command_api_keys?: Partial<{ [key in string]: string }>; 
+/**
+ * Voice Command models per provider
+ */
+voice_command_models?: Partial<{ [key in string]: string }>; 
+/**
  * Whether to enable extended thinking for Voice Command LLM fallback
  */
 voice_command_reasoning_enabled?: boolean; 
@@ -1534,7 +1570,11 @@ export type LlmFeature =
 /**
  * AI Replace selection feature
  */
-"ai_replace"
+"ai_replace" | 
+/**
+ * Voice Command LLM fallback
+ */
+"voice_command"
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error"
 export type ModelInfo = { id: string; name: string; description: string; filename: string; url: string | null; size_mb: number; is_downloaded: boolean; is_downloading: boolean; partial_size: number; is_directory: boolean; engine_type: EngineType; accuracy_score: number; speed_score: number }
 export type ModelLoadStatus = { is_loaded: boolean; current_model: string | null }

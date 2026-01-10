@@ -155,6 +155,8 @@ pub enum LlmFeature {
     PostProcessing,
     /// AI Replace selection feature
     AiReplace,
+    /// Voice Command LLM fallback
+    VoiceCommand,
 }
 
 /// Resolved LLM configuration for a specific feature.
@@ -544,6 +546,16 @@ pub struct AppSettings {
     /// Token budget for AI Replace extended thinking (min: 1024, default: 2048)
     #[serde(default = "default_reasoning_budget")]
     pub ai_replace_reasoning_budget: u32,
+    // ==================== Voice Command LLM Settings ====================
+    /// Voice Command LLM provider ID (separate from post-processing)
+    #[serde(default)]
+    pub voice_command_provider_id: Option<String>,
+    /// Voice Command API keys per provider
+    #[serde(default)]
+    pub voice_command_api_keys: HashMap<String, String>,
+    /// Voice Command models per provider
+    #[serde(default)]
+    pub voice_command_models: HashMap<String, String>,
     /// Whether to enable extended thinking for Voice Command LLM fallback
     #[serde(default)]
     pub voice_command_reasoning_enabled: bool,
@@ -1152,6 +1164,10 @@ pub fn get_default_settings() -> AppSettings {
         post_process_reasoning_budget: default_reasoning_budget(),
         ai_replace_reasoning_enabled: false,
         ai_replace_reasoning_budget: default_reasoning_budget(),
+        // Voice Command LLM Settings
+        voice_command_provider_id: None,
+        voice_command_api_keys: HashMap::new(),
+        voice_command_models: HashMap::new(),
         voice_command_reasoning_enabled: false,
         voice_command_reasoning_budget: default_reasoning_budget(),
         // Beta Feature Flags
@@ -1165,6 +1181,19 @@ impl AppSettings {
         self.post_process_providers
             .iter()
             .find(|provider| provider.id == self.post_process_provider_id)
+    }
+
+    /// Get the active LLM provider for Voice Commands.
+    /// If voice_command_provider_id is set, uses that; otherwise falls back to post-processing provider.
+    pub fn active_voice_command_provider(&self) -> Option<&PostProcessProvider> {
+        if let Some(ref provider_id) = self.voice_command_provider_id {
+            self.post_process_providers
+                .iter()
+                .find(|provider| &provider.id == provider_id)
+        } else {
+            // Fallback to post-processing provider for backwards compatibility
+            self.active_post_process_provider()
+        }
     }
 
     /// Get a transcription profile by its ID.
@@ -1320,6 +1349,40 @@ impl AppSettings {
                 let provider = self.active_ai_replace_provider()?;
                 let api_key = self.ai_replace_api_key(&provider.id);
                 let model = self.ai_replace_model(&provider.id);
+
+                Some(LlmConfig {
+                    provider_id: provider.id.clone(),
+                    api_key,
+                    model,
+                    base_url: provider.base_url.clone(),
+                })
+            }
+            LlmFeature::VoiceCommand => {
+                let provider = self.active_voice_command_provider()?;
+
+                // On Windows, use secure key storage with fallback to post-processing key
+                #[cfg(target_os = "windows")]
+                let api_key = crate::secure_keys::get_voice_command_api_key(&provider.id)
+                    .unwrap_or_else(|| crate::secure_keys::get_post_process_api_key(&provider.id));
+
+                // On non-Windows, use JSON settings with fallback
+                #[cfg(not(target_os = "windows"))]
+                let api_key = self
+                    .voice_command_api_keys
+                    .get(&provider.id)
+                    .cloned()
+                    .filter(|k| !k.is_empty())
+                    .or_else(|| self.post_process_api_keys.get(&provider.id).cloned())
+                    .unwrap_or_default();
+
+                // Use voice command model with fallback to post-processing model
+                let model = self
+                    .voice_command_models
+                    .get(&provider.id)
+                    .cloned()
+                    .filter(|m| !m.is_empty())
+                    .or_else(|| self.post_process_models.get(&provider.id).cloned())
+                    .unwrap_or_default();
 
                 Some(LlmConfig {
                     provider_id: provider.id.clone(),

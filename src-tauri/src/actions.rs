@@ -1999,15 +1999,18 @@ pub async fn generate_command_with_llm(
 ) -> Result<String, String> {
     let settings = get_settings(app);
 
+    // Use Voice Command specific provider (falls back to post-processing if not set)
     let provider = settings
-        .active_post_process_provider()
+        .active_voice_command_provider()
         .cloned()
-        .ok_or_else(|| "No LLM provider configured".to_string())?;
+        .ok_or_else(|| "No LLM provider configured for Voice Commands".to_string())?;
 
+    // Use Voice Command specific model, fallback to post-processing model
     let model = settings
-        .post_process_models
+        .voice_command_models
         .get(&provider.id)
         .cloned()
+        .or_else(|| settings.post_process_models.get(&provider.id).cloned())
         .unwrap_or_default();
 
     if model.trim().is_empty() {
@@ -2020,14 +2023,19 @@ pub async fn generate_command_with_llm(
     let system_prompt = settings.voice_command_system_prompt.clone();
     let user_prompt = spoken_text.to_string();
 
+    // Use Voice Command specific API key, fallback to post-processing key
     #[cfg(target_os = "windows")]
-    let api_key = crate::secure_keys::get_post_process_api_key(&provider.id);
+    let api_key = crate::secure_keys::get_voice_command_api_key(&provider.id)
+        .filter(|k| !k.is_empty())
+        .unwrap_or_else(|| crate::secure_keys::get_post_process_api_key(&provider.id));
 
     #[cfg(not(target_os = "windows"))]
     let api_key = settings
-        .post_process_api_keys
+        .voice_command_api_keys
         .get(&provider.id)
         .cloned()
+        .filter(|k| !k.is_empty())
+        .or_else(|| settings.post_process_api_keys.get(&provider.id).cloned())
         .unwrap_or_default();
 
     // Build reasoning config from settings

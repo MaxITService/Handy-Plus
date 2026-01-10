@@ -16,6 +16,13 @@
     "debug": "Debug",
     "about": "About"
   },
+  "voiceCommands": {
+    "llmApi": {
+      "title": "LLM API Settings",
+      "description": "Configure the provider, API key, and model used for voice command generation.",
+      "sameAsPostProcessing": "Using the same LLM settings as Transcription Post-Processing."
+    }
+  },
   "onboarding": {
     "subtitle": "To get started, choose a transcription model",
     "mode": {

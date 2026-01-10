@@ -1,11 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { useSettings } from "@/hooks/useSettings";
 import { useTranslation } from "react-i18next";
+import { RefreshCcw } from "lucide-react";
 import { VoiceCommand, commands } from "@/bindings";
 import { HandyShortcut } from "../HandyShortcut";
 import { listen } from "@tauri-apps/api/event";
 import type { VoiceCommandResultPayload } from "@/command-confirm/CommandConfirmOverlay";
 import { ExtendedThinkingSection } from "../ExtendedThinkingSection";
+import { ProviderSelect } from "../PostProcessingSettingsApi/ProviderSelect";
+import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
+import { ModelSelect } from "../PostProcessingSettingsApi/ModelSelect";
+import { ResetButton } from "../../ui/ResetButton";
+import { useVoiceCommandProviderState } from "./useVoiceCommandProviderState";
 
 const DEFAULT_VOICE_COMMAND_SYSTEM_PROMPT = `You are a Windows command generator. The user will describe what they want to do, and you must generate a SINGLE PowerShell one-liner command that accomplishes it.
 
@@ -139,10 +145,12 @@ function VoiceCommandCard({ command, onUpdate, onDelete }: VoiceCommandCardProps
 export default function VoiceCommandSettings() {
   const { t } = useTranslation();
   const { settings, updateSetting } = useSettings();
+  const voiceCommandProviderState = useVoiceCommandProviderState();
   const [executionLog, setExecutionLog] = useState<LogEntry[]>([]);
   const logEndRef = useRef<HTMLDivElement>(null);
   const [mockInput, setMockInput] = useState("");
   const [mockStatus, setMockStatus] = useState<{ type: "success" | "error" | "loading"; message: string } | null>(null);
+  const [isLlmSettingsOpen, setIsLlmSettingsOpen] = useState(false);
   
   if (!settings) return null;
 
@@ -241,6 +249,18 @@ export default function VoiceCommandSettings() {
     }
   };
 
+  const modelDescription = voiceCommandProviderState.isAppleProvider
+    ? t("settings.postProcessing.api.model.descriptionApple")
+    : voiceCommandProviderState.isCustomProvider
+      ? t("settings.postProcessing.api.model.descriptionCustom")
+      : t("settings.postProcessing.api.model.descriptionDefault");
+
+  const modelPlaceholder = voiceCommandProviderState.isAppleProvider
+    ? t("settings.postProcessing.api.model.placeholderApple")
+    : voiceCommandProviderState.modelOptions.length > 0
+      ? t("settings.postProcessing.api.model.placeholderWithOptions")
+      : t("settings.postProcessing.api.model.placeholderNoOptions");
+
   return (
     <div className="voice-command-settings">
       <div className="setting-section-header">
@@ -318,10 +338,130 @@ export default function VoiceCommandSettings() {
             </div>
           )}
 
-          {/* Extended Thinking Section - for Voice Commands LLM */}
           {(settings.voice_command_llm_fallback ?? true) && (
-            <div className="setting-row extended-thinking-row">
-              <ExtendedThinkingSection settingPrefix="voice_command" grouped={false} />
+            <div className="llm-api-section">
+              <button
+                type="button"
+                className="llm-api-toggle"
+                onClick={() => setIsLlmSettingsOpen((prev) => !prev)}
+                aria-expanded={isLlmSettingsOpen}
+              >
+                <div className="llm-api-toggle-text">
+                  <span className="llm-api-title">
+                    {t("voiceCommands.llmApi.title", "LLM API Settings")}
+                  </span>
+                  <span className="llm-api-sublabel">
+                    {t(
+                      "voiceCommands.llmApi.description",
+                      "Configure the provider, API key, and model used for voice command generation.",
+                    )}
+                  </span>
+                </div>
+                <span className="llm-api-toggle-icon">
+                  {isLlmSettingsOpen ? "-" : "+"}
+                </span>
+              </button>
+
+              {isLlmSettingsOpen && (
+                <div className="llm-api-content">
+                  <div className="setting-row llm-api-row llm-api-row-provider">
+                    <div className="setting-label">
+                      <span>{t("settings.postProcessing.api.provider.title")}</span>
+                      <span className="setting-sublabel">
+                        {t("settings.postProcessing.api.provider.description")}
+                      </span>
+                    </div>
+                    <div className="llm-api-control">
+                      <ProviderSelect
+                        options={voiceCommandProviderState.providerOptions}
+                        value={voiceCommandProviderState.selectedProviderId}
+                        onChange={voiceCommandProviderState.handleProviderSelect}
+                      />
+                    </div>
+                  </div>
+
+                  {voiceCommandProviderState.useSameAsPostProcess ? (
+                    <div className="llm-api-note">
+                      {t(
+                        "voiceCommands.llmApi.sameAsPostProcessing",
+                        "Using the same LLM settings as Transcription Post-Processing.",
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      {voiceCommandProviderState.isAppleProvider ? (
+                        <div className="llm-api-apple-note">
+                          <div className="llm-api-apple-title">
+                            {t("settings.postProcessing.api.appleIntelligence.title")}
+                          </div>
+                          <div>
+                            {t("settings.postProcessing.api.appleIntelligence.description")}
+                          </div>
+                          <div className="llm-api-apple-requirements">
+                            {t("settings.postProcessing.api.appleIntelligence.requirements")}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="setting-row llm-api-row">
+                          <div className="setting-label">
+                            <span>{t("settings.postProcessing.api.apiKey.title")}</span>
+                            <span className="setting-sublabel">
+                              {t("settings.postProcessing.api.apiKey.description")}
+                            </span>
+                          </div>
+                          <div className="llm-api-control">
+                            <ApiKeyField
+                              value={voiceCommandProviderState.apiKey}
+                              onBlur={voiceCommandProviderState.handleApiKeyChange}
+                              placeholder={t("settings.postProcessing.api.apiKey.placeholder")}
+                              disabled={voiceCommandProviderState.isApiKeyUpdating}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="setting-row llm-api-row">
+                        <div className="setting-label">
+                          <span>{t("settings.postProcessing.api.model.title")}</span>
+                          <span className="setting-sublabel">{modelDescription}</span>
+                        </div>
+                        <div className="llm-api-model-row">
+                          <ModelSelect
+                            value={voiceCommandProviderState.model}
+                            options={voiceCommandProviderState.modelOptions}
+                            disabled={voiceCommandProviderState.isModelUpdating}
+                            isLoading={voiceCommandProviderState.isFetchingModels}
+                            placeholder={modelPlaceholder}
+                            onSelect={voiceCommandProviderState.handleModelSelect}
+                            onCreate={voiceCommandProviderState.handleModelCreate}
+                            onBlur={() => {}}
+                            className="llm-api-model-select"
+                          />
+                          <ResetButton
+                            onClick={voiceCommandProviderState.handleRefreshModels}
+                            disabled={
+                              voiceCommandProviderState.isFetchingModels ||
+                              voiceCommandProviderState.isAppleProvider
+                            }
+                            ariaLabel={t("settings.postProcessing.api.model.refreshModels")}
+                            className="llm-api-refresh"
+                          >
+                            <RefreshCcw
+                              className={`h-4 w-4 ${
+                                voiceCommandProviderState.isFetchingModels ? "animate-spin" : ""
+                              }`}
+                            />
+                          </ResetButton>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="llm-api-extended">
+                    <ExtendedThinkingSection settingPrefix="voice_command" grouped={false} />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -594,6 +734,115 @@ export default function VoiceCommandSettings() {
         }
         .threshold-slider {
           width: 140px;
+        }
+
+        /* LLM API Settings */
+        .llm-api-section {
+          margin-top: 12px;
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 10px;
+          background: rgba(255,255,255,0.02);
+          overflow: visible;
+          position: relative;
+          z-index: 5;
+        }
+        .llm-api-toggle {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 12px 14px;
+          background: rgba(255,255,255,0.04);
+          border: none;
+          cursor: pointer;
+          text-align: left;
+        }
+        .llm-api-toggle:hover {
+          background: rgba(255,255,255,0.06);
+        }
+        .llm-api-toggle-text {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .llm-api-title {
+          color: #e0e0e0;
+          font-size: 13px;
+          font-weight: 600;
+        }
+        .llm-api-sublabel {
+          color: #666;
+          font-size: 12px;
+        }
+        .llm-api-toggle-icon {
+          width: 22px;
+          text-align: center;
+          color: #888;
+          font-size: 16px;
+        }
+        .llm-api-content {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          padding: 6px 14px 12px;
+          position: relative;
+          z-index: 6;
+        }
+        .llm-api-row {
+          position: relative;
+          z-index: 1;
+        }
+        .llm-api-row-provider {
+          z-index: 20;
+        }
+        .llm-api-control {
+          min-width: 240px;
+          position: relative;
+          z-index: 7;
+        }
+        .llm-api-extended {
+          margin-top: 6px;
+        }
+        .llm-api-note {
+          background: rgba(138, 43, 226, 0.08);
+          border: 1px solid rgba(138, 43, 226, 0.25);
+          color: #b59cff;
+          font-size: 12px;
+          padding: 10px 12px;
+          border-radius: 8px;
+        }
+        .llm-api-apple-note {
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.12);
+          color: #bbb;
+          font-size: 12px;
+          padding: 10px 12px;
+          border-radius: 8px;
+        }
+        .llm-api-apple-title {
+          font-weight: 600;
+          margin-bottom: 6px;
+          color: #ddd;
+        }
+        .llm-api-apple-requirements {
+          margin-top: 6px;
+          color: #888;
+        }
+        .llm-api-model-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .llm-api-model-select {
+          min-width: 320px;
+        }
+        .llm-api-refresh {
+          height: 40px;
+          width: 40px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
         }
         
         /* Execution Settings */

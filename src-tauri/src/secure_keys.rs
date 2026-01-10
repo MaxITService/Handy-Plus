@@ -16,6 +16,8 @@ pub enum KeyType {
     PostProcess,
     /// AI Replace LLM API key (per provider)
     AiReplace,
+    /// Voice Command LLM API key (per provider)
+    VoiceCommand,
 }
 
 impl KeyType {
@@ -23,6 +25,7 @@ impl KeyType {
         match self {
             KeyType::PostProcess => "post_process_api_key",
             KeyType::AiReplace => "ai_replace_api_key",
+            KeyType::VoiceCommand => "voice_command_api_key",
         }
     }
 
@@ -117,6 +120,18 @@ pub fn get_ai_replace_api_key(provider_id: &str) -> String {
 /// Set an AI Replace API key for a specific provider
 pub fn set_ai_replace_api_key(provider_id: &str, key: &str) -> Result<()> {
     set_api_key(KeyType::AiReplace, Some(provider_id), key)
+}
+
+/// Get a Voice Command API key for a specific provider (returns Option for fallback logic)
+pub fn get_voice_command_api_key(provider_id: &str) -> Option<String> {
+    get_api_key(KeyType::VoiceCommand, Some(provider_id))
+        .ok()
+        .filter(|k| !k.is_empty())
+}
+
+/// Set a Voice Command API key for a specific provider
+pub fn set_voice_command_api_key(provider_id: &str, key: &str) -> Result<()> {
+    set_api_key(KeyType::VoiceCommand, Some(provider_id), key)
 }
 
 // ============================================================================

@@ -1406,6 +1406,67 @@ pub fn change_ai_replace_model_setting(
     Ok(())
 }
 
+// ============================================================================
+// Voice Command LLM Settings
+// ============================================================================
+
+#[tauri::command]
+#[specta::specta]
+pub fn set_voice_command_provider(
+    app: AppHandle,
+    provider_id: Option<String>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    if let Some(ref pid) = provider_id {
+        validate_provider_exists(&settings, pid)?;
+    }
+    settings.voice_command_provider_id = provider_id;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_voice_command_api_key_setting(
+    app: AppHandle,
+    provider_id: String,
+    api_key: String,
+) -> Result<(), String> {
+    let settings = settings::get_settings(&app);
+    validate_provider_exists(&settings, &provider_id)?;
+
+    // On Windows, store in secure storage
+    #[cfg(target_os = "windows")]
+    {
+        crate::secure_keys::set_voice_command_api_key(&provider_id, &api_key)
+            .map_err(|e| format!("Failed to store API key: {}", e))?;
+    }
+
+    // On non-Windows, store in JSON settings
+    #[cfg(not(target_os = "windows"))]
+    {
+        let mut settings = settings;
+        settings.voice_command_api_keys.insert(provider_id, api_key);
+        settings::write_settings(&app, settings);
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_voice_command_model_setting(
+    app: AppHandle,
+    provider_id: String,
+    model: String,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    validate_provider_exists(&settings, &provider_id)?;
+    settings.voice_command_models.insert(provider_id, model);
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn change_send_to_extension_enabled_setting(

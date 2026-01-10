@@ -53,6 +53,12 @@ interface UseSettingsReturn {
     apiKey: string,
   ) => Promise<void>;
   updateAiReplaceModel: (providerId: string, model: string) => Promise<void>;
+  setVoiceCommandProvider: (providerId: string | null) => Promise<void>;
+  updateVoiceCommandApiKey: (
+    providerId: string,
+    apiKey: string,
+  ) => Promise<void>;
+  updateVoiceCommandModel: (providerId: string, model: string) => Promise<void>;
 }
 
 export const useSettings = (): UseSettingsReturn => {
@@ -95,5 +101,8 @@ export const useSettings = (): UseSettingsReturn => {
     setAiReplaceProvider: store.setAiReplaceProvider,
     updateAiReplaceApiKey: store.updateAiReplaceApiKey,
     updateAiReplaceModel: store.updateAiReplaceModel,
+    setVoiceCommandProvider: store.setVoiceCommandProvider,
+    updateVoiceCommandApiKey: store.updateVoiceCommandApiKey,
+    updateVoiceCommandModel: store.updateVoiceCommandModel,
   };
 };

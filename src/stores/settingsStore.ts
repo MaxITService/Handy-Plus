@@ -60,6 +60,12 @@ interface SettingsStore {
     apiKey: string,
   ) => Promise<void>;
   updateAiReplaceModel: (providerId: string, model: string) => Promise<void>;
+  setVoiceCommandProvider: (providerId: string | null) => Promise<void>;
+  updateVoiceCommandApiKey: (
+    providerId: string,
+    apiKey: string,
+  ) => Promise<void>;
+  updateVoiceCommandModel: (providerId: string, model: string) => Promise<void>;
 
   // Internal state setters
   setSettings: (settings: Settings | null) => void;
@@ -709,6 +715,70 @@ export const useSettingsStore = create<SettingsStore>()(
         await refreshSettings();
       } catch (error) {
         console.error("Failed to update AI Replace model:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    setVoiceCommandProvider: async (providerId: string | null) => {
+      const { settings, setUpdating, refreshSettings } = get();
+      const updateKey = "voice_command_provider_id";
+      const previousId = settings?.voice_command_provider_id ?? null;
+
+      setUpdating(updateKey, true);
+
+      if (settings) {
+        set((state) => ({
+          settings: state.settings
+            ? { ...state.settings, voice_command_provider_id: providerId }
+            : null,
+        }));
+      }
+
+      try {
+        await commands.setVoiceCommandProvider(providerId);
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to set Voice Command provider:", error);
+        if (settings) {
+          set((state) => ({
+            settings: state.settings
+              ? { ...state.settings, voice_command_provider_id: previousId }
+              : null,
+          }));
+        }
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    updateVoiceCommandApiKey: async (providerId: string, apiKey: string) => {
+      const { setUpdating, refreshSettings } = get();
+      const updateKey = `voice_command_api_key:${providerId}`;
+
+      setUpdating(updateKey, true);
+
+      try {
+        await commands.changeVoiceCommandApiKeySetting(providerId, apiKey);
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to update Voice Command API key:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    updateVoiceCommandModel: async (providerId: string, model: string) => {
+      const { setUpdating, refreshSettings } = get();
+      const updateKey = `voice_command_model:${providerId}`;
+
+      setUpdating(updateKey, true);
+
+      try {
+        await commands.changeVoiceCommandModelSetting(providerId, model);
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to update Voice Command model:", error);
       } finally {
         setUpdating(updateKey, false);
       }
