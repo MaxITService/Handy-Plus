@@ -194,10 +194,10 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
     );
   }
 
-  // Horizontal layout (default)
+  // Horizontal layout (default) - responsive: stacks on small screens, side-by-side on md+
   const horizontalContainerClasses = grouped
-    ? "flex items-center justify-between px-6 py-4"
-    : "flex items-center justify-between px-6 py-4 rounded-lg bg-[#2b2b2b]/40 border border-[#2f2f2f] hover:bg-[#323232]/50 hover:border-[#3c3c3c] transition-all duration-200";
+    ? "flex flex-col gap-2 md:flex-row md:items-center md:justify-between px-6 py-4"
+    : "flex flex-col gap-2 md:flex-row md:items-center md:justify-between px-6 py-4 rounded-lg bg-[#2b2b2b]/40 border border-[#2f2f2f] hover:bg-[#323232]/50 hover:border-[#3c3c3c] transition-all duration-200";
 
   if (descriptionMode === "tooltip") {
     return (
