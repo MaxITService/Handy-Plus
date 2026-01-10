@@ -2,6 +2,7 @@
 
 ![large_logo](Promo/large_logo.jpg)
 AI Voice Relay
+
 > 🎙️ AI-powered voice-to-text with smart integrations for Windows  
 > A fork of [cjpais/Handy](https://github.com/cjpais/Handy) with additional features
 
@@ -22,13 +23,14 @@ Voice-controlled text editing — select text, speak instruction, get AI-transfo
 
 Voice-to-AI bridge via [AivoRelay Connector](https://github.com/MaxITService/AivoRelay-relay) browser extension.
 
-| Mode | Input | What ChatGPT receives |
-|------|-------|----------------------|
-| **Voice only** | Speak your question | Your transcribed question |
-| **Voice + Selection** | Speak + selected text | Question with context |
-| **Voice + Screenshot** | Speak + screen capture | Question with image |
+| Mode                   | Input                  | What ChatGPT receives     |
+| ---------------------- | ---------------------- | ------------------------- |
+| **Voice only**         | Speak your question    | Your transcribed question |
+| **Voice + Selection**  | Speak + selected text  | Question with context     |
+| **Voice + Screenshot** | Speak + screen capture | Question with image       |
 
 **Examples:**
+
 - Say "what is recursion" → ChatGPT gets your question
 - Select error log, say "why is this failing" → ChatGPT gets question + the log
 - Capture chart, say "explain this" → ChatGPT gets question + screenshot
@@ -48,7 +50,7 @@ Quick-switch between language and prompt presets with dedicated shortcuts.
 
 ### ☁️ Cloud STT Option
 
-Use Groq, Deepgram, or other OpenAI-compatible APIs — *or* keep using local Whisper. Your choice!
+Use Groq, Deepgram, or other OpenAI-compatible APIs — _or_ keep using local Whisper. Your choice!
 
 - No GPU? Use fast cloud APIs
 - Have a powerful GPU? Run locally for privacy
@@ -78,12 +80,12 @@ Configure your LLM provider (OpenAI, Anthropic, etc.) to power AI Replace and Po
 
 **Settings → AI Replace**
 
-| Setting | Description |
-|---------|-------------|
-| **System Prompt** | Instructions for the LLM (e.g., "return only transformed text") |
-| **User Prompt Template** | Template with `${instruction}` (your voice) and `${output}` (selected text) |
-| **No Selection System Prompt** | Alternative prompt when no text is selected |
-| **Max Characters** | Limit for selected text (default: 20000) |
+| Setting                        | Description                                                                 |
+| ------------------------------ | --------------------------------------------------------------------------- |
+| **System Prompt**              | Instructions for the LLM (e.g., "return only transformed text")             |
+| **User Prompt Template**       | Template with `${instruction}` (your voice) and `${output}` (selected text) |
+| **No Selection System Prompt** | Alternative prompt when no text is selected                                 |
+| **Max Characters**             | Limit for selected text (default: 20000)                                    |
 
 ### Send Screenshot Settings
 
@@ -104,18 +106,19 @@ Configure your LLM provider (OpenAI, Anthropic, etc.) to power AI Replace and Po
 
 ## 📋 Platform Notes
 
-| Feature | Platform |
-|---------|----------|
-| AI Replace Selection | Windows only |
-| Send Screenshot | Windows only (uses ShareX or similar) |
-| Cloud STT | Windows only (API keys in Windows Credential Manager) |
-| Local Whisper, Shortcuts, History | All platforms |
+| Feature                           | Platform                                              |
+| --------------------------------- | ----------------------------------------------------- |
+| AI Replace Selection              | Windows only                                          |
+| Send Screenshot                   | Windows only (uses ShareX or similar)                 |
+| Cloud STT                         | Windows only (API keys in Windows Credential Manager) |
+| Local Whisper, Shortcuts, History | All platforms                                         |
 
 ---
 
 ## 🔧 Original Features
 
 All original Handy features remain available:
+
 - Local Whisper transcription with multiple model sizes
 - Voice Activity Detection (VAD)
 - Global keyboard shortcuts
@@ -128,3 +131,12 @@ All original Handy features remain available:
 ## 📄 License
 
 MIT License — NO WARRANTIES.
+
+---
+
+## My other projects:
+
+- [OneClickPrompts: Your Quick Prompt Companion for Multiple AI Chats!](https://github.com/MaxITService/OneClickPrompts)
+- [Console2Ai: Send PowerShell buffer to AI](https://github.com/MaxITService/Console2Ai)
+- [AI for Complete Beginners: Guide to LLMs](https://medium.com/@maxim.fomins/ai-for-complete-beginners-guide-llms-f19c4b8a8a79)
+- [Ping-Plotter the PowerShell only Ping Plotting script](https://github.com/MaxITService/Ping-Plotter-PS51)
