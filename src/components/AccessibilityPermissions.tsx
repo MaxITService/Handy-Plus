@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { platform } from "@tauri-apps/plugin-os";
 import {
   checkAccessibilityPermission,
   requestAccessibilityPermission,
@@ -19,13 +20,21 @@ const AccessibilityPermissions: React.FC = () => {
   const [hasAccessibility, setHasAccessibility] = useState<boolean>(false);
   const [permissionState, setPermissionState] =
     useState<PermissionState>("request");
+  const [isMacOS, setIsMacOS] = useState<boolean | null>(null);
 
-  // Check permissions without requesting
+  // Check permissions without requesting (with error handling)
   const checkPermissions = async (): Promise<boolean> => {
-    const hasPermissions: boolean = await checkAccessibilityPermission();
-    setHasAccessibility(hasPermissions);
-    setPermissionState(hasPermissions ? "granted" : "verify");
-    return hasPermissions;
+    try {
+      const hasPermissions: boolean = await checkAccessibilityPermission();
+      setHasAccessibility(hasPermissions);
+      setPermissionState(hasPermissions ? "granted" : "verify");
+      return hasPermissions;
+    } catch (error) {
+      console.error("Error checking accessibility permissions:", error);
+      // On error, assume no permissions - user can retry
+      setPermissionState("verify");
+      return false;
+    }
   };
 
   // Handle the unified button action based on current state
@@ -45,23 +54,44 @@ const AccessibilityPermissions: React.FC = () => {
     }
   };
 
-  // On app boot - check permissions
+  // On app boot - check platform and permissions
   useEffect(() => {
     const initialSetup = async (): Promise<void> => {
-      const hasPermissions: boolean = await checkAccessibilityPermission();
-      setHasAccessibility(hasPermissions);
-      setPermissionState(hasPermissions ? "granted" : "request");
+      // Check if running on macOS first
+      const currentPlatform = platform();
+      const isMac = currentPlatform === "macos";
+      setIsMacOS(isMac);
+
+      // Only check permissions on macOS
+      if (!isMac) {
+        return;
+      }
+
+      try {
+        const hasPermissions: boolean = await checkAccessibilityPermission();
+        setHasAccessibility(hasPermissions);
+        setPermissionState(hasPermissions ? "granted" : "request");
+      } catch (error) {
+        console.error("Error during initial permission check:", error);
+        setPermissionState("request");
+      }
     };
 
     initialSetup();
   }, []);
 
-  if (hasAccessibility) {
+  // Don't render on non-macOS platforms or while checking platform
+  if (isMacOS === null || !isMacOS) {
+    return null;
+  }
+
+  // Don't render if permissions granted (also prevents null config issue)
+  if (hasAccessibility || permissionState === "granted") {
     return null;
   }
 
   // Configure button text and style based on state
-  const buttonConfig: Record<PermissionState, ButtonConfig | null> = {
+  const buttonConfig: Record<"request" | "verify", ButtonConfig> = {
     request: {
       text: t("accessibility.openSettings"),
       className:
@@ -72,10 +102,9 @@ const AccessibilityPermissions: React.FC = () => {
       className:
         "bg-[#1a1a1a] hover:bg-[#222222] text-[#f5f5f5] font-medium py-2 px-4 rounded-md text-sm flex items-center justify-center cursor-pointer border border-[#333333] transition-all duration-200",
     },
-    granted: null,
   };
 
-  const config = buttonConfig[permissionState] as ButtonConfig;
+  const config = buttonConfig[permissionState];
 
   return (
     <div className="p-5 w-full rounded-xl glass-panel border border-[#ff6b9d]/30">

@@ -32,6 +32,7 @@ Files that differentiate this fork from the original [cjpais/Handy](https://gith
 | `src/command-confirm/CommandConfirmOverlay.tsx`                   | **Voice Command Center**: Confirmation popup showing suggested PowerShell command with Run/Edit/Cancel buttons.      |
 | `src/command-confirm/CommandConfirmOverlay.css`                   | Styles for command confirmation overlay: glassmorphism, dark theme, vibrant accent colors.                           |
 | `src/components/settings/voice-commands/VoiceCommandSettings.tsx` | Settings UI for managing predefined voice commands, similarity thresholds, and LLM fallback toggle.                  |
+| `src/stores/transcribeFileStore.ts`                               | Session store for Transcribe File UI state (selected file, output mode, profile selection, results).                 |
 
 ## Modified Files
 

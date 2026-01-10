@@ -8,6 +8,7 @@ export { PostProcessingSettings } from "./post-processing/PostProcessingSettings
 export { BrowserConnectorSettings } from "./browser-connector/BrowserConnectorSettings";
 export { AiReplaceSelectionSettings } from "./ai-replace/AiReplaceSelectionSettings";
 export { default as VoiceCommandSettings } from "./voice-commands/VoiceCommandSettings";
+export { default as TranscribeFileSettings } from "./transcribe-file/TranscribeFileSettings";
 
 // Individual setting components
 export { MicrophoneSelector } from "./MicrophoneSelector";

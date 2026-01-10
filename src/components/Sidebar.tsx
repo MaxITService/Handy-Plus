@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Cog, FlaskConical, Globe, History, Info, Sparkles, Wand2, Terminal } from "lucide-react";
+import { Cog, FlaskConical, Globe, History, Info, Sparkles, Wand2, Terminal, FileAudio } from "lucide-react";
 import { type } from "@tauri-apps/plugin-os";
 import HandyTextLogo from "./icons/HandyTextLogo";
 import HandyHand from "./icons/HandyHand";
@@ -15,6 +15,7 @@ import {
   BrowserConnectorSettings,
   AiReplaceSelectionSettings,
   VoiceCommandSettings,
+  TranscribeFileSettings,
 } from "./settings";
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
@@ -71,6 +72,12 @@ export const SECTIONS_CONFIG = {
     labelKey: "sidebar.browserConnector",
     icon: Globe,
     component: BrowserConnectorSettings,
+    enabled: () => true,
+  },
+  transcribeFile: {
+    labelKey: "sidebar.transcribeFile",
+    icon: FileAudio,
+    component: TranscribeFileSettings,
     enabled: () => true,
   },
   history: {

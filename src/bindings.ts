@@ -1340,6 +1340,31 @@ async testVoiceCommandMock(mockText: string) : Promise<Result<string, string>> {
 }
 },
 /**
+ * Get the list of supported audio file extensions
+ */
+async getSupportedAudioExtensions() : Promise<string[]> {
+    return await TAURI_INVOKE("get_supported_audio_extensions");
+},
+/**
+ * Transcribe an audio file to text
+ * 
+ * # Arguments
+ * * `file_path` - Path to the audio file
+ * * `profile_id` - Optional transcription profile ID (uses active profile if not specified)
+ * * `save_to_file` - If true, saves the transcription to a .txt file in Documents folder
+ * 
+ * # Returns
+ * FileTranscriptionResult with the transcribed text and optional saved file path
+ */
+async transcribeAudioFile(filePath: string, profileId: string | null, saveToFile: boolean) : Promise<Result<FileTranscriptionResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("transcribe_audio_file", { filePath, profileId, saveToFile }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Stub implementation for non-macOS platforms
  * Always returns false since laptop detection is macOS-specific
  */
@@ -1532,6 +1557,18 @@ export type ExtensionStatus =
  * Server is starting up, status unknown
  */
 "unknown"
+/**
+ * Result of a file transcription operation
+ */
+export type FileTranscriptionResult = { 
+/**
+ * The transcribed text
+ */
+text: string; 
+/**
+ * Path where the text file was saved (if save_to_file was true)
+ */
+saved_file_path: string | null }
 export type HistoryEntry = { id: number; file_name: string; timestamp: number; saved: boolean; title: string; transcription_text: string; post_processed_text: string | null; post_process_prompt: string | null; 
 /**
  * Type of action: "transcribe", "ai_replace", etc.

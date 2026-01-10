@@ -441,6 +441,8 @@ pub fn run() {
         commands::region_capture::region_capture_cancel,
         commands::voice_command::execute_voice_command,
         commands::voice_command::test_voice_command_mock,
+        commands::file_transcription::get_supported_audio_extensions,
+        commands::file_transcription::transcribe_audio_file,
         helpers::clamshell::is_laptop,
     ]);
 
@@ -488,6 +490,7 @@ pub fn run() {
             show_main_window(app);
         }))
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_os::init())

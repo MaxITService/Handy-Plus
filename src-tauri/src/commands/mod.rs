@@ -1,5 +1,6 @@
 pub mod audio;
 pub mod connector;
+pub mod file_transcription;
 pub mod history;
 pub mod models;
 pub mod region_capture;

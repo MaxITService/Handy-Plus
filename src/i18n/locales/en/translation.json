@@ -12,6 +12,7 @@
     "aiReplace": "AI Replace",
     "voiceCommands": "Voice Commands",
     "browserConnector": "Connector",
+    "transcribeFile": "Transcribe File",
     "history": "History",
     "debug": "Debug",
     "about": "About"
@@ -912,5 +913,31 @@
   },
   "overlay": {
     "transcribing": "Transcribing..."
+  },
+  "transcribeFile": {
+    "title": "Transcribe Audio File",
+    "description": "Upload an audio file and transcribe it to text. Supports WAV, MP3, M4A, OGG, FLAC, and WebM formats.",
+    "defaultProfile": "Default (Global)",
+    "dropZone": {
+      "title": "Drop audio file here or click to browse",
+      "subtitle": "Select an audio file to transcribe",
+      "formats": "WAV, MP3, M4A, OGG, FLAC, WebM"
+    },
+    "profileLabel": "Transcription profile",
+    "usingProfile": "Using profile",
+    "outputMode": {
+      "textarea": "Show in text area",
+      "file": "Save to Documents (.txt)"
+    },
+    "transcribe": "Transcribe",
+    "transcribing": "Transcribing...",
+    "clear": "Clear",
+    "result": "Transcription Result",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "savedTo": "Saved to",
+    "unsupportedFormat": "Unsupported format: .{{format}}. Supported: {{supported}}",
+    "usePicker": "Drag & drop is not supported. Please click to select a file.",
+    "recordingInProgress": "Recording in progress. Please wait for it to finish."
   }
 }

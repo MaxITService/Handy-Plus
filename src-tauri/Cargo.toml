@@ -75,10 +75,12 @@ ferrous-opencc = "0.2.3"
 keyring = "2.3.3"
 axum = "0.8"
 tower-http = { version = "0.6", features = ["cors"] }
+dirs = "5"
 notify = { version = "6.1", default-features = false, features = ["macos_fsevent"] }
 specta = "=2.0.0-rc.22"
 specta-typescript = "0.0.9"
 tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
+tauri-plugin-dialog = "2.5.0"
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"
