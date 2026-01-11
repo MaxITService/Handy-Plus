@@ -435,6 +435,8 @@
       "customWords": {
         "title": "Custom Words",
         "description": "Add words that are often misheard or misspelled during transcription. The system will automatically correct similar-sounding words to match your list.",
+        "enabledLabel": "Enable Custom Words",
+        "enabledDescription": "Applies to live transcription. File transcription has its own toggle.",
         "placeholder": "Add a word",
         "add": "Add",
         "remove": "Remove {{word}}"
@@ -930,7 +932,12 @@
       "file": "Save to Documents (.txt)"
     },
     "outputFormat": {
-      "label": "Output Format"
+      "label": "Output Format",
+      "hint": "Accurate timestamps (SRT/VTT) require a local model. Remote STT returns text-only output in this version."
+    },
+    "customWords": {
+      "label": "Apply Custom Words",
+      "hint": "Applies your Custom Words list to this file transcription only."
     },
     "modelOverride": {
       "label": "Override Model",

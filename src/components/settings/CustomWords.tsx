@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
+import { ToggleSwitch } from "../ui/ToggleSwitch";
 import { SettingContainer } from "../ui/SettingContainer";
 
 interface CustomWordsProps {
@@ -16,6 +17,8 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
     const { getSetting, updateSetting, isUpdating } = useSettings();
     const [newWord, setNewWord] = useState("");
     const customWords = getSetting("custom_words") || [];
+    const customWordsEnabled = getSetting("custom_words_enabled");
+    const isCustomWordsEnabled = customWordsEnabled ?? true;
 
     const handleAddWord = () => {
       const trimmedWord = newWord.trim();
@@ -47,6 +50,23 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
 
     return (
       <>
+        <ToggleSwitch
+          checked={isCustomWordsEnabled}
+          onChange={(enabled) =>
+            updateSetting("custom_words_enabled", enabled)
+          }
+          isUpdating={isUpdating("custom_words_enabled")}
+          label={t(
+            "settings.advanced.customWords.enabledLabel",
+            "Enable Custom Words",
+          )}
+          description={t(
+            "settings.advanced.customWords.enabledDescription",
+            "Applies to live transcription. File transcription has its own toggle.",
+          )}
+          descriptionMode={descriptionMode}
+          grouped={grouped}
+        />
         <SettingContainer
           title={t("settings.advanced.customWords.title")}
           description={t("settings.advanced.customWords.description")}

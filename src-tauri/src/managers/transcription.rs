@@ -302,7 +302,11 @@ impl TranscriptionManager {
         current_model.clone()
     }
 
-    pub fn transcribe(&self, audio: Vec<f32>) -> Result<String> {
+    pub fn transcribe(
+        &self,
+        audio: Vec<f32>,
+        apply_custom_words_enabled: bool,
+    ) -> Result<String> {
         // Update last activity timestamp
         self.last_activity.store(
             SystemTime::now()
@@ -396,8 +400,11 @@ impl TranscriptionManager {
             }
         };
 
-        // Apply word correction if custom words are configured
-        let corrected_result = if !settings.custom_words.is_empty() {
+        let should_apply_custom_words =
+            apply_custom_words_enabled && !settings.custom_words.is_empty();
+
+        // Apply word correction if custom words are enabled and configured
+        let corrected_result = if should_apply_custom_words {
             apply_custom_words(
                 &result.text,
                 &settings.custom_words,
@@ -446,6 +453,7 @@ impl TranscriptionManager {
         language_override: Option<&str>,
         translate_override: Option<bool>,
         prompt_override: Option<String>,
+        apply_custom_words_enabled: bool,
     ) -> Result<String> {
         // Update last activity timestamp
         self.last_activity.store(
@@ -542,7 +550,10 @@ impl TranscriptionManager {
             }
         };
 
-        let corrected_result = if !settings.custom_words.is_empty() {
+        let should_apply_custom_words =
+            apply_custom_words_enabled && !settings.custom_words.is_empty();
+
+        let corrected_result = if should_apply_custom_words {
             apply_custom_words(
                 &result.text,
                 &settings.custom_words,
@@ -585,6 +596,7 @@ impl TranscriptionManager {
         language_override: Option<&str>,
         translate_override: Option<bool>,
         prompt_override: Option<String>,
+        apply_custom_words_enabled: bool,
     ) -> Result<(String, Option<Vec<crate::subtitle::SubtitleSegment>>)> {
         // Update last activity timestamp
         self.last_activity.store(
@@ -680,18 +692,32 @@ impl TranscriptionManager {
             }
         };
 
+        let should_apply_custom_words =
+            apply_custom_words_enabled && !settings.custom_words.is_empty();
+
         // Convert transcribe_rs segments to our SubtitleSegment format
         let segments: Option<Vec<crate::subtitle::SubtitleSegment>> = result.segments.map(|segs| {
             segs.into_iter()
-                .map(|seg| crate::subtitle::SubtitleSegment {
-                    start: seg.start,
-                    end: seg.end,
-                    text: seg.text,
+                .map(|seg| {
+                    let text = if should_apply_custom_words {
+                        apply_custom_words(
+                            &seg.text,
+                            &settings.custom_words,
+                            settings.word_correction_threshold,
+                        )
+                    } else {
+                        seg.text
+                    };
+                    crate::subtitle::SubtitleSegment {
+                        start: seg.start,
+                        end: seg.end,
+                        text,
+                    }
                 })
                 .collect()
         });
 
-        let corrected_result = if !settings.custom_words.is_empty() {
+        let corrected_result = if should_apply_custom_words {
             apply_custom_words(
                 &result.text,
                 &settings.custom_words,

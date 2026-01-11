@@ -557,14 +557,14 @@ async fn perform_transcription_for_profile(
             )
             .await
             .map(|text| {
-                if settings.custom_words.is_empty() {
-                    text
-                } else {
+                if settings.custom_words_enabled && !settings.custom_words.is_empty() {
                     apply_custom_words(
                         &text,
                         &settings.custom_words,
                         settings.word_correction_threshold,
                     )
+                } else {
+                    text
                 }
             });
 
@@ -611,13 +611,14 @@ async fn perform_transcription_for_profile(
                 } else {
                     Some(p.system_prompt.clone())
                 },
+                settings.custom_words_enabled,
             )
         } else {
             log::info!(
                 "Transcription using Local model: {}",
                 settings.selected_model
             );
-            tm.transcribe(samples)
+            tm.transcribe(samples, settings.custom_words_enabled)
         };
 
         match result {

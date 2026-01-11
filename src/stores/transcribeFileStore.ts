@@ -15,6 +15,7 @@ interface TranscribeFileState {
   outputMode: OutputMode;
   outputFormat: OutputFormat;
   overrideModelId: string | null;
+  customWordsEnabledOverride: boolean;
   transcriptionResult: string;
   savedFilePath: string | null;
   error: string | null;
@@ -24,6 +25,7 @@ interface TranscribeFileState {
   setOutputMode: (outputMode: OutputMode) => void;
   setOutputFormat: (outputFormat: OutputFormat) => void;
   setOverrideModelId: (overrideModelId: string | null) => void;
+  setCustomWordsEnabledOverride: (customWordsEnabledOverride: boolean) => void;
   setTranscriptionResult: (transcriptionResult: string) => void;
   setSavedFilePath: (savedFilePath: string | null) => void;
   setError: (error: string | null) => void;
@@ -36,6 +38,7 @@ export const useTranscribeFileStore = create<TranscribeFileState>((set) => ({
   outputMode: "textarea",
   outputFormat: "text",
   overrideModelId: null,
+  customWordsEnabledOverride: true,
   transcriptionResult: "",
   savedFilePath: null,
   error: null,
@@ -45,6 +48,8 @@ export const useTranscribeFileStore = create<TranscribeFileState>((set) => ({
   setOutputMode: (outputMode) => set({ outputMode }),
   setOutputFormat: (outputFormat) => set({ outputFormat }),
   setOverrideModelId: (overrideModelId) => set({ overrideModelId }),
+  setCustomWordsEnabledOverride: (customWordsEnabledOverride) =>
+    set({ customWordsEnabledOverride }),
   setTranscriptionResult: (transcriptionResult) => set({ transcriptionResult }),
   setSavedFilePath: (savedFilePath) => set({ savedFilePath }),
   setError: (error) => set({ error }),

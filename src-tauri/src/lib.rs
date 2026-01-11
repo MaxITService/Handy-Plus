@@ -332,6 +332,7 @@ pub fn run() {
         shortcut::cycle_to_next_profile,
         shortcut::change_profile_switch_overlay_enabled_setting,
         shortcut::update_custom_words,
+        shortcut::change_custom_words_enabled_setting,
         shortcut::suspend_binding,
         shortcut::resume_binding,
         shortcut::change_mute_while_recording_setting,

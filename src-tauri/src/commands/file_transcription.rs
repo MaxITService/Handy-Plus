@@ -45,6 +45,7 @@ pub fn get_supported_audio_extensions() -> Vec<String> {
 /// * `profile_id` - Optional transcription profile ID (uses active profile if not specified)
 /// * `save_to_file` - If true, saves the transcription to a file in Documents folder
 /// * `output_format` - Output format: "text" (default), "srt", or "vtt"
+/// * `custom_words_enabled_override` - Optional override for applying custom words
 ///
 /// # Returns
 /// FileTranscriptionResult with the transcribed text and optional saved file path
@@ -57,6 +58,7 @@ pub async fn transcribe_audio_file(
     save_to_file: bool,
     output_format: Option<OutputFormat>,
     model_override: Option<String>,
+    custom_words_enabled_override: Option<bool>,
 ) -> Result<FileTranscriptionResult, String> {
     let path = PathBuf::from(&file_path);
     let format = output_format.unwrap_or_default();
@@ -102,6 +104,12 @@ pub async fn transcribe_audio_file(
     let settings = get_settings(&app);
     let profile_id = profile_id.unwrap_or_else(|| settings.active_profile_id.clone());
     let profile = settings.transcription_profile(&profile_id);
+    let should_unload_override_model = model_override.is_some()
+        && settings.transcription_provider == TranscriptionProvider::RemoteOpenAiCompatible;
+
+    let apply_custom_words_enabled =
+        custom_words_enabled_override.unwrap_or(settings.custom_words_enabled);
+    let should_apply_custom_words = apply_custom_words_enabled && !settings.custom_words.is_empty();
 
     // Perform transcription - get segments for subtitle formats
     let needs_segments = matches!(format, OutputFormat::Srt | OutputFormat::Vtt);
@@ -133,14 +141,14 @@ pub async fn transcribe_audio_file(
             .map_err(|e| format!("Remote transcription failed: {}", e))?;
 
         // Apply custom word corrections
-        let corrected = if settings.custom_words.is_empty() {
-            text
-        } else {
+        let corrected = if should_apply_custom_words {
             apply_custom_words(
                 &text,
                 &settings.custom_words,
                 settings.word_correction_threshold,
             )
+        } else {
+            text
         };
 
         // For remote STT without segment support, create a single segment
@@ -184,7 +192,7 @@ pub async fn transcribe_audio_file(
             tm.initiate_model_load();
         }
 
-        if needs_segments {
+        let result = if needs_segments {
             // Use the new method that returns segments
             if let Some(p) = &profile {
                 tm.transcribe_with_segments(
@@ -196,15 +204,22 @@ pub async fn transcribe_audio_file(
                     } else {
                         Some(p.system_prompt.clone())
                     },
+                    apply_custom_words_enabled,
                 )
-                .map_err(|e| format!("Local transcription failed: {}", e))?
+                .map_err(|e| format!("Local transcription failed: {}", e))
             } else {
-                tm.transcribe_with_segments(samples, None, None, None)
-                    .map_err(|e| format!("Local transcription failed: {}", e))?
+                tm.transcribe_with_segments(
+                    samples,
+                    None,
+                    None,
+                    None,
+                    apply_custom_words_enabled,
+                )
+                    .map_err(|e| format!("Local transcription failed: {}", e))
             }
         } else {
             // Use the standard method for plain text
-            let text = if let Some(p) = &profile {
+            let text_result = if let Some(p) = &profile {
                 tm.transcribe_with_overrides(
                     samples,
                     Some(&p.language),
@@ -214,14 +229,24 @@ pub async fn transcribe_audio_file(
                     } else {
                         Some(p.system_prompt.clone())
                     },
+                    apply_custom_words_enabled,
                 )
-                .map_err(|e| format!("Local transcription failed: {}", e))?
+                .map_err(|e| format!("Local transcription failed: {}", e))
             } else {
-                tm.transcribe(samples)
-                    .map_err(|e| format!("Local transcription failed: {}", e))?
+                tm.transcribe(samples, apply_custom_words_enabled)
+                    .map_err(|e| format!("Local transcription failed: {}", e))
             };
-            (text, None)
+            text_result.map(|text| (text, None))
+        };
+
+        if should_unload_override_model {
+            info!("Unloading override model after file transcription");
+            if let Err(e) = tm.unload_model() {
+                error!("Failed to unload override model: {}", e);
+            }
         }
+
+        result?
     };
 
     // Format the output based on requested format

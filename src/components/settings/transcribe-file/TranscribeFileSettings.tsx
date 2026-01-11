@@ -32,6 +32,7 @@ export const TranscribeFileSettings: React.FC = () => {
     outputMode,
     outputFormat,
     overrideModelId,
+    customWordsEnabledOverride,
     transcriptionResult,
     savedFilePath,
     isTranscribing,
@@ -41,6 +42,7 @@ export const TranscribeFileSettings: React.FC = () => {
     setOutputMode,
     setOutputFormat,
     setOverrideModelId,
+    setCustomWordsEnabledOverride,
     setTranscriptionResult,
     setSavedFilePath,
     setIsTranscribing,
@@ -226,6 +228,7 @@ export const TranscribeFileSettings: React.FC = () => {
         outputMode === "file",
         outputFormat,
         overrideModelId,
+        customWordsEnabledOverride,
       );
 
       if (result.status === "ok") {
@@ -419,6 +422,38 @@ export const TranscribeFileSettings: React.FC = () => {
                   </button>
                 ))}
               </div>
+            </div>
+            <p className="mt-2 text-xs text-[#606060]">
+              {t(
+                "transcribeFile.outputFormat.hint",
+                "Accurate timestamps (SRT/VTT) require a local model. Remote STT returns text-only output in this version.",
+              )}
+            </p>
+
+            {/* Custom Words Toggle */}
+            <div className="mt-4 space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={customWordsEnabledOverride}
+                  onChange={(e) =>
+                    setCustomWordsEnabledOverride(e.target.checked)
+                  }
+                  className="accent-[#9b5de5] w-4 h-4 rounded border-[#333333] bg-[#1a1a1a]"
+                />
+                <span className="text-sm text-[#f5f5f5]">
+                  {t(
+                    "transcribeFile.customWords.label",
+                    "Apply Custom Words",
+                  )}
+                </span>
+              </label>
+              <p className="text-xs text-[#606060] pl-6">
+                {t(
+                  "transcribeFile.customWords.hint",
+                  "Applies your Custom Words list to this file transcription only.",
+                )}
+              </p>
             </div>
 
             {/* Override Model Option */}

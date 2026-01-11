@@ -458,6 +458,14 @@ async updateCustomWords(words: string[]) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async changeCustomWordsEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_custom_words_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
  * Temporarily unregister a binding while the user is editing it in the UI.
  * This avoids firing the action while keys are being recorded.
@@ -1353,13 +1361,14 @@ async getSupportedAudioExtensions() : Promise<string[]> {
  * * `profile_id` - Optional transcription profile ID (uses active profile if not specified)
  * * `save_to_file` - If true, saves the transcription to a file in Documents folder
  * * `output_format` - Output format: "text" (default), "srt", or "vtt"
+ * * `custom_words_enabled_override` - Optional override for applying custom words
  * 
  * # Returns
  * FileTranscriptionResult with the transcribed text and optional saved file path
  */
-async transcribeAudioFile(filePath: string, profileId: string | null, saveToFile: boolean, outputFormat: OutputFormat | null, modelOverride: string | null) : Promise<Result<FileTranscriptionResult, string>> {
+async transcribeAudioFile(filePath: string, profileId: string | null, saveToFile: boolean, outputFormat: OutputFormat | null, modelOverride: string | null, customWordsEnabledOverride: boolean | null) : Promise<Result<FileTranscriptionResult, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("transcribe_audio_file", { filePath, profileId, saveToFile, outputFormat, modelOverride }) };
+    return { status: "ok", data: await TAURI_INVOKE("transcribe_audio_file", { filePath, profileId, saveToFile, outputFormat, modelOverride, customWordsEnabledOverride }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1389,7 +1398,7 @@ async isLaptop() : Promise<Result<boolean, string>> {
 
 /** user-defined types **/
 
-export type AppSettings = { bindings: Partial<{ [key in string]: ShortcutBinding }>; push_to_talk: boolean; audio_feedback: boolean; audio_feedback_volume?: number; sound_theme?: SoundTheme; start_hidden?: boolean; autostart_enabled?: boolean; update_checks_enabled?: boolean; selected_model?: string; transcription_provider?: TranscriptionProvider; remote_stt?: RemoteSttSettings; always_on_microphone?: boolean; selected_microphone?: string | null; clamshell_microphone?: string | null; selected_output_device?: string | null; translate_to_english?: boolean; selected_language?: string; overlay_position?: OverlayPosition; debug_mode?: boolean; log_level?: LogLevel; custom_words?: string[]; model_unload_timeout?: ModelUnloadTimeout; word_correction_threshold?: number; history_limit?: number; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; post_process_enabled?: boolean; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: Partial<{ [key in string]: string }>; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; ai_replace_system_prompt?: string; ai_replace_user_prompt?: string; ai_replace_max_chars?: number; ai_replace_allow_no_selection?: boolean; ai_replace_no_selection_system_prompt?: string; ai_replace_allow_quick_tap?: boolean; ai_replace_quick_tap_threshold_ms?: number; ai_replace_quick_tap_system_prompt?: string; 
+export type AppSettings = { bindings: Partial<{ [key in string]: ShortcutBinding }>; push_to_talk: boolean; audio_feedback: boolean; audio_feedback_volume?: number; sound_theme?: SoundTheme; start_hidden?: boolean; autostart_enabled?: boolean; update_checks_enabled?: boolean; selected_model?: string; transcription_provider?: TranscriptionProvider; remote_stt?: RemoteSttSettings; always_on_microphone?: boolean; selected_microphone?: string | null; clamshell_microphone?: string | null; selected_output_device?: string | null; translate_to_english?: boolean; selected_language?: string; overlay_position?: OverlayPosition; debug_mode?: boolean; log_level?: LogLevel; custom_words?: string[]; custom_words_enabled?: boolean; model_unload_timeout?: ModelUnloadTimeout; word_correction_threshold?: number; history_limit?: number; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; post_process_enabled?: boolean; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: Partial<{ [key in string]: string }>; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; ai_replace_system_prompt?: string; ai_replace_user_prompt?: string; ai_replace_max_chars?: number; ai_replace_allow_no_selection?: boolean; ai_replace_no_selection_system_prompt?: string; ai_replace_allow_quick_tap?: boolean; ai_replace_quick_tap_threshold_ms?: number; ai_replace_quick_tap_system_prompt?: string; 
 /**
  * AI Replace LLM provider ID (separate from post-processing)
  */
