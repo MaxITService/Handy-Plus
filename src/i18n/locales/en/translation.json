@@ -716,6 +716,37 @@
         "feature3": "Optional LLM processing before sending (e.g., translate, reformat)",
         "feature4": "Security Recommendation: You should change the connection password. On a fresh install, the extension uses a default password that could allow other programs to intercept your communication. Changing it here will automatically update the extension if it is connected. For maximum security, we recommend doing this while offline to prevent any local interference during the handshake."
       },
+      "tellMeMore": {
+        "title": "How to Install the Browser Extension",
+        "headline": "Bridge the gap to the Web.",
+        "intro": "The AivoRelay Connector Chrome extension connects this desktop app to AI chat tabs in your browser.",
+        "getExtension": {
+          "title": "Get the Extension:",
+          "step1": "Download from GitHub: <link>AivoRelay Connector</link>",
+          "step2": "Or clone the repository to your computer"
+        },
+        "install": {
+          "title": "Install in Chrome/Edge:",
+          "step1": "Open <code>chrome://extensions</code> in your browser",
+          "step2": "Enable \"Developer mode\" (toggle in the top right)",
+          "step3": "Click \"Load unpacked\" button",
+          "step4": "Select the folder where you downloaded/extracted the extension"
+        },
+        "setup": {
+          "title": "Connect to AivoRelay:",
+          "step1": "Make sure the \"Extension Status\" above shows the server is running",
+          "step2": "Open ChatGPT, Claude, or another supported AI chat in a browser tab",
+          "step3": "Click the extension icon in your browser toolbar (or use the floating panel that appears on supported sites)",
+          "step4": "Click \"Bind to this tab\" to connect",
+          "step5": "The extension icon should turn green when connected",
+          "pinTip": "Tip: Pin the extension to your toolbar for quick access - click the puzzle icon in Chrome and pin AivoRelay Connector"
+        },
+        "supported": {
+          "title": "Supported Sites:",
+          "description": "ChatGPT, Claude, Perplexity, Gemini, Grok, and Google AI Studio"
+        },
+        "tip": "Once connected, use the shortcuts configured below to send voice transcriptions directly to your AI chat!"
+      },
       "status": {
         "sectionTitle": "Extension Status",
         "title": "Extension Connection",

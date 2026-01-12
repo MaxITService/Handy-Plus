@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
-import { Globe, Info, ExternalLink, Eye, EyeOff, Copy, AlertTriangle } from "lucide-react";
+import { Globe, Info, ExternalLink, Eye, EyeOff, Copy, AlertTriangle, Download } from "lucide-react";
+import { TellMeMore } from "../../ui/TellMeMore";
 import { commands } from "@/bindings";
 import { useSettings } from "../../../hooks/useSettings";
 import { HandyShortcut } from "../HandyShortcut";
@@ -278,7 +279,7 @@ export const BrowserConnectorSettings: React.FC = () => {
                 components={{
                   link: (
                     <a
-                      href="https://github.com/MaxITService/AivoRelay-relay"
+                      href="https://github.com/MaxITService/AIVORelay-relay"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-purple-400 hover:underline inline-flex items-center gap-1"
@@ -304,6 +305,97 @@ export const BrowserConnectorSettings: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Installation Instructions - Collapsible */}
+      <TellMeMore title={t("settings.browserConnector.tellMeMore.title")}>
+        <div className="space-y-4">
+          <p>
+            <strong>{t("settings.browserConnector.tellMeMore.headline")}</strong>
+          </p>
+          <p className="opacity-90">
+            {t("settings.browserConnector.tellMeMore.intro")}
+          </p>
+
+          {/* Step 1: Get the Extension */}
+          <div className="space-y-2">
+            <p className="font-semibold text-purple-400">
+              {t("settings.browserConnector.tellMeMore.getExtension.title")}
+            </p>
+            <ul className="list-disc list-inside space-y-1 ml-1 opacity-90">
+              <li>
+                <Trans
+                  i18nKey="settings.browserConnector.tellMeMore.getExtension.step1"
+                  components={{
+                    link: (
+                      <a
+                        href="https://github.com/MaxITService/AIVORelay-relay"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-purple-400 hover:underline inline-flex items-center gap-1"
+                      >
+                        <Download className="w-3 h-3" />
+                      </a>
+                    ),
+                  }}
+                />
+              </li>
+              <li>{t("settings.browserConnector.tellMeMore.getExtension.step2")}</li>
+            </ul>
+          </div>
+
+          {/* Step 2: Install in Chrome */}
+          <div className="space-y-2">
+            <p className="font-semibold text-purple-400">
+              {t("settings.browserConnector.tellMeMore.install.title")}
+            </p>
+            <ol className="list-decimal list-inside space-y-1 ml-1 opacity-90">
+              <li>
+                <Trans
+                  i18nKey="settings.browserConnector.tellMeMore.install.step1"
+                  components={{
+                    code: <code className="bg-mid-gray/30 px-1.5 py-0.5 rounded text-xs font-mono" />,
+                  }}
+                />
+              </li>
+              <li>{t("settings.browserConnector.tellMeMore.install.step2")}</li>
+              <li>{t("settings.browserConnector.tellMeMore.install.step3")}</li>
+              <li>{t("settings.browserConnector.tellMeMore.install.step4")}</li>
+            </ol>
+          </div>
+
+          {/* Step 3: Connect */}
+          <div className="space-y-2">
+            <p className="font-semibold text-purple-400">
+              {t("settings.browserConnector.tellMeMore.setup.title")}
+            </p>
+            <ol className="list-decimal list-inside space-y-1 ml-1 opacity-90">
+              <li>{t("settings.browserConnector.tellMeMore.setup.step1")}</li>
+              <li>{t("settings.browserConnector.tellMeMore.setup.step2")}</li>
+              <li>{t("settings.browserConnector.tellMeMore.setup.step3")}</li>
+              <li>{t("settings.browserConnector.tellMeMore.setup.step4")}</li>
+              <li>{t("settings.browserConnector.tellMeMore.setup.step5")}</li>
+            </ol>
+            <p className="text-xs text-text/60 mt-2 ml-1">
+              {t("settings.browserConnector.tellMeMore.setup.pinTip")}
+            </p>
+          </div>
+
+          {/* Supported Sites */}
+          <div className="space-y-1">
+            <p className="font-semibold text-purple-400">
+              {t("settings.browserConnector.tellMeMore.supported.title")}
+            </p>
+            <p className="opacity-90">
+              {t("settings.browserConnector.tellMeMore.supported.description")}
+            </p>
+          </div>
+
+          {/* Pro Tip */}
+          <p className="italic text-purple-300/80 border-l-2 border-purple-500/50 pl-3">
+            {t("settings.browserConnector.tellMeMore.tip")}
+          </p>
+        </div>
+      </TellMeMore>
 
       {/* Extension Status */}
       <SettingsGroup title={t("settings.browserConnector.status.sectionTitle")}>
