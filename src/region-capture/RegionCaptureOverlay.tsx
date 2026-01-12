@@ -42,6 +42,10 @@ export default function RegionCaptureOverlay() {
 
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // For double-click handling: save region before click sequence starts
+  const savedRegionRef = useRef<Region | null>(null);
+  const lastMouseDownTime = useRef<number>(0);
+
   // Fetch data from backend when component mounts
   useEffect(() => {
     const fetchData = async () => {
@@ -57,40 +61,62 @@ export default function RegionCaptureOverlay() {
     fetchData();
   }, []);
 
+  // Confirm region selection (used by Enter key and double-click)
+  const handleConfirm = useCallback((regionToConfirm?: Region) => {
+    const r = regionToConfirm || region;
+    if (r && virtualScreen && r.width > MIN_REGION_SIZE && r.height > MIN_REGION_SIZE) {
+      const scale = virtualScreen.scale_factor || 1;
+      invoke("region_capture_confirm", {
+        region: {
+          x: Math.round(r.x * scale),
+          y: Math.round(r.y * scale),
+          width: Math.round(r.width * scale),
+          height: Math.round(r.height * scale),
+        },
+      });
+    }
+  }, [region, virtualScreen]);
+
+  // Handle double-click: confirm saved selection or send full screen
+  const handleDoubleClick = useCallback(
+    () => {
+      if (!virtualScreen) return;
+
+      // Use the region saved at the START of this click sequence
+      const savedRegion = savedRegionRef.current;
+
+      if (savedRegion && savedRegion.width > MIN_REGION_SIZE && savedRegion.height > MIN_REGION_SIZE) {
+        // Had a valid selection before double-click → send it
+        handleConfirm(savedRegion);
+      } else {
+        // No valid selection → send full screen
+        const fullScreen: Region = {
+          x: 0,
+          y: 0,
+          width: virtualScreen.total_width / (virtualScreen.scale_factor || 1),
+          height: virtualScreen.total_height / (virtualScreen.scale_factor || 1),
+        };
+        handleConfirm(fullScreen);
+      }
+    },
+    [virtualScreen, handleConfirm]
+  );
+
   // Handle keyboard events
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        // Cancel - notify backend
         invoke("region_capture_cancel");
       } else if (e.key === "Enter") {
         e.preventDefault();
-        if (
-          state === "selected" &&
-          region &&
-          virtualScreen &&
-          region.width > MIN_REGION_SIZE &&
-          region.height > MIN_REGION_SIZE
-        ) {
-          // Confirm - notify backend with region data
-          // Convert from logical to physical coordinates
-          const scale = virtualScreen.scale_factor || 1;
-          invoke("region_capture_confirm", {
-            region: {
-              x: Math.round(region.x * scale),
-              y: Math.round(region.y * scale),
-              width: Math.round(region.width * scale),
-              height: Math.round(region.height * scale),
-            },
-          });
-        }
+        handleConfirm();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [state, region, virtualScreen]);
+  }, [handleConfirm]);
 
   // Get handle at a point
   const getHandleAtPoint = useCallback(
@@ -137,6 +163,13 @@ export default function RegionCaptureOverlay() {
     (e: React.MouseEvent) => {
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
+
+      // Save region at start of new click sequence (for double-click handling)
+      const now = Date.now();
+      if (now - lastMouseDownTime.current > 400) {
+        savedRegionRef.current = region;
+      }
+      lastMouseDownTime.current = now;
 
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
@@ -288,9 +321,9 @@ export default function RegionCaptureOverlay() {
   // Get hint text based on state
   const getHintText = () => {
     if (error) return `Error: ${error}`;
-    if (state === "idle") return "Click and drag to select a region";
+    if (state === "idle") return "Click and drag to select a region, or double-click for full screen";
     if (state === "creating") return "Release to finish selection";
-    if (state === "selected") return "Drag to move, use handles to resize. Enter to confirm, Escape to cancel";
+    if (state === "selected") return "Drag to move, use handles to resize. Enter or double-click to confirm, Escape to cancel";
     if (state === "moving") return "Release to finish moving";
     if (state === "resizing") return "Release to finish resizing";
     return "";
@@ -304,6 +337,7 @@ export default function RegionCaptureOverlay() {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onDoubleClick={handleDoubleClick}
     >
       {/* Optional screenshot background (legacy mode). When absent, desktop shows through. */}
       {screenshot && (
