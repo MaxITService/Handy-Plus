@@ -3,6 +3,8 @@
 ![large_logo](Promo/large_logo.jpg)
 AI Voice Relay
 
+![AivoRelay Main Window](Promo/Aivorelay%20main%20Window.png)
+
 > 🎙️ AI-powered voice-to-text with smart integrations for Windows  
 > A fork of [cjpais/Handy](https://github.com/cjpais/Handy) with additional features
 
@@ -128,8 +130,7 @@ Configure your LLM provider (OpenAI, Anthropic, etc.) to power AI Replace and Po
 
 ## 📋 Platform Notes
 
- This extension has only been built and tested for Windows.   If you need other platforms, Handy can do it but without additional features.
----
+## This extension has only been built and tested for Windows. If you need other platforms, Handy can do it but without additional features.
 
 ## 🔧 Original Features
 
