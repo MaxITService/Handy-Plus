@@ -490,6 +490,33 @@
         "title": "Model Configuration",
         "description": "Here you can connect to large language model for either post-processing of your transcriptions or for function of AI replacing where the text is cut and sent to the large language model along with your voice message to be returned and pasted when AI responds."
       },
+      "tellMeMore": {
+        "title": "Tell me more: Connecting the Brain",
+        "headline": "Connect the Intelligence.",
+        "intro": "Your computer handles the hearing (Speech-to-Text), but it needs a \"Brain\" to understand and act on complex instructions like \"Rewrite this email\" or \"Translate to Spanish\". This Brain is provided by LLM (Large Language Model) API services.",
+        "apiKey": {
+          "title": "API Key:",
+          "description": "This is your password to access powerful AI models. You get it from your chosen provider's website after registration.",
+          "securityNote": "Security: Your key is stored locally on this machine and is never sent to our servers."
+        },
+        "provider": {
+          "title": "Provider:",
+          "description": "Choose who provides the intelligence. There are many LLM API providers: OpenAI (GPT-4), Anthropic (Claude), Groq (fast and free tier), Google (Gemini), and aggregators like OpenRouter. You can also use custom/local endpoints."
+        },
+        "model": {
+          "title": "Model:",
+          "description": "Each provider offers different models with varying capabilities, speed, and cost. Generally, larger models are smarter but slower and more expensive."
+        },
+        "prompts": {
+          "title": "Post-Processing Prompts:",
+          "description": "Create custom instructions that run automatically after each transcription. For example: fix grammar, add punctuation, translate, or format as bullet points."
+        },
+        "tip": "Easiest way to start: Register a free account on OpenRouter (openrouter.ai). It gives you access to many models from different providers in one place with pay-as-you-go pricing and some free models to try.",
+        "privacyWarning": {
+          "title": "Privacy Notice",
+          "description": "When you use LLM features (AI Replace, Post-Processing), your text is sent over the Internet to the provider's servers. This includes your transcriptions and any selected text. The provider processes your data according to their privacy policy. Only use providers you trust with your information."
+        }
+      },
       "disabledNotice": "Post processing is currently disabled. Enable it in Debug settings to configure.",
       "api": {
         "title": "Set API providers and keys for all LLM features in app",

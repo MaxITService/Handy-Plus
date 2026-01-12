@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Info, RefreshCcw } from "lucide-react";
+import { RefreshCcw } from "lucide-react";
 import { commands } from "@/bindings";
 
 import { SettingsGroup } from "../../ui/SettingsGroup";
+import { TellMeMore } from "../../ui/TellMeMore";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { Button } from "../../ui/Button";
 import { ResetButton } from "../../ui/ResetButton";
@@ -515,20 +516,57 @@ export const PostProcessingSettings: React.FC = () => {
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
-      {/* Help Banner */}
-      <div className="rounded-lg border border-purple-500/30 bg-purple-500/10 p-4">
-        <div className="flex items-start gap-3">
-          <Info className="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" />
-          <div className="space-y-1 text-sm text-text/80">
-            <p className="font-medium text-text">
-              {t("settings.postProcessing.help.title")}
+      {/* Help Section */}
+      <TellMeMore title={t("settings.postProcessing.tellMeMore.title")}>
+        <div className="space-y-3">
+          <p>
+            <strong>{t("settings.postProcessing.tellMeMore.headline")}</strong>
+          </p>
+          <p className="opacity-90">
+            {t("settings.postProcessing.tellMeMore.intro")}
+          </p>
+          <ul className="list-disc list-inside space-y-2 ml-1 opacity-90">
+            <li>
+              <strong>{t("settings.postProcessing.tellMeMore.apiKey.title")}</strong>{" "}
+              {t("settings.postProcessing.tellMeMore.apiKey.description")}
+              <p className="ml-5 mt-1 text-xs text-text/70 italic">
+                {t("settings.postProcessing.tellMeMore.apiKey.securityNote")}
+              </p>
+            </li>
+            <li>
+              <strong>{t("settings.postProcessing.tellMeMore.provider.title")}</strong>{" "}
+              {t("settings.postProcessing.tellMeMore.provider.description")}
+            </li>
+            <li>
+              <strong>{t("settings.postProcessing.tellMeMore.model.title")}</strong>{" "}
+              {t("settings.postProcessing.tellMeMore.model.description")}
+            </li>
+            <li>
+              <strong>{t("settings.postProcessing.tellMeMore.prompts.title")}</strong>{" "}
+              {t("settings.postProcessing.tellMeMore.prompts.description")}
+            </li>
+          </ul>
+          <div className="mt-3 p-2 bg-accent/10 border border-accent/20 rounded-md text-xs">
+            <p className="mb-1">{t("settings.postProcessing.tellMeMore.tip")}</p>
+            <a
+              href="https://openrouter.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:underline font-medium"
+            >
+              openrouter.ai
+            </a>
+          </div>
+          <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-md">
+            <p className="text-sm font-semibold text-red-400 mb-1">
+              {t("settings.postProcessing.tellMeMore.privacyWarning.title")}
             </p>
-            <p>
-              {t("settings.postProcessing.help.description")}
+            <p className="text-xs text-red-300/90">
+              {t("settings.postProcessing.tellMeMore.privacyWarning.description")}
             </p>
           </div>
         </div>
-      </div>
+      </TellMeMore>
 
       <SettingsGroup title={t("settings.postProcessing.api.title")}>
         <PostProcessingSettingsApi />
