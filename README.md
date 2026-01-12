@@ -25,6 +25,8 @@ Voice-controlled text editing — select text, speak instruction, get AI-transfo
 
 Voice-to-AI bridge via [AivoRelay Connector](https://github.com/MaxITService/AivoRelay-relay) browser extension.
 
+![How it works](Promo/How_it_works.png)
+
 | Mode                   | Input                  | What ChatGPT receives     |
 | ---------------------- | ---------------------- | ------------------------- |
 | **Voice only**         | Speak your question    | Your transcribed question |
