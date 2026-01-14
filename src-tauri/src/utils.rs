@@ -1,6 +1,7 @@
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::llm_operation::LlmOperationTracker;
 use crate::managers::remote_stt::RemoteSttManager;
+use crate::managers::transcription::TranscriptionManager;
 use crate::session_manager;
 use crate::ManagedToggleState;
 use log::{debug, info, warn};
@@ -63,6 +64,10 @@ pub fn cancel_current_operation(app: &AppHandle) {
     // Ensure UI is in idle state (redundant if session Drop ran, but safe)
     change_tray_icon(app, crate::tray::TrayIconState::Idle);
     hide_recording_overlay(app);
+
+    // Unload model if immediate unload is enabled
+    let tm = app.state::<Arc<TranscriptionManager>>();
+    tm.maybe_unload_immediately("cancellation");
 
     info!("Operation cancellation completed - returned to idle state");
 }
