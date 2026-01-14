@@ -62,6 +62,14 @@ const LlmConfigSection: React.FC<{
         </div>
       </SettingContainer>
 
+      {state.appleIntelligenceUnavailable ? (
+        <div className="p-3 bg-red-500/10 border border-red-500/50">
+          <p className="text-sm text-red-500">
+            {t("settings.postProcessing.api.appleIntelligence.unavailable")}
+          </p>
+        </div>
+      ) : null}
+
       {/* If state has useSameAsPostProcess and it's true, show notice and hide rest */}
       {state.useSameAsPostProcess ? (
         <SettingContainer
