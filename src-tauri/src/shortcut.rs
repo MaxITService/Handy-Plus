@@ -1206,7 +1206,6 @@ pub async fn fetch_post_process_models(
     }
 
     crate::llm_client::fetch_models(provider, api_key).await
-<<<<<<< HEAD
 }
 
 /// Fetch models for a specific LLM feature.
@@ -1252,8 +1251,6 @@ pub async fn fetch_llm_models(
     }
 
     crate::llm_client::fetch_models(provider, config.api_key).await
-=======
->>>>>>> 5c5e428
 }
 
 #[tauri::command]
