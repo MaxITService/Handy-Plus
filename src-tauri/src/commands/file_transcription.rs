@@ -129,6 +129,12 @@ pub async fn transcribe_audio_file(
             .map(|p| p.translate_to_english)
             .unwrap_or(settings.translate_to_english);
 
+        // Determine language: use profile setting if available, otherwise global setting
+        let language = profile
+            .as_ref()
+            .map(|p| p.language.clone())
+            .unwrap_or_else(|| settings.selected_language.clone());
+
         let prompt = crate::settings::resolve_stt_prompt(
             profile,
             &settings.transcription_prompts,
@@ -136,7 +142,13 @@ pub async fn transcribe_audio_file(
         );
 
         let text = remote_manager
-            .transcribe(&settings.remote_stt, &samples, prompt, translate_to_english)
+            .transcribe(
+                &settings.remote_stt,
+                &samples,
+                prompt,
+                Some(language),
+                translate_to_english,
+            )
             .await
             .map_err(|e| format!("Remote transcription failed: {}", e))?;
 

@@ -567,21 +567,28 @@ async fn perform_transcription_for_profile(
             .map(|p| p.translate_to_english)
             .unwrap_or(settings.translate_to_english);
 
+        // Determine language: use profile setting if available, otherwise global setting
+        let language = profile
+            .as_ref()
+            .map(|p| p.language.clone())
+            .unwrap_or_else(|| settings.selected_language.clone());
+
         // Log the request details
         if let Some(p) = &profile {
             log::info!(
                 "Transcription using Remote STT with profile '{}' (lang={}, translate={}): base_url={}, model={}",
                 p.name,
-                p.language,
-                p.translate_to_english,
+                language,
+                translate_to_english,
                 settings.remote_stt.base_url,
                 settings.remote_stt.model_id
             );
         } else {
             log::info!(
-                "Transcription using Remote STT: base_url={}, model={}, translate={}",
+                "Transcription using Remote STT: base_url={}, model={}, lang={}, translate={}",
                 settings.remote_stt.base_url,
                 settings.remote_stt.model_id,
+                language,
                 translate_to_english
             );
         }
@@ -595,7 +602,13 @@ async fn perform_transcription_for_profile(
         );
 
         let result = remote_manager
-            .transcribe(&settings.remote_stt, &samples, prompt, translate_to_english)
+            .transcribe(
+                &settings.remote_stt,
+                &samples,
+                prompt,
+                Some(language),
+                translate_to_english,
+            )
             .await
             .map(|text| {
                 if settings.custom_words_enabled && !settings.custom_words.is_empty() {

@@ -200,6 +200,7 @@ impl RemoteSttManager {
         settings: &RemoteSttSettings,
         audio_samples: &[f32],
         prompt: Option<String>,
+        language: Option<String>,
         translate_to_english: bool,
     ) -> Result<String> {
         if audio_samples.is_empty() {
@@ -263,6 +264,17 @@ impl RemoteSttManager {
                     .mime_str("audio/wav")
                     .map_err(|e| anyhow!("Failed to build multipart file: {}", e))?,
             );
+
+        if let Some(mut lang) = language {
+            if lang != "auto" {
+                // Normalize language code for OpenAI/Whisper
+                // Convert zh-Hans and zh-Hant to zh since Whisper uses ISO 639-1 codes
+                if lang == "zh-Hans" || lang == "zh-Hant" {
+                    lang = "zh".to_string();
+                }
+                form = form.text("language", lang);
+            }
+        }
 
         // Check prompt against known model limits
         // For known models: validate limit upfront and return user-friendly error
