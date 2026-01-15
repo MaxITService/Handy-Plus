@@ -43,12 +43,64 @@ Voice-to-AI bridge via [AivoRelay Connector](https://github.com/MaxITService/Aiv
 
 ### 🎚️ Transcription Profiles
 
-Quick-switch between language and prompt presets with dedicated shortcuts.
+Quick-switch between language, prompt, and LLM post-processing presets with dedicated shortcuts: swithc currently active profile or assign each profile its own hotkey!
 
-- Create profiles for different languages or use cases
-- Each profile has its own shortcut, language, and system prompt
-- Cycle through profiles with a hotkey
-- Great for multilingual users or specialized transcription needs
+#### What Are Profiles?
+
+Profiles let you create different transcription configurations and switch between them instantly. Perfect for:
+
+- **Multilingual users** — Switch between English, Russian, Finnish, etc.
+- **Different use cases** — One profile for dictation, another for code comments
+- **Translation workflows** — Speak in one language, output in another
+- **Everything you can imagine!** — Serioulsy, you can invent so many uses!
+
+#### Profile Settings
+
+Each profile can customize:
+
+| Setting | Description |
+|---------|-------------|
+| **Language** | Speech recognition language (e.g., English, Russian, Auto-detect) |
+| **Translate to English** | Automatically translate non-English speech to English |
+| **Push-to-Talk** | Hold hotkey to record vs. toggle on/off |
+| **Voice Model Prompt** | System prompt for STT model (word hints, formatting) |
+| **Include in Cycle** | Whether this profile appears when cycling through profiles |
+
+#### LLM Post-Processing Override
+
+Each profile can override the global LLM post-processing settings:
+
+- **Enable/Disable** — Turn LLM processing on/off per profile
+- **Custom Prompt** — Use a different prompt than the global one
+- **Custom Model** — Use a different LLM model per profile
+
+**Example:** Create a "Finnish Translation" profile that takes any language input and outputs Finnish text via LLM.
+
+#### The `${output}` Variable
+
+When writing LLM prompts, use `${output}` as a placeholder for the transcribed text:
+
+```
+Translate this to Finnish: ${output}
+```
+
+**How it works:**
+1. You speak → "Привет, как дела?"
+2. STT transcribes → "Привет, как дела?"
+3. `${output}` is replaced → "Translate this to Finnish: Привет, как дела?"
+4. LLM processes → "Hei, mitä kuuluu?"
+
+#### Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| **Main Transcribe** (`Ctrl+F8`) | Transcribe using the active profile |
+| **Cycle Profile** | Switch to the next profile in cycle |
+| **Per-Profile Shortcuts** | Each profile can have its own dedicated shortcut |
+
+#### Default Profile
+
+The "Default Profile" uses your global settings (Settings → Speech). It cannot be deleted but can be customized or set as active.
 
 **Setup:** Settings → Speech → Transcription Profiles
 
