@@ -389,9 +389,9 @@ async setPostProcessSelectedPrompt(id: string) : Promise<Result<null, string>> {
  * Creates a new transcription profile with its own language/translation settings.
  * This also creates a corresponding shortcut binding and registers it.
  */
-async addTranscriptionProfile(name: string, language: string, translateToEnglish: boolean, systemPrompt: string, pushToTalk: boolean, llmSettings: ProfileLlmSettings | null) : Promise<Result<TranscriptionProfile, string>> {
+async addTranscriptionProfile(name: string, language: string, translateToEnglish: boolean, systemPrompt: string, pushToTalk: boolean, includeInCycle: boolean | null, llmSettings: ProfileLlmSettings | null) : Promise<Result<TranscriptionProfile, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("add_transcription_profile", { name, language, translateToEnglish, systemPrompt, pushToTalk, llmSettings }) };
+    return { status: "ok", data: await TAURI_INVOKE("add_transcription_profile", { name, language, translateToEnglish, systemPrompt, pushToTalk, includeInCycle, llmSettings }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

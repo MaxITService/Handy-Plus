@@ -7,7 +7,6 @@ import {
   ChevronUp,
   Globe,
   Check,
-  Play,
   RefreshCw,
 } from "lucide-react";
 import { commands, TranscriptionProfile } from "@/bindings";
@@ -22,10 +21,15 @@ import { Dropdown } from "../ui/Dropdown";
 import { Badge } from "../ui/Badge";
 import { ToggleSwitch } from "../ui/ToggleSwitch";
 import { HandyShortcut } from "./HandyShortcut";
+import { TranslateToEnglish } from "./TranslateToEnglish";
+import { ModelSelect } from "./PostProcessingSettingsApi/ModelSelect";
+import type { ModelOption } from "./PostProcessingSettingsApi/types";
 import { useSettings } from "../../hooks/useSettings";
 import { useModels } from "../../hooks/useModels";
 import { LANGUAGES } from "../../lib/constants/languages";
 import { getModelPromptInfo } from "./TranscriptionSystemPrompt";
+
+const APPLE_PROVIDER_ID = "apple_intelligence";
 
 interface ExtendedTranscriptionProfile extends TranscriptionProfile {
   include_in_cycle: boolean;
@@ -43,6 +47,9 @@ interface ProfileCardProps {
   promptLimit: number;
   isActive: boolean;
   onSetActive: (id: string) => Promise<void>;
+  llmConfigured: boolean;
+  llmModelOptions: ModelOption[];
+  globalLlmModel: string;
 }
 
 const ProfileCard: React.FC<ProfileCardProps> = ({
@@ -55,6 +62,9 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
   promptLimit,
   isActive,
   onSetActive,
+  llmConfigured,
+  llmModelOptions,
+  globalLlmModel,
 }) => {
   const { t } = useTranslation();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -133,6 +143,42 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
     setIsUpdating(true);
     try {
       await onUpdate({ ...profile, stt_prompt_override_enabled: newValue });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleLlmEnabledChange = async (newValue: boolean) => {
+    setIsUpdating(true);
+    try {
+      await onUpdate({ ...profile, llm_post_process_enabled: newValue });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleLlmPromptChange = async (newPrompt: string) => {
+    const trimmed = newPrompt.trim();
+    if (trimmed === (profile.llm_prompt_override || "")) return;
+    setIsUpdating(true);
+    try {
+      await onUpdate({
+        ...profile,
+        llm_prompt_override: trimmed || null,
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleLlmModelChange = async (newModel: string | null) => {
+    if (newModel === profile.llm_model_override) return;
+    setIsUpdating(true);
+    try {
+      await onUpdate({
+        ...profile,
+        llm_model_override: newModel || null,
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -344,12 +390,32 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
             </div>
           </div>
 
-          {/* System Prompt Override */}
+          {/* Voice Model Prompt Override */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-text/70">
-                {t("settings.transcriptionProfiles.overrideSystemPrompt")}
-              </label>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-text/70">
+                  {t("settings.transcriptionProfiles.overrideSystemPrompt")}
+                </label>
+                <div
+                  className="relative flex items-center justify-center p-1 group"
+                  title={t("settings.transcriptionProfiles.voiceModelPromptTooltip")}
+                >
+                  <svg
+                    className="w-4 h-4 text-[#707070] cursor-help hover:text-[#ff4d8d] transition-colors duration-200"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+              </div>
               <ToggleSwitch
                 checked={profile.stt_prompt_override_enabled ?? false}
                 onChange={handleSttPromptOverrideChange}
@@ -402,6 +468,91 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
             )}
           </div>
 
+          {/* LLM Post-Processing Section */}
+          {llmConfigured && (
+            <div className="space-y-2 pt-3 border-t border-mid-gray/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-text/70">
+                    {t("settings.transcriptionProfiles.llmPostProcessing.title")}
+                  </label>
+                  <div
+                    className="relative flex items-center justify-center p-1 group"
+                    title={t("settings.transcriptionProfiles.llmPostProcessing.description")}
+                  >
+                    <svg
+                      className="w-4 h-4 text-[#707070] cursor-help hover:text-[#ff4d8d] transition-colors duration-200"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <ToggleSwitch
+                  checked={profile.llm_post_process_enabled ?? false}
+                  onChange={handleLlmEnabledChange}
+                  disabled={isUpdating}
+                />
+              </div>
+              <p className="text-xs text-mid-gray">
+                {t("settings.transcriptionProfiles.llmPostProcessing.description")}
+              </p>
+
+              {profile.llm_post_process_enabled && (
+                <div className="space-y-3 pl-3 border-l-2 border-purple-500/30">
+                  {/* Prompt Override */}
+                  <div className="space-y-1">
+                    <label className="text-xs text-text/60">
+                      {t("settings.transcriptionProfiles.llmPostProcessing.overridePrompt")}
+                    </label>
+                    <p className="text-xs text-mid-gray">
+                      {t("settings.transcriptionProfiles.llmPostProcessing.overridePromptHint")}
+                    </p>
+                    <textarea
+                      defaultValue={profile.llm_prompt_override || ""}
+                      onBlur={(e) => handleLlmPromptChange(e.target.value)}
+                      placeholder={t("settings.transcriptionProfiles.llmPostProcessing.promptPlaceholder")}
+                      disabled={isUpdating}
+                      rows={2}
+                      className={`w-full px-3 py-2 text-sm bg-[#1e1e1e]/80 border rounded-md resize-none transition-colors border-[#3c3c3c] focus:border-[#4a4a4a] ${isUpdating ? "opacity-40 cursor-not-allowed" : ""} text-[#e8e8e8] placeholder-[#6b6b6b]`}
+                    />
+                  </div>
+
+                  {/* Model Override */}
+                  <div className="space-y-1">
+                    <label className="text-xs text-text/60">
+                      {t("settings.transcriptionProfiles.llmPostProcessing.overrideModel")}
+                    </label>
+                    <p className="text-xs text-mid-gray">
+                      {t("settings.transcriptionProfiles.llmPostProcessing.overrideModelHint")}
+                    </p>
+                    <ModelSelect
+                      value={profile.llm_model_override || ""}
+                      options={llmModelOptions}
+                      disabled={isUpdating}
+                      placeholder={
+                        globalLlmModel
+                          ? t("settings.transcriptionProfiles.llmPostProcessing.usingGlobalModel", { model: globalLlmModel })
+                          : t("settings.transcriptionProfiles.llmPostProcessing.modelPlaceholder")
+                      }
+                      onSelect={(value) => handleLlmModelChange(value || null)}
+                      onCreate={(value) => handleLlmModelChange(value)}
+                      onBlur={() => {}}
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
       )}
     </div>
@@ -410,7 +561,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
 
 export const TranscriptionProfiles: React.FC = () => {
   const { t } = useTranslation();
-  const { settings, refreshSettings, updateSetting } = useSettings();
+  const { settings, refreshSettings, updateSetting, postProcessModelOptions } = useSettings();
   const { getModelInfo } = useModels();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(
     () => new Set(["default"]),
@@ -421,6 +572,10 @@ export const TranscriptionProfiles: React.FC = () => {
   const [newTranslate, setNewTranslate] = useState(false);
   const [newSystemPrompt, setNewSystemPrompt] = useState("");
   const [newPushToTalk, setNewPushToTalk] = useState(true);
+  const [newIncludeInCycle, setNewIncludeInCycle] = useState(true);
+  const [newLlmEnabled, setNewLlmEnabled] = useState(false);
+  const [newLlmPromptOverride, setNewLlmPromptOverride] = useState("");
+  const [newLlmModelOverride, setNewLlmModelOverride] = useState<string | null>(null);
 
   const isExpanded = (id: string) => expandedIds.has(id);
 
@@ -486,32 +641,60 @@ export const TranscriptionProfiles: React.FC = () => {
   const newPromptLength = newSystemPrompt.length;
   const isNewPromptOverLimit = promptLimit > 0 && newPromptLength > promptLimit;
 
+  // LLM Post-Processing configuration
+  const currentLlmProviderId = settings?.post_process_provider_id || "";
+
+  // Show LLM section if post-processing is enabled globally (user has configured it)
+  const isLlmConfigured = useMemo(() => {
+    // If global post-process is enabled, the user has set it up
+    if (settings?.post_process_enabled) return true;
+    // Also check if provider is configured with API key
+    if (!currentLlmProviderId) return false;
+    if (currentLlmProviderId === APPLE_PROVIDER_ID) return true;
+    const apiKey = settings?.post_process_api_keys?.[currentLlmProviderId];
+    return !!apiKey?.trim();
+  }, [settings?.post_process_enabled, currentLlmProviderId, settings?.post_process_api_keys]);
+
+  const llmModelOptions = useMemo<ModelOption[]>(() => {
+    const models = postProcessModelOptions[currentLlmProviderId] || [];
+    return models.map((m) => ({ value: m, label: m }));
+  }, [postProcessModelOptions, currentLlmProviderId]);
+
+  const globalLlmModel = settings?.post_process_models?.[currentLlmProviderId] || "";
+
   const handleCreate = async () => {
     if (!newName.trim()) return;
     if (isNewPromptOverLimit) return;
     setIsCreating(true);
     try {
-      const result = await commands.addTranscriptionProfile(
-        newName.trim(),
-        newLanguage,
-        newTranslate,
-        newSystemPrompt,
-        newPushToTalk,
-        null,
-      );
-      if (result.status === "ok") {
-        await refreshSettings();
-        setNewName("");
-        setNewLanguage("auto");
-        setNewTranslate(false);
-        setNewSystemPrompt("");
-        setNewPushToTalk(true);
-        setExpandedIds((prev) => {
-          const next = new Set(prev);
-          next.add(result.data.id);
-          return next;
-        });
-      }
+      const newProfile = await invoke<TranscriptionProfile>("add_transcription_profile", {
+        name: newName.trim(),
+        language: newLanguage,
+        translateToEnglish: newTranslate,
+        systemPrompt: newSystemPrompt,
+        pushToTalk: newPushToTalk,
+        includeInCycle: newIncludeInCycle,
+        llmSettings: {
+          enabled: newLlmEnabled,
+          prompt_override: newLlmPromptOverride.trim() || null,
+          model_override: newLlmModelOverride,
+        },
+      });
+      await refreshSettings();
+      setNewName("");
+      setNewLanguage("auto");
+      setNewTranslate(false);
+      setNewSystemPrompt("");
+      setNewPushToTalk(true);
+      setNewIncludeInCycle(true);
+      setNewLlmEnabled(false);
+      setNewLlmPromptOverride("");
+      setNewLlmModelOverride(null);
+      setExpandedIds((prev) => {
+        const next = new Set(prev);
+        next.add(newProfile.id);
+        return next;
+      });
     } catch (error) {
       console.error("Failed to create profile:", error);
     } finally {
@@ -795,7 +978,10 @@ export const TranscriptionProfiles: React.FC = () => {
                   </div>
                 </div>
 
-                {/* System Prompt - only show if model supports prompts */}
+                {/* Translate to English */}
+                <TranslateToEnglish grouped={true} descriptionMode="inline" />
+
+                {/* Voice Model Prompt - only show if model supports prompts */}
                 {modelInfo.supportsPrompt && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -856,6 +1042,9 @@ export const TranscriptionProfiles: React.FC = () => {
               promptLimit={promptLimit}
               isActive={activeProfileId === profile.id}
               onSetActive={handleSetActive}
+              llmConfigured={isLlmConfigured}
+              llmModelOptions={llmModelOptions}
+              globalLlmModel={globalLlmModel}
             />
           ))}
         </div>
@@ -870,6 +1059,7 @@ export const TranscriptionProfiles: React.FC = () => {
         grouped={true}
       >
         <div className="space-y-3 p-3 border border-dashed border-mid-gray/30 rounded-lg overflow-visible">
+          {/* Profile Name & Language */}
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div className="space-y-1 min-w-0">
               <label className="text-xs font-semibold text-text/70">
@@ -903,12 +1093,83 @@ export const TranscriptionProfiles: React.FC = () => {
             </div>
           </div>
 
-          {/* System Prompt for new profile */}
+          {/* Translate to English & Push to Talk */}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="space-y-2 min-w-0">
+              <label className="text-xs font-semibold text-text/70">
+                {t("settings.transcriptionProfiles.translateToEnglish")}
+              </label>
+              <div className="flex items-center gap-2">
+                <ToggleSwitch
+                  checked={newTranslate}
+                  onChange={setNewTranslate}
+                  disabled={isCreating}
+                />
+                <span className="text-xs text-mid-gray leading-snug">
+                  {t("settings.transcriptionProfiles.translateToEnglishTooltip")}
+                </span>
+              </div>
+            </div>
+            <div className="space-y-2 min-w-0">
+              <label className="text-xs font-semibold text-text/70">
+                {t("settings.general.pushToTalk.label")}
+              </label>
+              <div className="flex items-center gap-2">
+                <ToggleSwitch
+                  checked={newPushToTalk}
+                  onChange={setNewPushToTalk}
+                  disabled={isCreating}
+                />
+                <span className="text-xs text-mid-gray leading-snug">
+                  {t("settings.general.pushToTalk.description")}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Include in Cycle */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={newIncludeInCycle}
+              onChange={(e) => setNewIncludeInCycle(e.target.checked)}
+              disabled={isCreating}
+              className="w-4 h-4 rounded border-mid-gray bg-background text-purple-500 focus:ring-purple-500/50"
+            />
+            <label className="text-xs font-semibold text-text/70">
+              {t("settings.transcriptionProfiles.includeInCycle")}
+            </label>
+            <span className="text-xs text-mid-gray">
+              {t("settings.transcriptionProfiles.includeInCycleDescription")}
+            </span>
+          </div>
+
+          {/* Voice Model Prompt */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-text/70">
-                {t("settings.transcriptionProfiles.systemPrompt")}
-              </label>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-text/70">
+                  {t("settings.transcriptionProfiles.systemPrompt")}
+                </label>
+                <div
+                  className="relative flex items-center justify-center p-1"
+                  title={t("settings.transcriptionProfiles.voiceModelPromptTooltip")}
+                >
+                  <svg
+                    className="w-4 h-4 text-[#707070] cursor-help hover:text-[#ff4d8d] transition-colors duration-200"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+              </div>
               <span
                 className={`text-xs ${isNewPromptOverLimit ? "text-red-400" : "text-mid-gray"}`}
               >
@@ -939,49 +1200,90 @@ export const TranscriptionProfiles: React.FC = () => {
             )}
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <label className="text-xs font-semibold text-text/70">
-                {t("settings.transcriptionProfiles.translateToEnglish")}
-              </label>
-            </div>
-            <button
-              type="button"
-              onClick={() => setNewTranslate(!newTranslate)}
-              disabled={isCreating}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
-                newTranslate ? "bg-purple-500" : "bg-mid-gray/30"
-              } ${isCreating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  newTranslate ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
-          </div>
+          {/* LLM Post-Processing Section */}
+          {isLlmConfigured && (
+            <div className="space-y-2 pt-3 border-t border-mid-gray/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-text/70">
+                    {t("settings.transcriptionProfiles.llmPostProcessing.title")}
+                  </label>
+                  <div
+                    className="relative flex items-center justify-center p-1"
+                    title={t("settings.transcriptionProfiles.llmPostProcessing.description")}
+                  >
+                    <svg
+                      className="w-4 h-4 text-[#707070] cursor-help hover:text-[#ff4d8d] transition-colors duration-200"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <ToggleSwitch
+                  checked={newLlmEnabled}
+                  onChange={setNewLlmEnabled}
+                  disabled={isCreating}
+                />
+              </div>
+              <p className="text-xs text-mid-gray">
+                {t("settings.transcriptionProfiles.llmPostProcessing.description")}
+              </p>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <label className="text-xs font-semibold text-text/70">
-                {t("settings.general.pushToTalk.label")}
-              </label>
+              {newLlmEnabled && (
+                <div className="space-y-3 pl-3 border-l-2 border-purple-500/30">
+                  {/* Prompt Override */}
+                  <div className="space-y-1">
+                    <label className="text-xs text-text/60">
+                      {t("settings.transcriptionProfiles.llmPostProcessing.overridePrompt")}
+                    </label>
+                    <p className="text-xs text-mid-gray">
+                      {t("settings.transcriptionProfiles.llmPostProcessing.overridePromptHint")}
+                    </p>
+                    <textarea
+                      value={newLlmPromptOverride}
+                      onChange={(e) => setNewLlmPromptOverride(e.target.value)}
+                      placeholder={t("settings.transcriptionProfiles.llmPostProcessing.promptPlaceholder")}
+                      disabled={isCreating}
+                      rows={2}
+                      className={`w-full px-3 py-2 text-sm bg-[#1e1e1e]/80 border rounded-md resize-none transition-colors border-[#3c3c3c] focus:border-[#4a4a4a] ${isCreating ? "opacity-40 cursor-not-allowed" : ""} text-[#e8e8e8] placeholder-[#6b6b6b]`}
+                    />
+                  </div>
+
+                  {/* Model Override */}
+                  <div className="space-y-1">
+                    <label className="text-xs text-text/60">
+                      {t("settings.transcriptionProfiles.llmPostProcessing.overrideModel")}
+                    </label>
+                    <p className="text-xs text-mid-gray">
+                      {t("settings.transcriptionProfiles.llmPostProcessing.overrideModelHint")}
+                    </p>
+                    <ModelSelect
+                      value={newLlmModelOverride || ""}
+                      options={llmModelOptions}
+                      disabled={isCreating}
+                      placeholder={
+                        globalLlmModel
+                          ? t("settings.transcriptionProfiles.llmPostProcessing.usingGlobalModel", { model: globalLlmModel })
+                          : t("settings.transcriptionProfiles.llmPostProcessing.modelPlaceholder")
+                      }
+                      onSelect={(value) => setNewLlmModelOverride(value || null)}
+                      onCreate={(value) => setNewLlmModelOverride(value)}
+                      onBlur={() => {}}
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
-            <button
-              type="button"
-              onClick={() => setNewPushToTalk(!newPushToTalk)}
-              disabled={isCreating}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
-                newPushToTalk ? "bg-purple-500" : "bg-mid-gray/30"
-              } ${isCreating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  newPushToTalk ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
-          </div>
+          )}
 
           {/* Create Button */}
           <div className="flex justify-end pt-1">

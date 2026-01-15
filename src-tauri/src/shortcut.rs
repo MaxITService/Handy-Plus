@@ -916,6 +916,7 @@ pub fn add_transcription_profile(
     translate_to_english: bool,
     system_prompt: String,
     push_to_talk: bool,
+    include_in_cycle: Option<bool>,
     llm_settings: Option<settings::ProfileLlmSettings>,
 ) -> Result<settings::TranscriptionProfile, String> {
     let mut settings = settings::get_settings(&app);
@@ -946,8 +947,8 @@ pub fn add_transcription_profile(
         translate_to_english,
         description: description.clone(),
         system_prompt,
-        stt_prompt_override_enabled: false, // Default: use global per-model prompt
-        include_in_cycle: true,             // Include in cycle by default
+        stt_prompt_override_enabled: false,      // Default: use global per-model prompt
+        include_in_cycle: include_in_cycle.unwrap_or(true), // Include in cycle by default
         push_to_talk,
         llm_post_process_enabled,
         llm_prompt_override,

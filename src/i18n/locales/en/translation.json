@@ -267,6 +267,7 @@
       "overrideSystemPrompt": "Override Voice Model Prompt",
       "overrideSystemPromptOnDescription": "Using custom prompt for this profile. Leave empty to disable prompts entirely for this profile.",
       "overrideSystemPromptOffDescription": "Using global per-model prompt. Enable to use a custom prompt for this profile.",
+      "voiceModelPromptTooltip": "This prompt is sent to the speech recognition model to help with specialized terminology and names. Currently only Whisper models support prompts. If transcription doesn't improve or behaves unexpectedly, you can disable this feature.",
       "active": "Active",
       "setActive": "Set Active",
       "setActiveDescription": "Use this profile for the main 'Transcribe' shortcut.",
@@ -286,8 +287,10 @@
         "notConfigured": "LLM API is not configured.",
         "configureLink": "Configure LLM settings",
         "overridePrompt": "Override system prompt",
+        "overridePromptHint": "Leave empty to use the global prompt configured in LLM API Relay.",
         "promptPlaceholder": "Custom LLM prompt for this profile...",
         "overrideModel": "Override LLM model",
+        "overrideModelHint": "Leave empty to use the global model.",
         "modelPlaceholder": "e.g., gpt-4-turbo",
         "usingGlobalModel": "Using global model: {{model}}",
         "defaultNote": "Custom profiles can override this setting individually."
