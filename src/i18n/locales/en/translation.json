@@ -69,6 +69,10 @@
       "parakeet-tdt-0.6b-v3": {
         "name": "Parakeet V3",
         "description": "Fast and accurate"
+      },
+      "moonshine-base": {
+        "name": "Moonshine Base",
+        "description": "Very fast, English only. Handles accents well."
       }
     },
     "errors": {
@@ -260,6 +264,9 @@
       "systemPromptPlaceholder": "Context hints, terminology, formatting guidance...",
       "systemPromptDescription": "Prompt sent to the speech-to-text model to help with specialized terminology, names, or formatting. Leave empty to use the global prompt.",
       "systemPromptTooLong": "Prompt exceeds {{limit}} character limit for this model.",
+      "overrideSystemPrompt": "Override Voice Model Prompt",
+      "overrideSystemPromptOnDescription": "Using custom prompt for this profile. Leave empty to disable prompts entirely for this profile.",
+      "overrideSystemPromptOffDescription": "Using global per-model prompt. Enable to use a custom prompt for this profile.",
       "active": "Active",
       "setActive": "Set Active",
       "setActiveDescription": "Use this profile for the main 'Transcribe' shortcut.",

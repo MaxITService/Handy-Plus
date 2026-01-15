@@ -16,6 +16,7 @@ const unsupportedLocalModels = [
   "parakeet-tdt-0.6b-v2",
   "parakeet-tdt-0.6b-v3",
   "turbo",
+  "moonshine-base",
 ];
 
 export const TranslateToEnglish: React.FC<TranslateToEnglishProps> = React.memo(

@@ -1,6 +1,6 @@
 [package]
 name = "aivorelay"
-version = "0.7.0"
+version = "0.7.1"
 description = "A sophisticated AI voice relay application"
 authors = ["Maxim Fomin", "MaxITService"]
 edition = "2021"
@@ -70,7 +70,7 @@ chrono = "0.4"
 rusqlite = { version = "0.37", features = ["bundled"] }
 tar = "0.4.44"
 flate2 = "1.0"
-transcribe-rs = "0.1.4"
+transcribe-rs = { version = "0.2.2", features = ["whisper", "parakeet", "moonshine"] }
 ferrous-opencc = "0.2.3"
 keyring = "2.3.3"
 axum = "0.8"

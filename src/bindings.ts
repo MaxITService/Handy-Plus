@@ -101,14 +101,6 @@ async changeTranscriptionPromptSetting(modelId: string, prompt: string) : Promis
     else return { status: "error", error: e  as any };
 }
 },
-async changeSttSystemPromptEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("change_stt_system_prompt_enabled_setting", { enabled }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
 async changeOverlayPositionSetting(position: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_overlay_position_setting", { position }) };
@@ -408,9 +400,9 @@ async addTranscriptionProfile(name: string, language: string, translateToEnglish
 /**
  * Updates an existing transcription profile.
  */
-async updateTranscriptionProfile(id: string, name: string, language: string, translateToEnglish: boolean, systemPrompt: string, includeInCycle: boolean, pushToTalk: boolean, llmSettings: ProfileLlmSettings) : Promise<Result<null, string>> {
+async updateTranscriptionProfile(id: string, name: string, language: string, translateToEnglish: boolean, systemPrompt: string, sttPromptOverrideEnabled: boolean, includeInCycle: boolean, pushToTalk: boolean, llmSettings: ProfileLlmSettings) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("update_transcription_profile", { id, name, language, translateToEnglish, systemPrompt, includeInCycle, pushToTalk, llmSettings }) };
+    return { status: "ok", data: await TAURI_INVOKE("update_transcription_profile", { id, name, language, translateToEnglish, systemPrompt, sttPromptOverrideEnabled, includeInCycle, pushToTalk, llmSettings }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1472,11 +1464,6 @@ connector_pending_password?: string | null;
  */
 transcription_prompts?: Partial<{ [key in string]: string }>; 
 /**
- * Whether to send the STT system prompt to the speech recognition model
- * When disabled, prompts are not sent even if text exists
- */
-stt_system_prompt_enabled?: boolean; 
-/**
  * Custom transcription profiles with per-profile language/translation settings.
  * Each profile creates a dynamic shortcut binding.
  */
@@ -1594,7 +1581,7 @@ port: number;
  */
 server_error: string | null }
 export type CustomSounds = { start: boolean; stop: boolean }
-export type EngineType = "Whisper" | "Parakeet"
+export type EngineType = "Whisper" | "Parakeet" | "Moonshine"
 /**
  * Extension connection status
  */
@@ -1771,6 +1758,12 @@ description?: string;
  * Character limits are enforced based on the active model (e.g., Whisper: 896 chars)
  */
 system_prompt?: string; 
+/**
+ * Whether to override the global per-model STT prompt with this profile's system_prompt.
+ * When true, uses system_prompt (even if empty) instead of global transcription_prompts.
+ * When false, falls back to global per-model prompt.
+ */
+stt_prompt_override_enabled?: boolean; 
 /**
  * Whether this profile participates in the cycle shortcut rotation
  */

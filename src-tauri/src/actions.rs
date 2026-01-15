@@ -588,22 +588,11 @@ async fn perform_transcription_for_profile(
         let remote_manager = app.state::<Arc<RemoteSttManager>>();
         let operation_id = remote_manager.start_operation();
 
-        let prompt = if settings.stt_system_prompt_enabled {
-            // Use profile's system_prompt if available, otherwise fall back to per-model prompt
-            profile
-                .as_ref()
-                .map(|p| p.system_prompt.clone())
-                .filter(|p| !p.trim().is_empty())
-                .or_else(|| {
-                    settings
-                        .transcription_prompts
-                        .get(&settings.remote_stt.model_id)
-                        .filter(|p| !p.trim().is_empty())
-                        .cloned()
-                })
-        } else {
-            None
-        };
+        let prompt = crate::settings::resolve_stt_prompt(
+            profile,
+            &settings.transcription_prompts,
+            &settings.remote_stt.model_id,
+        );
 
         let result = remote_manager
             .transcribe(&settings.remote_stt, &samples, prompt, translate_to_english)
@@ -1060,10 +1049,15 @@ impl ShortcutAction for TranscribeAction {
             };
 
             let ah_clone = ah.clone();
+            let binding_id_clone = binding_id.clone();
             ah.run_on_main_thread(move || {
                 let _ = utils::paste(final_text, ah_clone.clone());
                 utils::hide_recording_overlay(&ah_clone);
                 change_tray_icon(&ah_clone, TrayIconState::Idle);
+                // Clear toggle state now that transcription is complete
+                if let Ok(mut states) = ah_clone.state::<ManagedToggleState>().lock() {
+                    states.active_toggles.insert(binding_id_clone, false);
+                }
             })
             .ok();
 

@@ -30,6 +30,7 @@ import { getModelPromptInfo } from "./TranscriptionSystemPrompt";
 interface ExtendedTranscriptionProfile extends TranscriptionProfile {
   include_in_cycle: boolean;
   push_to_talk: boolean;
+  stt_prompt_override_enabled: boolean;
 }
 
 interface ProfileCardProps {
@@ -123,6 +124,15 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
     setIsUpdating(true);
     try {
       await onUpdate({ ...profile, push_to_talk: newValue });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSttPromptOverrideChange = async (newValue: boolean) => {
+    setIsUpdating(true);
+    try {
+      await onUpdate({ ...profile, stt_prompt_override_enabled: newValue });
     } finally {
       setIsUpdating(false);
     }
@@ -334,42 +344,61 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
             </div>
           </div>
 
-          {/* System Prompt */}
+          {/* System Prompt Override */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-text/70">
-                {t("settings.transcriptionProfiles.systemPrompt")}
+                {t("settings.transcriptionProfiles.overrideSystemPrompt")}
               </label>
-              <span
-                className={`text-xs ${isOverLimit ? "text-red-400" : "text-mid-gray"}`}
-              >
-                {promptLength}
-                {promptLimit > 0 && ` / ${promptLimit}`}
-              </span>
+              <ToggleSwitch
+                checked={profile.stt_prompt_override_enabled ?? false}
+                onChange={handleSttPromptOverrideChange}
+                disabled={isUpdating}
+              />
             </div>
-            <textarea
-              defaultValue={profile.system_prompt || ""}
-              onBlur={(e) => handleSystemPromptChange(e.target.value)}
-              placeholder={t(
-                "settings.transcriptionProfiles.systemPromptPlaceholder",
-              )}
-              disabled={isUpdating}
-              rows={3}
-              className={`w-full px-3 py-2 text-sm bg-[#1e1e1e]/80 border rounded-md resize-none transition-colors ${
-                isOverLimit
-                  ? "border-red-400 focus:border-red-400"
-                  : "border-[#3c3c3c] focus:border-[#4a4a4a]"
-              } ${isUpdating ? "opacity-40 cursor-not-allowed" : ""} text-[#e8e8e8] placeholder-[#6b6b6b]`}
-            />
             <p className="text-xs text-mid-gray">
-              {t("settings.transcriptionProfiles.systemPromptDescription")}
+              {profile.stt_prompt_override_enabled
+                ? t("settings.transcriptionProfiles.overrideSystemPromptOnDescription")
+                : t("settings.transcriptionProfiles.overrideSystemPromptOffDescription")}
             </p>
-            {isOverLimit && (
-              <p className="text-xs text-red-400">
-                {t("settings.transcriptionProfiles.systemPromptTooLong", {
-                  limit: promptLimit,
-                })}
-              </p>
+            {profile.stt_prompt_override_enabled && (
+              <>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-text/70">
+                    {t("settings.transcriptionProfiles.systemPrompt")}
+                  </label>
+                  <span
+                    className={`text-xs ${isOverLimit ? "text-red-400" : "text-mid-gray"}`}
+                  >
+                    {promptLength}
+                    {promptLimit > 0 && ` / ${promptLimit}`}
+                  </span>
+                </div>
+                <textarea
+                  defaultValue={profile.system_prompt || ""}
+                  onBlur={(e) => handleSystemPromptChange(e.target.value)}
+                  placeholder={t(
+                    "settings.transcriptionProfiles.systemPromptPlaceholder",
+                  )}
+                  disabled={isUpdating}
+                  rows={3}
+                  className={`w-full px-3 py-2 text-sm bg-[#1e1e1e]/80 border rounded-md resize-none transition-colors ${
+                    isOverLimit
+                      ? "border-red-400 focus:border-red-400"
+                      : "border-[#3c3c3c] focus:border-[#4a4a4a]"
+                  } ${isUpdating ? "opacity-40 cursor-not-allowed" : ""} text-[#e8e8e8] placeholder-[#6b6b6b]`}
+                />
+                <p className="text-xs text-mid-gray">
+                  {t("settings.transcriptionProfiles.systemPromptDescription")}
+                </p>
+                {isOverLimit && (
+                  <p className="text-xs text-red-400">
+                    {t("settings.transcriptionProfiles.systemPromptTooLong", {
+                      limit: promptLimit,
+                    })}
+                  </p>
+                )}
+              </>
             )}
           </div>
 
@@ -468,6 +497,7 @@ export const TranscriptionProfiles: React.FC = () => {
         newTranslate,
         newSystemPrompt,
         newPushToTalk,
+        null,
       );
       if (result.status === "ok") {
         await refreshSettings();
@@ -497,8 +527,14 @@ export const TranscriptionProfiles: React.FC = () => {
         language: profile.language,
         translateToEnglish: profile.translate_to_english,
         systemPrompt: profile.system_prompt || "",
+        sttPromptOverrideEnabled: profile.stt_prompt_override_enabled ?? false,
         includeInCycle: profile.include_in_cycle,
         pushToTalk: profile.push_to_talk,
+        llmSettings: {
+          enabled: profile.llm_post_process_enabled ?? false,
+          promptOverride: profile.llm_prompt_override ?? null,
+          modelOverride: profile.llm_model_override ?? null,
+        },
       });
       await refreshSettings();
     } catch (error) {

@@ -496,18 +496,6 @@ pub fn change_transcription_prompt_setting(
 
 #[tauri::command]
 #[specta::specta]
-pub fn change_stt_system_prompt_enabled_setting(
-    app: AppHandle,
-    enabled: bool,
-) -> Result<(), String> {
-    let mut settings = settings::get_settings(&app);
-    settings.stt_system_prompt_enabled = enabled;
-    settings::write_settings(&app, settings);
-    Ok(())
-}
-
-#[tauri::command]
-#[specta::specta]
 pub fn change_remote_stt_debug_capture_setting(
     app: AppHandle,
     enabled: bool,
@@ -958,7 +946,8 @@ pub fn add_transcription_profile(
         translate_to_english,
         description: description.clone(),
         system_prompt,
-        include_in_cycle: true, // Include in cycle by default
+        stt_prompt_override_enabled: false, // Default: use global per-model prompt
+        include_in_cycle: true,             // Include in cycle by default
         push_to_talk,
         llm_post_process_enabled,
         llm_prompt_override,
@@ -992,6 +981,7 @@ pub fn update_transcription_profile(
     language: String,
     translate_to_english: bool,
     system_prompt: String,
+    stt_prompt_override_enabled: bool,
     include_in_cycle: bool,
     push_to_talk: bool,
     llm_settings: settings::ProfileLlmSettings,
@@ -1016,6 +1006,7 @@ pub fn update_transcription_profile(
     profile.translate_to_english = translate_to_english;
     profile.description = description.clone();
     profile.system_prompt = system_prompt;
+    profile.stt_prompt_override_enabled = stt_prompt_override_enabled;
     profile.include_in_cycle = include_in_cycle;
     profile.push_to_talk = push_to_talk;
     profile.llm_post_process_enabled = llm_settings.enabled;
@@ -1038,6 +1029,32 @@ pub fn update_transcription_profile(
 #[specta::specta]
 pub fn delete_transcription_profile(app: AppHandle, id: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
+
+    // Safety check: prevent deleting a profile that is currently in use
+    // This includes both the globally active profile AND any profile captured
+    // for the current recording session (e.g., via a profile-specific shortcut)
+    let state = app.state::<crate::session_manager::ManagedSessionState>();
+    let session_state = state.lock().expect("Failed to lock session state");
+    let profile_in_use = match &*session_state {
+        crate::session_manager::SessionState::Recording {
+            captured_profile_id,
+            ..
+        } => settings.active_profile_id == id || captured_profile_id.as_ref() == Some(&id),
+        crate::session_manager::SessionState::Processing { .. } => {
+            // During processing, block if it's the active profile
+            // (captured_profile_id is not stored in Processing state)
+            settings.active_profile_id == id
+        }
+        crate::session_manager::SessionState::Idle => false,
+    };
+    drop(session_state); // Release lock before continuing
+
+    if profile_in_use {
+        return Err(
+            "Cannot delete a profile that is currently in use for recording or processing"
+                .to_string(),
+        );
+    }
 
     // Find and remove the profile
     let original_len = settings.transcription_profiles.len();
@@ -1831,10 +1848,13 @@ pub fn change_app_language_setting(app: AppHandle, language: String) -> Result<(
     Ok(())
 }
 
-/// Determine whether a shortcut string contains at least one non-modifier key.
-/// We allow single non-modifier keys (e.g. "f5" or "space") but disallow
-/// modifier-only combos (e.g. "ctrl" or "ctrl+shift").
+/// Validate that a shortcut contains at least one non-modifier key.
+/// The tauri-plugin-global-shortcut library requires at least one main key.
 fn validate_shortcut_string(raw: &str) -> Result<(), String> {
+    if raw.trim().is_empty() {
+        return Err("Shortcut cannot be empty".into());
+    }
+
     let modifiers = [
         "ctrl", "control", "shift", "alt", "option", "meta", "command", "cmd", "super", "win",
         "windows",
@@ -1842,10 +1862,11 @@ fn validate_shortcut_string(raw: &str) -> Result<(), String> {
     let has_non_modifier = raw
         .split('+')
         .any(|part| !modifiers.contains(&part.trim().to_lowercase().as_str()));
+
     if has_non_modifier {
         Ok(())
     } else {
-        Err("Shortcut must contain at least one non-modifier key".into())
+        Err("Shortcut must include a main key (letter, number, F-key, etc.) in addition to modifiers".into())
     }
 }
 

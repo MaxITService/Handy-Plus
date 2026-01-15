@@ -129,21 +129,11 @@ pub async fn transcribe_audio_file(
             .map(|p| p.translate_to_english)
             .unwrap_or(settings.translate_to_english);
 
-        let prompt = if settings.stt_system_prompt_enabled {
-            profile
-                .as_ref()
-                .map(|p| p.system_prompt.clone())
-                .filter(|p| !p.trim().is_empty())
-                .or_else(|| {
-                    settings
-                        .transcription_prompts
-                        .get(&settings.remote_stt.model_id)
-                        .filter(|p| !p.trim().is_empty())
-                        .cloned()
-                })
-        } else {
-            None
-        };
+        let prompt = crate::settings::resolve_stt_prompt(
+            profile,
+            &settings.transcription_prompts,
+            &settings.remote_stt.model_id,
+        );
 
         let text = remote_manager
             .transcribe(&settings.remote_stt, &samples, prompt, translate_to_english)
@@ -218,13 +208,7 @@ pub async fn transcribe_audio_file(
                 )
                 .map_err(|e| format!("Local transcription failed: {}", e))
             } else {
-                tm.transcribe_with_segments(
-                    samples,
-                    None,
-                    None,
-                    None,
-                    apply_custom_words_enabled,
-                )
+                tm.transcribe_with_segments(samples, None, None, None, apply_custom_words_enabled)
                     .map_err(|e| format!("Local transcription failed: {}", e))
             }
         } else {

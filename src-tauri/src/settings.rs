@@ -120,6 +120,11 @@ pub struct TranscriptionProfile {
     /// Character limits are enforced based on the active model (e.g., Whisper: 896 chars)
     #[serde(default)]
     pub system_prompt: String,
+    /// Whether to override the global per-model STT prompt with this profile's system_prompt.
+    /// When true, uses system_prompt (even if empty) instead of global transcription_prompts.
+    /// When false, falls back to global per-model prompt.
+    #[serde(default)]
+    pub stt_prompt_override_enabled: bool,
     /// Whether this profile participates in the cycle shortcut rotation
     #[serde(default = "default_true")]
     pub include_in_cycle: bool,
@@ -139,6 +144,45 @@ pub struct TranscriptionProfile {
     /// If Some, uses this model instead of the global model for the current provider
     #[serde(default)]
     pub llm_model_override: Option<String>,
+}
+
+impl TranscriptionProfile {
+    /// Resolves the STT prompt based on profile override settings.
+    /// Returns the profile's system_prompt if override is enabled, otherwise None
+    /// (caller should fall back to global prompt).
+    pub fn resolve_prompt(&self) -> Option<String> {
+        if self.stt_prompt_override_enabled {
+            let trimmed = self.system_prompt.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(self.system_prompt.clone())
+            }
+        } else {
+            None
+        }
+    }
+}
+
+/// Resolves the STT prompt to use for transcription.
+/// - If profile exists and has override enabled: uses profile's prompt (or None if empty)
+/// - Otherwise: uses the global per-model prompt from transcription_prompts
+pub fn resolve_stt_prompt(
+    profile: Option<&TranscriptionProfile>,
+    transcription_prompts: &HashMap<String, String>,
+    model_id: &str,
+) -> Option<String> {
+    if let Some(p) = profile {
+        if p.stt_prompt_override_enabled {
+            // Profile overrides global prompt - use profile's prompt (even if empty)
+            return p.resolve_prompt();
+        }
+    }
+    // No profile or no override - fall back to global per-model prompt
+    transcription_prompts
+        .get(model_id)
+        .filter(|p| !p.trim().is_empty())
+        .cloned()
 }
 
 /// A voice command that triggers a script when the user speaks a matching phrase.
@@ -527,10 +571,6 @@ pub struct AppSettings {
     /// For Whisper: context/terms prompt. For Parakeet: comma-separated boost words.
     #[serde(default)]
     pub transcription_prompts: HashMap<String, String>,
-    /// Whether to send the STT system prompt to the speech recognition model
-    /// When disabled, prompts are not sent even if text exists
-    #[serde(default)]
-    pub stt_system_prompt_enabled: bool,
     /// Custom transcription profiles with per-profile language/translation settings.
     /// Each profile creates a dynamic shortcut binding.
     #[serde(default)]
@@ -1204,7 +1244,6 @@ pub fn get_default_settings() -> AppSettings {
         connector_password_user_set: false,
         connector_pending_password: None,
         transcription_prompts: HashMap::new(),
-        stt_system_prompt_enabled: false,
         transcription_profiles: Vec::new(),
         active_profile_id: default_active_profile_id(),
         profile_switch_overlay_enabled: true,
@@ -1460,7 +1499,6 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
         .expect("Failed to initialize store");
 
     let mut settings = if let Some(settings_value) = store.get("settings") {
-        let has_stt_prompt_enabled_key = settings_value.get("stt_system_prompt_enabled").is_some();
         // Parse the entire settings object
         match serde_json::from_value::<AppSettings>(settings_value) {
             Ok(mut settings) => {
@@ -1503,22 +1541,6 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
                                 .ai_replace_api_keys
                                 .insert(provider_id, String::new());
                         }
-                        updated = true;
-                    }
-                }
-
-                if !has_stt_prompt_enabled_key && !settings.stt_system_prompt_enabled {
-                    let has_existing_prompt = settings
-                        .transcription_prompts
-                        .values()
-                        .any(|prompt| !prompt.trim().is_empty())
-                        || settings
-                            .transcription_profiles
-                            .iter()
-                            .any(|profile| !profile.system_prompt.trim().is_empty());
-
-                    if has_existing_prompt {
-                        settings.stt_system_prompt_enabled = true;
                         updated = true;
                     }
                 }
