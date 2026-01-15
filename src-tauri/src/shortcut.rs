@@ -2017,6 +2017,7 @@ pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<()
                         "send_to_extension_with_selection" => settings.send_to_extension_with_selection_push_to_talk,
                         "ai_replace_selection" => settings.ai_replace_selection_push_to_talk,
                         "send_screenshot_to_extension" => settings.send_screenshot_to_extension_push_to_talk,
+                        "voice_command" => settings.voice_command_push_to_talk,
                         "transcribe" => {
                             // Use active profile's PTT setting, or global if "default"
                             if settings.active_profile_id == "default" {
