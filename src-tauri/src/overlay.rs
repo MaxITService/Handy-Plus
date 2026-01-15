@@ -440,34 +440,51 @@ pub fn show_command_confirm_overlay(
         }
     };
 
-    // Update position and show
+    // Update position
     if let Some((x, y)) = calculate_command_confirm_position(app_handle) {
         let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
     }
 
-    if let Err(e) = window.show() {
-        log::error!("Failed to show window: {}", e);
-    }
-
-    // Force topmost first, then set focus
-    force_overlay_topmost(&window);
-    let _ = window.set_focus();
-
-    // Emit the payload to the window with a delay to ensure React listener is ready
-    // New windows need more time for the webview to load and React to mount
-    let delay_ms = if is_new_window { 200 } else { 50 };
-    debug!(
-        "Emitting show-command-confirm event with {}ms delay (is_new_window={})",
-        delay_ms, is_new_window
-    );
-
-    let window_clone = window.clone();
-    std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
-        if let Err(e) = window_clone.emit("show-command-confirm", payload) {
+    // For new windows, we need to wait for the webview to load before emitting the payload.
+    // For existing windows, emit the payload immediately, then show.
+    if is_new_window {
+        // New window: wait for webview to load, THEN emit payload, THEN show.
+        // Emitting before webview loads will lose the event!
+        let window_clone = window.clone();
+        let payload_clone = payload.clone();
+        std::thread::spawn(move || {
+            // Wait for webview to load and React to mount
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            // Now emit the payload (React is ready to receive it)
+            if let Err(e) = window_clone.emit("show-command-confirm", payload_clone) {
+                log::error!("Failed to emit show-command-confirm event: {}", e);
+            }
+            // Small delay for React to process the payload
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            // Show the window (now with content)
+            if let Err(e) = window_clone.show() {
+                log::error!("Failed to show window: {}", e);
+            }
+            force_overlay_topmost(&window_clone);
+            let _ = window_clone.set_focus();
+        });
+    } else {
+        // Existing window: emit payload first, then show immediately
+        if let Err(e) = window.emit("show-command-confirm", payload) {
             log::error!("Failed to emit show-command-confirm event: {}", e);
         }
-    });
+
+        // Small delay to let React process the payload before showing
+        let window_clone = window.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(30));
+            if let Err(e) = window_clone.show() {
+                log::error!("Failed to show window: {}", e);
+            }
+            force_overlay_topmost(&window_clone);
+            let _ = window_clone.set_focus();
+        });
+    }
 }
 
 // ============================================================================
