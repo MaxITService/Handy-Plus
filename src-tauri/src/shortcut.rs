@@ -1996,11 +1996,12 @@ pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<()
                         return;
                     }
 
-                    // Check if risky extension actions are enabled before executing
+                    // Check if risky extension actions or voice commands are enabled before executing
                     let action_enabled = match binding_id_for_closure.as_str() {
                         "send_to_extension" => settings.send_to_extension_enabled,
                         "send_to_extension_with_selection" => settings.send_to_extension_with_selection_enabled,
                         "send_screenshot_to_extension" => settings.send_screenshot_to_extension_enabled,
+                        "voice_command" => settings.voice_command_enabled,
                         _ => true, // Other actions are always enabled
                     };
                     if !action_enabled {
