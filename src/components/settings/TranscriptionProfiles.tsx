@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Plus,
@@ -8,6 +8,7 @@ import {
   Globe,
   Check,
   RefreshCw,
+  RefreshCcw,
 } from "lucide-react";
 import { commands, TranscriptionProfile } from "@/bindings";
 import { invoke } from "@tauri-apps/api/core";
@@ -23,6 +24,7 @@ import { ToggleSwitch } from "../ui/ToggleSwitch";
 import { HandyShortcut } from "./HandyShortcut";
 import { TranslateToEnglish } from "./TranslateToEnglish";
 import { ModelSelect } from "./PostProcessingSettingsApi/ModelSelect";
+import { ResetButton } from "../ui/ResetButton";
 import type { ModelOption } from "./PostProcessingSettingsApi/types";
 import { useSettings } from "../../hooks/useSettings";
 import { useModels } from "../../hooks/useModels";
@@ -50,6 +52,8 @@ interface ProfileCardProps {
   llmConfigured: boolean;
   llmModelOptions: ModelOption[];
   globalLlmModel: string;
+  onRefreshModels: () => void;
+  isFetchingModels: boolean;
 }
 
 const ProfileCard: React.FC<ProfileCardProps> = ({
@@ -65,6 +69,8 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
   llmConfigured,
   llmModelOptions,
   globalLlmModel,
+  onRefreshModels,
+  isFetchingModels,
 }) => {
   const { t } = useTranslation();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -533,20 +539,29 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
                     <p className="text-xs text-mid-gray">
                       {t("settings.transcriptionProfiles.llmPostProcessing.overrideModelHint")}
                     </p>
-                    <ModelSelect
-                      value={profile.llm_model_override || ""}
-                      options={llmModelOptions}
-                      disabled={isUpdating}
-                      placeholder={
-                        globalLlmModel
-                          ? t("settings.transcriptionProfiles.llmPostProcessing.usingGlobalModel", { model: globalLlmModel })
-                          : t("settings.transcriptionProfiles.llmPostProcessing.modelPlaceholder")
-                      }
-                      onSelect={(value) => handleLlmModelChange(value || null)}
-                      onCreate={(value) => handleLlmModelChange(value)}
-                      onBlur={() => {}}
-                      className="flex-1"
-                    />
+                    <div className="flex items-center gap-2">
+                      <ModelSelect
+                        value={profile.llm_model_override || ""}
+                        options={llmModelOptions}
+                        disabled={isUpdating}
+                        placeholder={
+                          globalLlmModel
+                            ? t("settings.transcriptionProfiles.llmPostProcessing.usingGlobalModel", { model: globalLlmModel })
+                            : t("settings.transcriptionProfiles.llmPostProcessing.modelPlaceholder")
+                        }
+                        onSelect={(value) => handleLlmModelChange(value || null)}
+                        onCreate={(value) => handleLlmModelChange(value)}
+                        onBlur={() => {}}
+                        className="flex-1"
+                      />
+                      <ResetButton
+                        onClick={onRefreshModels}
+                        disabled={isFetchingModels || isUpdating}
+                        title="Fetch Models from Server, then you can type part of model name for searching it in drop-down."
+                      >
+                        <RefreshCcw className={`w-4 h-4 ${isFetchingModels ? "animate-spin" : ""}`} />
+                      </ResetButton>
+                    </div>
                   </div>
                 </div>
               )}
@@ -561,12 +576,13 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
 
 export const TranscriptionProfiles: React.FC = () => {
   const { t } = useTranslation();
-  const { settings, refreshSettings, updateSetting, postProcessModelOptions } = useSettings();
+  const { settings, refreshSettings, updateSetting, postProcessModelOptions, fetchPostProcessModels } = useSettings();
   const { getModelInfo } = useModels();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(
     () => new Set(["default"]),
   );
   const [isCreating, setIsCreating] = useState(false);
+  const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [newName, setNewName] = useState("");
   const [newLanguage, setNewLanguage] = useState("auto");
   const [newTranslate, setNewTranslate] = useState(false);
@@ -661,6 +677,18 @@ export const TranscriptionProfiles: React.FC = () => {
   }, [postProcessModelOptions, currentLlmProviderId]);
 
   const globalLlmModel = settings?.post_process_models?.[currentLlmProviderId] || "";
+
+  const handleRefreshModels = useCallback(async () => {
+    if (!currentLlmProviderId || currentLlmProviderId === APPLE_PROVIDER_ID) return;
+    setIsFetchingModels(true);
+    try {
+      await fetchPostProcessModels(currentLlmProviderId);
+    } catch (error) {
+      console.error("Failed to fetch models:", error);
+    } finally {
+      setIsFetchingModels(false);
+    }
+  }, [currentLlmProviderId, fetchPostProcessModels]);
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -1045,6 +1073,8 @@ export const TranscriptionProfiles: React.FC = () => {
               llmConfigured={isLlmConfigured}
               llmModelOptions={llmModelOptions}
               globalLlmModel={globalLlmModel}
+              onRefreshModels={handleRefreshModels}
+              isFetchingModels={isFetchingModels}
             />
           ))}
         </div>
@@ -1265,20 +1295,29 @@ export const TranscriptionProfiles: React.FC = () => {
                     <p className="text-xs text-mid-gray">
                       {t("settings.transcriptionProfiles.llmPostProcessing.overrideModelHint")}
                     </p>
-                    <ModelSelect
-                      value={newLlmModelOverride || ""}
-                      options={llmModelOptions}
-                      disabled={isCreating}
-                      placeholder={
-                        globalLlmModel
-                          ? t("settings.transcriptionProfiles.llmPostProcessing.usingGlobalModel", { model: globalLlmModel })
-                          : t("settings.transcriptionProfiles.llmPostProcessing.modelPlaceholder")
-                      }
-                      onSelect={(value) => setNewLlmModelOverride(value || null)}
-                      onCreate={(value) => setNewLlmModelOverride(value)}
-                      onBlur={() => {}}
-                      className="flex-1"
-                    />
+                    <div className="flex items-center gap-2">
+                      <ModelSelect
+                        value={newLlmModelOverride || ""}
+                        options={llmModelOptions}
+                        disabled={isCreating}
+                        placeholder={
+                          globalLlmModel
+                            ? t("settings.transcriptionProfiles.llmPostProcessing.usingGlobalModel", { model: globalLlmModel })
+                            : t("settings.transcriptionProfiles.llmPostProcessing.modelPlaceholder")
+                        }
+                        onSelect={(value) => setNewLlmModelOverride(value || null)}
+                        onCreate={(value) => setNewLlmModelOverride(value)}
+                        onBlur={() => {}}
+                        className="flex-1"
+                      />
+                      <ResetButton
+                        onClick={handleRefreshModels}
+                        disabled={isFetchingModels || isCreating}
+                        title="Fetch Models from Server, then you can type part of model name for searching it in drop-down."
+                      >
+                        <RefreshCcw className={`w-4 h-4 ${isFetchingModels ? "animate-spin" : ""}`} />
+                      </ResetButton>
+                    </div>
                   </div>
                 </div>
               )}

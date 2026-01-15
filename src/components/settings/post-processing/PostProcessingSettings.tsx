@@ -192,6 +192,7 @@ const LlmConfigSection: React.FC<{
                 onClick={state.handleRefreshModels}
                 disabled={state.isFetchingModels || state.isAppleProvider}
                 ariaLabel={t("settings.postProcessing.api.model.refreshModels")}
+                title="Fetch Models from Server, then you can type part of model name for searching it in drop-down."
                 className="flex h-10 w-10 items-center justify-center"
               >
                 <RefreshCcw
