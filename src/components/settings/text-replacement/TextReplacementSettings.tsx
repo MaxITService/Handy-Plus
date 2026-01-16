@@ -606,6 +606,46 @@ export const TextReplacementSettings: React.FC = () => {
                 <li>• <strong>{t("audioProcessing.hallucinations", "Hallucinations:")}</strong> [AUDIO], (pause), {"<tag>...</tag>"}</li>
                 <li>• <strong>{t("audioProcessing.stutters", "Stutters:")}</strong> "w wh wh wh why" → "wh why"</li>
               </ul>
+
+              <h4 className="font-medium text-[#f5f5f5] mt-4 mb-2">
+                {t("audioProcessing.howItWorksTitle", "How it works (technical)")}
+              </h4>
+              <p className="text-[#b8b8b8] mb-2">
+                {t(
+                  "audioProcessing.howItWorksIntro",
+                  "The filter applies several regex patterns in sequence:"
+                )}
+              </p>
+              <ul className="space-y-2 text-[#b8b8b8] mb-3">
+                <li className="flex items-start gap-2">
+                  <code className="px-2 py-0.5 bg-[#252525] rounded text-[#9b5de5] text-xs whitespace-nowrap shrink-0">{"<TAG>...</TAG>"}</code>
+                  <span>→ {t("audioProcessing.regexTagBlock", "Removes XML-style tag blocks (model hallucinations)")}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <code className="px-2 py-0.5 bg-[#252525] rounded text-[#9b5de5] text-xs whitespace-nowrap shrink-0">[...]  (...)  {"{"}"...{"}"}</code>
+                  <span>→ {t("audioProcessing.regexBrackets", "Removes bracketed content like [AUDIO], (pause), {noise}")}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <code className="px-2 py-0.5 bg-[#252525] rounded text-[#9b5de5] text-xs whitespace-nowrap shrink-0">\\b(uh|um|...)\\b</code>
+                  <span>→ {t("audioProcessing.regexFillers", "Removes filler words with word boundaries")}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <code className="px-2 py-0.5 bg-[#252525] rounded text-[#9b5de5] text-xs whitespace-nowrap shrink-0">{t("audioProcessing.regexStutterPattern", "3+ repetitions")}</code>
+                  <span>→ {t("audioProcessing.regexStutters", "Collapses repeated 1-2 letter words (I I I I → I)")}</span>
+                </li>
+              </ul>
+
+              <div className="mt-4 p-3 bg-[#2a2010] rounded border border-[#f97316]/30">
+                <p className="text-[#f5f5f5] text-xs">
+                  <strong className="text-[#f97316]">
+                    {t("audioProcessing.languageWarningTitle", "⚠️ Non-English Languages:")}
+                  </strong>{" "}
+                  {t(
+                    "audioProcessing.languageWarning",
+                    "This feature is optimized for English. If you experience issues with other languages (missing words, incorrect filtering), try disabling this option."
+                  )}
+                </p>
+              </div>
             </div>
           </details>
         </div>
