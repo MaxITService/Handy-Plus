@@ -1900,7 +1900,7 @@ impl ShortcutAction for RepastLastAction {
         tauri::async_runtime::spawn(async move {
             let hm = Arc::clone(&ah.state::<Arc<HistoryManager>>());
 
-            match hm.get_latest_entry().await {
+            match hm.get_latest_entry() {
                 Ok(Some(entry)) => {
                     // Determine what text to paste based on action type
                     let text_to_paste = match entry.action_type.as_str() {

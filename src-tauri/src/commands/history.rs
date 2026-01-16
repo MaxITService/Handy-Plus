@@ -108,6 +108,5 @@ pub async fn get_latest_history_entry(
 ) -> Result<Option<HistoryEntry>, String> {
     history_manager
         .get_latest_entry()
-        .await
         .map_err(|e| e.to_string())
 }
