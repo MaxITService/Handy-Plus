@@ -10,6 +10,7 @@ use std::process::Command;
 
 #[cfg(target_os = "windows")]
 const CREATE_NEW_CONSOLE: u32 = 0x00000010;
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 /// Executes a command template after user confirmation.
 /// Works like Windows Run dialog - executes the full command line directly.
@@ -37,7 +38,10 @@ pub fn execute_voice_command(
     }
 
     info!("Executing voice command: {}", full_command);
-    debug!("Template: '{}', Command: '{}', keep_window_open: {}", template, command, keep_window_open);
+    debug!(
+        "Template: '{}', Command: '{}', keep_window_open: {}",
+        template, command, keep_window_open
+    );
 
     if keep_window_open {
         // Open a visible console window that stays open
@@ -49,12 +53,16 @@ pub fn execute_voice_command(
         if full_command_lower.starts_with("powershell") {
             // PowerShell: extract args and command, run with -NoExit
             if let Some((pre_args, cmd_content)) = parse_powershell_command(&full_command) {
-                debug!("PowerShell -NoExit with args {:?}, command: {}", pre_args, cmd_content);
+                debug!(
+                    "PowerShell -NoExit with args {:?}, command: {}",
+                    pre_args, cmd_content
+                );
                 let mut cmd = Command::new("powershell");
                 cmd.args(&pre_args);
                 cmd.args(["-NoExit", "-Command", &cmd_content]);
                 cmd.creation_flags(CREATE_NEW_CONSOLE);
-                cmd.spawn().map_err(|e| format!("Failed to open PowerShell window: {}", e))?;
+                cmd.spawn()
+                    .map_err(|e| format!("Failed to open PowerShell window: {}", e))?;
             } else {
                 // Fallback: run the whole command via cmd /k
                 let comspec = std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".to_string());
@@ -67,12 +75,16 @@ pub fn execute_voice_command(
         } else if full_command_lower.starts_with("pwsh") {
             // PowerShell 7+: extract args and command, run with -NoExit
             if let Some((pre_args, cmd_content)) = parse_powershell_command(&full_command) {
-                debug!("pwsh -NoExit with args {:?}, command: {}", pre_args, cmd_content);
+                debug!(
+                    "pwsh -NoExit with args {:?}, command: {}",
+                    pre_args, cmd_content
+                );
                 let mut cmd = Command::new("pwsh");
                 cmd.args(&pre_args);
                 cmd.args(["-NoExit", "-Command", &cmd_content]);
                 cmd.creation_flags(CREATE_NEW_CONSOLE);
-                cmd.spawn().map_err(|e| format!("Failed to open pwsh window: {}", e))?;
+                cmd.spawn()
+                    .map_err(|e| format!("Failed to open pwsh window: {}", e))?;
             } else {
                 let comspec = std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".to_string());
                 Command::new(&comspec)
@@ -99,6 +111,7 @@ pub fn execute_voice_command(
 
         let output = Command::new(&comspec)
             .args(["/c", &full_command])
+            .creation_flags(CREATE_NO_WINDOW)
             .output()
             .map_err(|e| format!("Failed to execute command: {}", e))?;
 
@@ -153,9 +166,10 @@ fn parse_powershell_command(full_cmd: &str) -> Option<(Vec<String>, String)> {
     let trimmed = after_flag.trim();
 
     // Remove surrounding quotes if present
-    let cmd_content = if (trimmed.starts_with('"') && trimmed.ends_with('"')) ||
-       (trimmed.starts_with('\'') && trimmed.ends_with('\'')) {
-        trimmed[1..trimmed.len()-1].to_string()
+    let cmd_content = if (trimmed.starts_with('"') && trimmed.ends_with('"'))
+        || (trimmed.starts_with('\'') && trimmed.ends_with('\''))
+    {
+        trimmed[1..trimmed.len() - 1].to_string()
     } else {
         trimmed.to_string()
     };
@@ -231,7 +245,9 @@ pub async fn test_voice_command_mock(
     app: tauri::AppHandle,
     mock_text: String,
 ) -> Result<String, String> {
-    use crate::actions::{find_matching_command, generate_command_with_llm, CommandConfirmPayload, FuzzyMatchConfig};
+    use crate::actions::{
+        find_matching_command, generate_command_with_llm, CommandConfirmPayload, FuzzyMatchConfig,
+    };
     use crate::settings::get_settings;
     use log::debug;
 

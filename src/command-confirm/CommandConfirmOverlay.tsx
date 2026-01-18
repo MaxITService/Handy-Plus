@@ -108,7 +108,7 @@ export default function CommandConfirmOverlay() {
     const commandToRun = isEditing ? editedCommand : payload.command;
 
     // Get execution settings with defaults
-    const template = payload.template ?? 'powershell -NoProfile -NonInteractive -Command "${command}"';
+    const template = payload.template ?? 'powershell -NonInteractive -Command "${command}"';
     const keepWindowOpen = payload.keep_window_open ?? false;
 
     try {

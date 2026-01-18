@@ -31,7 +31,7 @@ Example inputs and outputs:
 - "open word and excel" → Start-Process winword; Start-Process excel
 - "show my documents folder" → Start-Process explorer -ArgumentList "$env:USERPROFILE\\Documents"`;
 
-const DEFAULT_TEMPLATE = 'powershell -NoProfile -NonInteractive -Command "${command}"';
+const DEFAULT_TEMPLATE = 'powershell -NonInteractive -Command "${command}"';
 const MAX_LOG_ENTRIES = 100;
 
 interface LogEntry extends VoiceCommandResultPayload {
@@ -507,7 +507,7 @@ export default function VoiceCommandSettings() {
                   className="command-template-input"
                   value={commandTemplate}
                   onChange={(e) => updateSetting("voice_command_template", e.target.value)}
-                  placeholder='powershell -NoProfile -NonInteractive -Command "${command}"'
+                  placeholder='powershell -NonInteractive -Command "${command}"'
                 />
                 <button
                   className="btn-reset-template"

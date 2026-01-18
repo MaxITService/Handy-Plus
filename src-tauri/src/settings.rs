@@ -1012,7 +1012,7 @@ Example inputs and outputs:
 }
 
 fn default_voice_command_template() -> String {
-    r#"powershell -NoProfile -NonInteractive -Command "${command}""#.to_string()
+    r#"powershell -NonInteractive -Command "${command}""#.to_string()
 }
 
 /// Default connector password - used for initial mutual authentication
