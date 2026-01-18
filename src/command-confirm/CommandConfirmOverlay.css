@@ -20,6 +20,7 @@ html, body {
   align-items: center;
   justify-content: center;
   padding: 16px;
+  overflow: auto;
 }
 
 .command-confirm-container {
@@ -28,10 +29,13 @@ html, body {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
   padding: 20px;
-  width: 100%;
-  max-width: 500px;
+  width: calc(100% - 32px);
+  max-width: none;
+  max-height: calc(100vh - 32px);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   animation: slideIn 0.2s ease-out;
+  display: flex;
+  flex-direction: column;
 }
 
 @keyframes slideIn {
@@ -77,6 +81,31 @@ html, body {
 .command-confirm-source.llm {
   background: rgba(138, 43, 226, 0.15);
   color: #b388ff;
+}
+
+.command-confirm-close {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.15s ease;
+  margin-left: 8px;
+}
+
+.command-confirm-close:hover {
+  background: rgba(244, 67, 54, 0.15);
+  color: #e57373;
+}
+
+.command-confirm-close svg {
+  width: 16px;
+  height: 16px;
 }
 
 .command-confirm-spoken {
@@ -188,7 +217,13 @@ html, body {
   padding: 8px 12px;
   border-radius: 8px;
   margin-top: 12px;
-  text-align: center;
+  text-align: left;
+  min-height: 0;
+  flex-shrink: 1;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
 }
 
 .command-confirm-status.success {
@@ -199,6 +234,36 @@ html, body {
 .command-confirm-status.error {
   background: rgba(244, 67, 54, 0.15);
   color: #e57373;
+}
+
+/* Status container with copy button */
+.command-confirm-status-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.command-confirm-status-container .command-confirm-status {
+  margin-top: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+.command-confirm-btn.copy {
+  align-self: flex-end;
+  background: rgba(100, 181, 246, 0.15);
+  color: #64b5f6;
+  border: 1px solid rgba(100, 181, 246, 0.3);
+  padding: 8px 14px;
+  flex-shrink: 0;
+}
+
+.command-confirm-btn.copy:hover {
+  background: rgba(100, 181, 246, 0.25);
 }
 
 /* Auto-run progress bar */
@@ -248,5 +313,4 @@ html, body {
 /* Make container position relative for progress bar */
 .command-confirm-container {
   position: relative;
-  overflow: hidden;
 }

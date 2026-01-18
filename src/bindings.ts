@@ -1426,20 +1426,17 @@ async regionCaptureCancel() : Promise<void> {
     await TAURI_INVOKE("region_capture_cancel");
 },
 /**
- * Executes a command template after user confirmation.
- * Works like Windows Run dialog - executes the full command line directly.
+ * Executes a PowerShell command with the given execution options.
  * 
  * Parameters:
- * - `command`: The script from the voice command card (replaces ${command} in template)
- * - `template`: The full command template (e.g., "powershell -Command \"${command}\"")
- * - `keep_window_open`: If true, opens a visible console window instead of silent execution
+ * - `script`: The PowerShell script/command to execute
+ * - `options`: Resolved execution options (silent, no_profile, use_pwsh, etc.)
  * 
  * Returns the output on success or an error message on failure.
- * When `keep_window_open` is true, returns success immediately (no output capture).
  */
-async executeVoiceCommand(command: string, template: string, keepWindowOpen: boolean) : Promise<Result<string, string>> {
+async executeVoiceCommand(script: string, silent: boolean, noProfile: boolean, usePwsh: boolean, executionPolicy: string | null, workingDirectory: string | null, timeoutSeconds: number) : Promise<Result<string, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("execute_voice_command", { command, template, keepWindowOpen }) };
+    return { status: "ok", data: await TAURI_INVOKE("execute_voice_command", { script, silent, noProfile, usePwsh, executionPolicy, workingDirectory, timeoutSeconds }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1589,15 +1586,9 @@ voice_command_llm_fallback?: boolean;
  */
 voice_command_system_prompt?: string; 
 /**
- * Command execution template. Use ${command} as placeholder for the script from voice command card.
- * Works like Windows Run dialog - can be any command line.
- * Example: "powershell -Command \"${command}\""
+ * Default execution options for new voice commands and LLM fallback
  */
-voice_command_template?: string; 
-/**
- * Whether to open console window and keep it open (for debugging)
- */
-voice_command_keep_window_open?: boolean; 
+voice_command_defaults?: VoiceCommandDefaults; voice_command_template?: string; voice_command_keep_window_open?: boolean; 
 /**
  * Whether to auto-run predefined commands after countdown (not LLM-generated)
  */
@@ -1719,6 +1710,27 @@ port: number;
 server_error: string | null }
 export type CustomSounds = { start: boolean; stop: boolean }
 export type EngineType = "Whisper" | "Parakeet" | "Moonshine"
+/**
+ * PowerShell execution policy for voice commands.
+ * Controls script execution permissions.
+ */
+export type ExecutionPolicy = 
+/**
+ * Use system default policy (no -ExecutionPolicy flag)
+ */
+"default" | 
+/**
+ * Bypass all restrictions (recommended for scripts)
+ */
+"bypass" | 
+/**
+ * No restrictions on local scripts, remote scripts require signature
+ */
+"unrestricted" | 
+/**
+ * Remote scripts require signature
+ */
+"remote_signed"
 /**
  * Extension connection status
  */
@@ -2009,7 +2021,52 @@ similarity_threshold?: number;
 /**
  * Whether this command is enabled
  */
-enabled?: boolean }
+enabled?: boolean; 
+/**
+ * Silent execution (hidden window, non-interactive)
+ */
+silent?: boolean; 
+/**
+ * Skip profile loading (-NoProfile flag)
+ */
+no_profile?: boolean; 
+/**
+ * Use PowerShell 7 (pwsh) instead of Windows PowerShell 5.1
+ */
+use_pwsh?: boolean; 
+/**
+ * Execution policy (None = inherit from defaults)
+ */
+execution_policy?: ExecutionPolicy | null; 
+/**
+ * Working directory for this command (None = current directory)
+ */
+working_directory?: string | null }
+/**
+ * Global default settings for voice command execution.
+ * These settings are used for new commands and LLM fallback.
+ */
+export type VoiceCommandDefaults = { 
+/**
+ * Silent execution (hidden window, non-interactive, output captured)
+ */
+silent?: boolean; 
+/**
+ * Skip profile loading (-NoProfile flag)
+ */
+no_profile?: boolean; 
+/**
+ * Use PowerShell 7 (pwsh) instead of Windows PowerShell 5.1
+ */
+use_pwsh?: boolean; 
+/**
+ * Execution policy for scripts
+ */
+execution_policy?: ExecutionPolicy; 
+/**
+ * Timeout in seconds (0 = no limit)
+ */
+timeout_seconds?: number }
 
 /** tauri-specta globals **/
 

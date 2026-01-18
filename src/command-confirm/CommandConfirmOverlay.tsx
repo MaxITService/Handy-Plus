@@ -1,15 +1,27 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { listen, emit } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { LogicalSize } from "@tauri-apps/api/dpi";
 import { commands } from "@/bindings";
+
+// Default window dimensions (must match overlay.rs constants)
+const DEFAULT_WIDTH = 520;
+const DEFAULT_HEIGHT = 280;
+// Expanded dimensions for error display
+const EXPANDED_WIDTH = 700;
+const EXPANDED_HEIGHT = 550;
 
 interface CommandConfirmPayload {
   command: string;
   spoken_text: string;
   from_llm: boolean;
-  // Execution settings passed from backend
-  template?: string;
-  keep_window_open?: boolean;
+  // Execution options passed from backend
+  silent: boolean;
+  no_profile: boolean;
+  use_pwsh: boolean;
+  execution_policy: string | null;
+  working_directory: string | null;
+  timeout_seconds: number;
   // Auto-run settings (only for predefined commands)
   auto_run?: boolean;
   auto_run_seconds?: number;
@@ -43,6 +55,8 @@ export default function CommandConfirmOverlay() {
   // Auto-run countdown state
   const [countdownMs, setCountdownMs] = useState<number>(0);
   const [isPaused, setIsPaused] = useState(false);
+  // Copy button state
+  const [copied, setCopied] = useState(false);
 
   // Whether auto-run is active for current payload
   const isAutoRunActive = payload?.auto_run && !payload.from_llm && countdownMs > 0 && !isEditing && !status;
@@ -61,12 +75,22 @@ export default function CommandConfirmOverlay() {
       } else {
         setCountdownMs(0);
       }
+      // Reset window size to default when showing new command
+      getCurrentWindow().setSize(new LogicalSize(DEFAULT_WIDTH, DEFAULT_HEIGHT)).catch(console.error);
     });
 
     return () => {
       unlisten.then((fn) => fn());
     };
   }, []);
+
+  // Resize window when error status is displayed
+  useEffect(() => {
+    if (status?.type === "error") {
+      // Expand window to show error details
+      getCurrentWindow().setSize(new LogicalSize(EXPANDED_WIDTH, EXPANDED_HEIGHT)).catch(console.error);
+    }
+  }, [status]);
 
   // Countdown timer effect
   useEffect(() => {
@@ -107,21 +131,25 @@ export default function CommandConfirmOverlay() {
     setIsExecuting(true);
     const commandToRun = isEditing ? editedCommand : payload.command;
 
-    // Get execution settings with defaults
-    const template = payload.template ?? 'powershell -NoProfile -NonInteractive -Command "${command}"';
-    const keepWindowOpen = payload.keep_window_open ?? false;
+    // Extract execution options from payload
+    const isSilent = payload.silent;
+    const openedInWindow = !isSilent;
 
     try {
       const result = await commands.executeVoiceCommand(
         commandToRun,
-        template,
-        keepWindowOpen
+        payload.silent,
+        payload.no_profile,
+        payload.use_pwsh,
+        payload.execution_policy,
+        payload.working_directory,
+        payload.timeout_seconds
       );
-      
+
       if (result.status === "ok") {
         const output = result.data;
-        setStatus({ type: "success", message: keepWindowOpen ? "Opened in terminal" : "Command executed successfully" });
-        
+        setStatus({ type: "success", message: openedInWindow ? "Opened in terminal" : "Command executed successfully" });
+
         // Emit result for history tracking
         await emit("voice-command-result", {
           timestamp: Date.now(),
@@ -129,9 +157,9 @@ export default function CommandConfirmOverlay() {
           spokenText: payload.spoken_text,
           output: output,
           isError: false,
-          wasOpenedInWindow: keepWindowOpen,
+          wasOpenedInWindow: openedInWindow,
         } as VoiceCommandResultPayload);
-        
+
         // Auto-hide after success
         setTimeout(() => {
           hideWindow();
@@ -139,7 +167,7 @@ export default function CommandConfirmOverlay() {
       } else {
         const errorMsg = result.error || "Execution failed";
         setStatus({ type: "error", message: errorMsg });
-        
+
         // Emit error for history tracking
         await emit("voice-command-result", {
           timestamp: Date.now(),
@@ -153,7 +181,7 @@ export default function CommandConfirmOverlay() {
     } catch (err) {
       const errorMsg = String(err);
       setStatus({ type: "error", message: errorMsg });
-      
+
       // Emit error for history tracking
       await emit("voice-command-result", {
         timestamp: Date.now(),
@@ -186,6 +214,18 @@ export default function CommandConfirmOverlay() {
 
   const handleCancel = () => {
     hideWindow();
+  };
+
+  const handleCopyOutput = async () => {
+    if (status?.message) {
+      try {
+        await navigator.clipboard.writeText(status.message);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error("Failed to copy:", err);
+      }
+    }
   };
 
   // Handle keyboard shortcuts - separate effect for ESC to ensure it always works
@@ -249,6 +289,15 @@ export default function CommandConfirmOverlay() {
         <span className={`command-confirm-source ${payload.from_llm ? "llm" : ""}`}>
           {payload.from_llm ? "AI Generated" : "Matched"}
         </span>
+        <button
+          className="command-confirm-close"
+          onClick={handleCancel}
+          title="Close (Esc)"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round"/>
+          </svg>
+        </button>
       </div>
 
       {payload.spoken_text && (
@@ -309,8 +358,29 @@ export default function CommandConfirmOverlay() {
       </div>
 
       {status && (
-        <div className={`command-confirm-status ${status.type}`}>
-          {status.message}
+        <div className={`command-confirm-status-container ${status.type}`}>
+          <div className={`command-confirm-status ${status.type}`}>
+            {status.message}
+          </div>
+          {status.type === "error" && (
+            <button
+              className="command-confirm-btn copy"
+              onClick={handleCopyOutput}
+              title="Copy error output"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                {copied ? (
+                  <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round"/>
+                ) : (
+                  <>
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" strokeLinecap="round" strokeLinejoin="round"/>
+                  </>
+                )}
+              </svg>
+              {copied ? "Copied!" : "Copy"}
+            </button>
+          )}
         </div>
       )}
     </div>

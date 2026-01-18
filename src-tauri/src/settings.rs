@@ -186,6 +186,60 @@ pub fn resolve_stt_prompt(
         .cloned()
 }
 
+/// PowerShell execution policy for voice commands.
+/// Controls script execution permissions.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecutionPolicy {
+    /// Use system default policy (no -ExecutionPolicy flag)
+    Default,
+    /// Bypass all restrictions (recommended for scripts)
+    Bypass,
+    /// No restrictions on local scripts, remote scripts require signature
+    Unrestricted,
+    /// Remote scripts require signature
+    RemoteSigned,
+}
+
+impl Default for ExecutionPolicy {
+    fn default() -> Self {
+        ExecutionPolicy::Bypass
+    }
+}
+
+/// Global default settings for voice command execution.
+/// These settings are used for new commands and LLM fallback.
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+pub struct VoiceCommandDefaults {
+    /// Silent execution (hidden window, non-interactive, output captured)
+    #[serde(default = "default_true")]
+    pub silent: bool,
+    /// Skip profile loading (-NoProfile flag)
+    #[serde(default)]
+    pub no_profile: bool,
+    /// Use PowerShell 7 (pwsh) instead of Windows PowerShell 5.1
+    #[serde(default)]
+    pub use_pwsh: bool,
+    /// Execution policy for scripts
+    #[serde(default)]
+    pub execution_policy: ExecutionPolicy,
+    /// Timeout in seconds (0 = no limit)
+    #[serde(default = "default_voice_command_timeout")]
+    pub timeout_seconds: u32,
+}
+
+impl Default for VoiceCommandDefaults {
+    fn default() -> Self {
+        Self {
+            silent: true,
+            no_profile: false,
+            use_pwsh: false,
+            execution_policy: ExecutionPolicy::default(),
+            timeout_seconds: default_voice_command_timeout(),
+        }
+    }
+}
+
 /// A voice command that triggers a script when the user speaks a matching phrase.
 /// Used by the Voice Command Center feature for hands-free automation.
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
@@ -204,6 +258,64 @@ pub struct VoiceCommand {
     /// Whether this command is enabled
     #[serde(default = "default_true")]
     pub enabled: bool,
+    // ==================== Execution Options ====================
+    /// Silent execution (hidden window, non-interactive)
+    #[serde(default = "default_true")]
+    pub silent: bool,
+    /// Skip profile loading (-NoProfile flag)
+    #[serde(default)]
+    pub no_profile: bool,
+    /// Use PowerShell 7 (pwsh) instead of Windows PowerShell 5.1
+    #[serde(default)]
+    pub use_pwsh: bool,
+    /// Execution policy (None = inherit from defaults)
+    #[serde(default)]
+    pub execution_policy: Option<ExecutionPolicy>,
+    /// Working directory for this command (None = current directory)
+    #[serde(default)]
+    pub working_directory: Option<String>,
+}
+
+/// Resolved execution options for a voice command.
+/// Used when actually executing the command.
+#[derive(Debug, Clone)]
+pub struct ResolvedExecutionOptions {
+    pub silent: bool,
+    pub no_profile: bool,
+    pub use_pwsh: bool,
+    pub execution_policy: ExecutionPolicy,
+    pub working_directory: Option<String>,
+    pub timeout_seconds: u32,
+}
+
+impl VoiceCommand {
+    /// Resolves execution options by merging command-level settings with global defaults.
+    /// Command-level settings take priority over defaults.
+    pub fn resolve_execution_options(&self, defaults: &VoiceCommandDefaults) -> ResolvedExecutionOptions {
+        ResolvedExecutionOptions {
+            silent: self.silent,
+            no_profile: self.no_profile,
+            use_pwsh: self.use_pwsh,
+            // Use command's execution_policy if set, otherwise inherit from defaults
+            execution_policy: self.execution_policy.unwrap_or(defaults.execution_policy),
+            working_directory: self.working_directory.clone(),
+            timeout_seconds: defaults.timeout_seconds,
+        }
+    }
+}
+
+impl VoiceCommandDefaults {
+    /// Creates ResolvedExecutionOptions from defaults (for LLM fallback commands).
+    pub fn to_resolved_options(&self) -> ResolvedExecutionOptions {
+        ResolvedExecutionOptions {
+            silent: self.silent,
+            no_profile: self.no_profile,
+            use_pwsh: self.use_pwsh,
+            execution_policy: self.execution_policy,
+            working_directory: None,
+            timeout_seconds: self.timeout_seconds,
+        }
+    }
 }
 
 /// A text replacement rule that substitutes one text pattern with another.
@@ -740,12 +852,13 @@ pub struct AppSettings {
     /// System prompt for LLM command generation
     #[serde(default = "default_voice_command_system_prompt")]
     pub voice_command_system_prompt: String,
-    /// Command execution template. Use ${command} as placeholder for the script from voice command card.
-    /// Works like Windows Run dialog - can be any command line.
-    /// Example: "powershell -Command \"${command}\""
-    #[serde(default = "default_voice_command_template")]
+    /// Default execution options for new voice commands and LLM fallback
+    #[serde(default)]
+    pub voice_command_defaults: VoiceCommandDefaults,
+    // DEPRECATED: voice_command_template - kept for migration only
+    #[serde(default)]
     pub voice_command_template: String,
-    /// Whether to open console window and keep it open (for debugging)
+    // DEPRECATED: voice_command_keep_window_open - kept for migration only
     #[serde(default)]
     pub voice_command_keep_window_open: bool,
     /// Whether to auto-run predefined commands after countdown (not LLM-generated)
@@ -980,6 +1093,10 @@ fn default_voice_command_auto_run_seconds() -> u32 {
     4
 }
 
+fn default_voice_command_timeout() -> u32 {
+    30
+}
+
 fn default_voice_command_levenshtein_threshold() -> f64 {
     0.3 // 30% of word length can be edits (typos)
 }
@@ -1009,10 +1126,6 @@ Example inputs and outputs:
 - "lock the computer" → rundll32.exe user32.dll,LockWorkStation
 - "open word and excel" → Start-Process winword; Start-Process excel
 - "show my documents folder" → Start-Process explorer -ArgumentList "$env:USERPROFILE\Documents""#.to_string()
-}
-
-fn default_voice_command_template() -> String {
-    r#"powershell -NoProfile -NonInteractive -Command "${command}""#.to_string()
 }
 
 /// Default connector password - used for initial mutual authentication
@@ -1455,8 +1568,9 @@ pub fn get_default_settings() -> AppSettings {
         voice_command_default_threshold: default_voice_command_threshold(),
         voice_command_llm_fallback: true,
         voice_command_system_prompt: default_voice_command_system_prompt(),
-        voice_command_template: default_voice_command_template(),
-        voice_command_keep_window_open: false,
+        voice_command_defaults: VoiceCommandDefaults::default(),
+        voice_command_template: String::new(), // Deprecated, kept for migration
+        voice_command_keep_window_open: false, // Deprecated, kept for migration
         voice_command_auto_run: false,
         voice_command_auto_run_seconds: default_voice_command_auto_run_seconds(),
         // Extended Thinking / Reasoning
@@ -1758,6 +1872,16 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
                         }
                         updated = true;
                     }
+                }
+
+                // Migrate old voice_command_keep_window_open to voice_command_defaults.silent
+                // voice_command_keep_window_open: true → silent: false
+                // voice_command_keep_window_open: false → silent: true (default)
+                if settings.voice_command_keep_window_open {
+                    debug!("Migrating voice_command_keep_window_open to voice_command_defaults.silent");
+                    settings.voice_command_defaults.silent = false;
+                    settings.voice_command_keep_window_open = false;
+                    updated = true;
                 }
 
                 if updated {

@@ -31,8 +31,15 @@ Example inputs and outputs:
 - "open word and excel" → Start-Process winword; Start-Process excel
 - "show my documents folder" → Start-Process explorer -ArgumentList "$env:USERPROFILE\\Documents"`;
 
-const DEFAULT_TEMPLATE = 'powershell -NoProfile -NonInteractive -Command "${command}"';
 const MAX_LOG_ENTRIES = 100;
+
+// Execution policy options for dropdown
+const EXECUTION_POLICY_OPTIONS = [
+  { value: "default", label: "Default (system policy)" },
+  { value: "bypass", label: "Bypass (recommended)" },
+  { value: "unrestricted", label: "Unrestricted" },
+  { value: "remote_signed", label: "RemoteSigned" },
+];
 
 interface LogEntry extends VoiceCommandResultPayload {
   id: string;
@@ -45,11 +52,19 @@ interface VoiceCommandCardProps {
 }
 
 function VoiceCommandCard({ command, onUpdate, onDelete }: VoiceCommandCardProps) {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
+  const [isExecutionOpen, setIsExecutionOpen] = useState(false);
   const [editName, setEditName] = useState(command.name);
   const [editPhrase, setEditPhrase] = useState(command.trigger_phrase);
   const [editScript, setEditScript] = useState(command.script);
   const [editThreshold, setEditThreshold] = useState(command.similarity_threshold ?? 0.75);
+  // Execution options
+  const [editSilent, setEditSilent] = useState(command.silent ?? true);
+  const [editNoProfile, setEditNoProfile] = useState(command.no_profile ?? false);
+  const [editUsePwsh, setEditUsePwsh] = useState(command.use_pwsh ?? false);
+  const [editExecutionPolicy, setEditExecutionPolicy] = useState<string | null>(command.execution_policy ?? null);
+  const [editWorkingDirectory, setEditWorkingDirectory] = useState(command.working_directory ?? "");
 
   const handleSave = () => {
     onUpdate({
@@ -58,6 +73,11 @@ function VoiceCommandCard({ command, onUpdate, onDelete }: VoiceCommandCardProps
       trigger_phrase: editPhrase,
       script: editScript,
       similarity_threshold: editThreshold,
+      silent: editSilent,
+      no_profile: editNoProfile,
+      use_pwsh: editUsePwsh,
+      execution_policy: editExecutionPolicy,
+      working_directory: editWorkingDirectory || null,
     });
     setIsEditing(false);
   };
@@ -67,6 +87,11 @@ function VoiceCommandCard({ command, onUpdate, onDelete }: VoiceCommandCardProps
     setEditPhrase(command.trigger_phrase);
     setEditScript(command.script);
     setEditThreshold(command.similarity_threshold ?? 0.75);
+    setEditSilent(command.silent ?? true);
+    setEditNoProfile(command.no_profile ?? false);
+    setEditUsePwsh(command.use_pwsh ?? false);
+    setEditExecutionPolicy(command.execution_policy ?? null);
+    setEditWorkingDirectory(command.working_directory ?? "");
     setIsEditing(false);
   };
 
@@ -74,7 +99,7 @@ function VoiceCommandCard({ command, onUpdate, onDelete }: VoiceCommandCardProps
     return (
       <div className="voice-command-card editing">
         <div className="voice-command-field">
-          <label>Name</label>
+          <label>{t("voiceCommands.card.name", "Name")}</label>
           <input
             type="text"
             value={editName}
@@ -83,7 +108,7 @@ function VoiceCommandCard({ command, onUpdate, onDelete }: VoiceCommandCardProps
           />
         </div>
         <div className="voice-command-field">
-          <label>Trigger Phrase</label>
+          <label>{t("voiceCommands.card.triggerPhrase", "Trigger Phrase")}</label>
           <input
             type="text"
             value={editPhrase}
@@ -92,7 +117,7 @@ function VoiceCommandCard({ command, onUpdate, onDelete }: VoiceCommandCardProps
           />
         </div>
         <div className="voice-command-field">
-          <label>Script/Command</label>
+          <label>{t("voiceCommands.card.script", "Script/Command")}</label>
           <input
             type="text"
             value={editScript}
@@ -102,7 +127,7 @@ function VoiceCommandCard({ command, onUpdate, onDelete }: VoiceCommandCardProps
           />
         </div>
         <div className="voice-command-field">
-          <label>Match Threshold: {Math.round(editThreshold * 100)}%</label>
+          <label>{t("voiceCommands.card.matchThreshold", "Match Threshold")}: {Math.round(editThreshold * 100)}%</label>
           <input
             type="range"
             min="0.5"
@@ -112,9 +137,82 @@ function VoiceCommandCard({ command, onUpdate, onDelete }: VoiceCommandCardProps
             onChange={(e) => setEditThreshold(parseFloat(e.target.value))}
           />
         </div>
+
+        {/* Execution Options Section */}
+        <div className="voice-command-execution-section">
+          <button
+            type="button"
+            className="execution-toggle"
+            onClick={() => setIsExecutionOpen(!isExecutionOpen)}
+          >
+            <span>{isExecutionOpen ? "▾" : "▸"} {t("voiceCommands.card.executionOptions", "Execution options")}</span>
+          </button>
+
+          {isExecutionOpen && (
+            <div className="execution-options-content">
+              <div className="execution-option-row">
+                <span>{t("voiceCommands.silentExecution", "Silent execution")}</span>
+                <label className="toggle-switch small">
+                  <input
+                    type="checkbox"
+                    checked={editSilent}
+                    onChange={(e) => setEditSilent(e.target.checked)}
+                  />
+                  <span className="slider"></span>
+                </label>
+              </div>
+              <div className="execution-option-row">
+                <span>{t("voiceCommands.skipProfile", "Skip profile loading")}</span>
+                <label className="toggle-switch small">
+                  <input
+                    type="checkbox"
+                    checked={editNoProfile}
+                    onChange={(e) => setEditNoProfile(e.target.checked)}
+                  />
+                  <span className="slider"></span>
+                </label>
+              </div>
+              <div className="execution-option-row">
+                <span>{t("voiceCommands.usePwsh", "Use PowerShell 7 (pwsh)")}</span>
+                <label className="toggle-switch small">
+                  <input
+                    type="checkbox"
+                    checked={editUsePwsh}
+                    onChange={(e) => setEditUsePwsh(e.target.checked)}
+                  />
+                  <span className="slider"></span>
+                </label>
+              </div>
+              <div className="execution-option-row">
+                <span>{t("voiceCommands.executionPolicy", "Execution Policy")}</span>
+                <select
+                  className="execution-policy-select-small"
+                  value={editExecutionPolicy ?? "inherit"}
+                  onChange={(e) => setEditExecutionPolicy(e.target.value === "inherit" ? null : e.target.value)}
+                >
+                  <option value="inherit">{t("voiceCommands.inheritFromDefaults", "Inherit from defaults")}</option>
+                  {EXECUTION_POLICY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="execution-option-row column">
+                <span>{t("voiceCommands.workingDirectory", "Working Directory")}</span>
+                <input
+                  type="text"
+                  value={editWorkingDirectory}
+                  onChange={(e) => setEditWorkingDirectory(e.target.value)}
+                  placeholder={t("voiceCommands.workingDirectoryPlaceholder", "Optional, for this command")}
+                  className="working-directory-input"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="voice-command-actions">
-          <button className="btn-cancel" onClick={handleCancel}>Cancel</button>
-          <button className="btn-save" onClick={handleSave}>Save</button>
+          <button className="btn-cancel" onClick={handleCancel}>{t("common.cancel", "Cancel")}</button>
+          <button className="btn-save" onClick={handleSave}>{t("common.save", "Save")}</button>
         </div>
       </div>
     );
@@ -156,7 +254,14 @@ export default function VoiceCommandSettings() {
   
   if (!settings) return null;
 
-  const commandTemplate = settings.voice_command_template ?? DEFAULT_TEMPLATE;
+  // Get voice command defaults with fallbacks
+  const defaults = settings.voice_command_defaults ?? {
+    silent: true,
+    no_profile: false,
+    use_pwsh: false,
+    execution_policy: "bypass",
+    timeout_seconds: 30,
+  };
 
   // Listen for execution results
   useEffect(() => {
@@ -183,6 +288,7 @@ export default function VoiceCommandSettings() {
   }, [executionLog]);
 
   const handleAddCommand = () => {
+    // New commands inherit execution options from global defaults
     const newCommand: VoiceCommand = {
       id: `vc_${Date.now()}`,
       name: "New Command",
@@ -190,6 +296,12 @@ export default function VoiceCommandSettings() {
       script: "",
       similarity_threshold: settings.voice_command_default_threshold || 0.75,
       enabled: true,
+      // Inherit execution options from defaults
+      silent: defaults.silent,
+      no_profile: defaults.no_profile,
+      use_pwsh: defaults.use_pwsh,
+      execution_policy: null, // null = inherit from defaults at execution time
+      working_directory: null,
     };
     updateSetting("voice_commands", [...(settings.voice_commands || []), newCommand]);
   };
@@ -491,49 +603,99 @@ export default function VoiceCommandSettings() {
           {/* Execution Settings Section */}
           <div className="execution-settings-section">
             <div className="section-divider">
-              <span>{t("voiceCommands.executionSettings", "Execution Settings")}</span>
+              <span>{t("voiceCommands.executionDefaults", "Execution Defaults")}</span>
             </div>
-
-            <div className="setting-row command-template-row">
-              <div className="setting-label">
-                <span>{t("voiceCommands.commandTemplate", "Command Template")}</span>
-                <span className="setting-sublabel">
-                  {t("voiceCommands.commandTemplateDesc", "Like Win+R. Use ${command} for script from card.")}
-                </span>
-              </div>
-              <div className="command-template-container">
-                <input
-                  type="text"
-                  className="command-template-input"
-                  value={commandTemplate}
-                  onChange={(e) => updateSetting("voice_command_template", e.target.value)}
-                  placeholder='powershell -NoProfile -NonInteractive -Command "${command}"'
-                />
-                <button
-                  className="btn-reset-template"
-                  onClick={() => updateSetting("voice_command_template", DEFAULT_TEMPLATE)}
-                  title={t("voiceCommands.resetToDefault", "Reset to default")}
-                >
-                  ↺
-                </button>
-              </div>
-            </div>
+            <p className="execution-defaults-description">
+              {t("voiceCommands.executionDefaultsDesc", "Default options for new commands and LLM fallback. Commands are executed via PowerShell.")}
+            </p>
 
             <div className="setting-row">
               <div className="setting-label">
-                <span>{t("voiceCommands.keepWindowOpen", "Keep Console Window Open")}</span>
+                <span>{t("voiceCommands.silentExecution", "Silent execution")}</span>
                 <span className="setting-sublabel">
-                  {t("voiceCommands.keepWindowOpenDesc", "Opens a visible console window instead of silent execution")}
+                  {t("voiceCommands.silentExecutionDesc", "Hidden window, non-interactive, output captured")}
                 </span>
               </div>
               <label className="toggle-switch">
                 <input
                   type="checkbox"
-                  checked={settings.voice_command_keep_window_open ?? false}
-                  onChange={(e) => updateSetting("voice_command_keep_window_open", e.target.checked)}
+                  checked={defaults.silent}
+                  onChange={(e) => updateSetting("voice_command_defaults", { ...defaults, silent: e.target.checked })}
                 />
                 <span className="slider"></span>
               </label>
+            </div>
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <span>{t("voiceCommands.skipProfile", "Skip profile loading")}</span>
+                <span className="setting-sublabel">
+                  {t("voiceCommands.skipProfileDesc", "Disable to get the same experience as in terminal")}
+                </span>
+              </div>
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={defaults.no_profile}
+                  onChange={(e) => updateSetting("voice_command_defaults", { ...defaults, no_profile: e.target.checked })}
+                />
+                <span className="slider"></span>
+              </label>
+            </div>
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <span>{t("voiceCommands.usePwsh", "Use PowerShell 7 (pwsh)")}</span>
+                <span className="setting-sublabel">
+                  {t("voiceCommands.usePwshDesc", "Use modern PowerShell Core instead of Windows PowerShell 5.1")}
+                </span>
+              </div>
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={defaults.use_pwsh}
+                  onChange={(e) => updateSetting("voice_command_defaults", { ...defaults, use_pwsh: e.target.checked })}
+                />
+                <span className="slider"></span>
+              </label>
+            </div>
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <span>{t("voiceCommands.executionPolicy", "Execution Policy")}</span>
+                <span className="setting-sublabel">
+                  {t("voiceCommands.executionPolicyDesc", "Controls script execution permissions")}
+                </span>
+              </div>
+              <select
+                className="execution-policy-select"
+                value={defaults.execution_policy}
+                onChange={(e) => updateSetting("voice_command_defaults", { ...defaults, execution_policy: e.target.value })}
+              >
+                {EXECUTION_POLICY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <span>{t("voiceCommands.timeout", "Timeout")}</span>
+                <span className="setting-sublabel">
+                  {t("voiceCommands.timeoutDesc", "0 = no limit, protects against hanging commands")}
+                </span>
+              </div>
+              <div className="timeout-input-container">
+                <input
+                  type="number"
+                  min="0"
+                  max="600"
+                  value={defaults.timeout_seconds}
+                  onChange={(e) => updateSetting("voice_command_defaults", { ...defaults, timeout_seconds: Math.max(0, Math.min(600, parseInt(e.target.value) || 0)) })}
+                  className="timeout-input"
+                />
+                <span className="timeout-label">{t("voiceCommands.seconds", "sec")}</span>
+              </div>
             </div>
           </div>
 
@@ -998,6 +1160,49 @@ export default function VoiceCommandSettings() {
           text-transform: uppercase;
           letter-spacing: 0.5px;
         }
+        .execution-defaults-description {
+          color: #888;
+          font-size: 12px;
+          margin-bottom: 12px;
+          line-height: 1.4;
+        }
+        .execution-policy-select {
+          background: rgba(0,0,0,0.3);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 8px;
+          padding: 8px 12px;
+          color: #e0e0e0;
+          font-size: 13px;
+          min-width: 200px;
+          cursor: pointer;
+        }
+        .execution-policy-select:focus {
+          outline: none;
+          border-color: rgba(138, 43, 226, 0.5);
+        }
+        .timeout-input-container {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .timeout-input {
+          width: 80px;
+          background: rgba(0,0,0,0.3);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 8px;
+          padding: 8px 12px;
+          color: #e0e0e0;
+          font-size: 13px;
+          text-align: center;
+        }
+        .timeout-input:focus {
+          outline: none;
+          border-color: rgba(138, 43, 226, 0.5);
+        }
+        .timeout-label {
+          color: #888;
+          font-size: 13px;
+        }
 
         /* Fuzzy Matching Settings */
         .fuzzy-matching-section {
@@ -1054,73 +1259,76 @@ export default function VoiceCommandSettings() {
           margin-left: 10px;
         }
         
-        /* Command Template Area */
-        .command-template-row {
-          flex-direction: column !important;
-          align-items: flex-start !important;
-          gap: 12px !important;
+        /* Voice Command Card Execution Options */
+        .voice-command-execution-section {
+          margin-top: 12px;
+          border-top: 1px solid rgba(255,255,255,0.08);
+          padding-top: 12px;
         }
-        .command-template-container {
-          position: relative;
-          width: 100%;
+        .execution-toggle {
+          background: transparent;
+          border: none;
+          color: #888;
+          font-size: 13px;
+          cursor: pointer;
+          padding: 4px 0;
+          display: flex;
+          align-items: center;
+          gap: 6px;
         }
-        .command-template-input {
-          width: 100%;
-          min-height: 80px;
+        .execution-toggle:hover {
+          color: #aaa;
+        }
+        .execution-options-content {
+          margin-top: 12px;
+          padding-left: 16px;
+          border-left: 2px solid rgba(138, 43, 226, 0.3);
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .execution-option-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 12px;
+          color: #aaa;
+        }
+        .execution-option-row.column {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 6px;
+        }
+        .execution-policy-select-small {
           background: rgba(0,0,0,0.3);
           border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 8px;
-          padding: 12px;
-          padding-right: 44px;
+          border-radius: 6px;
+          padding: 5px 8px;
           color: #e0e0e0;
-          font-size: 13px;
-          font-family: 'Consolas', 'Monaco', monospace;
-          line-height: 1.5;
-          resize: vertical;
-          transition: border-color 0.2s;
+          font-size: 11px;
+          min-width: 160px;
+          cursor: pointer;
         }
-        .command-template-input:focus {
+        .execution-policy-select-small:focus {
           outline: none;
           border-color: rgba(138, 43, 226, 0.5);
         }
-        .btn-reset-template {
-          position: absolute;
-          top: 8px;
-          right: 8px;
-          background: rgba(255,255,255,0.08);
-          border: none;
+        .working-directory-input {
+          width: 100%;
+          background: rgba(0,0,0,0.3);
+          border: 1px solid rgba(255,255,255,0.1);
           border-radius: 6px;
-          padding: 6px 10px;
-          color: #888;
-          font-size: 16px;
-          cursor: pointer;
-          transition: all 0.2s;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .btn-reset-template:hover {
-          background: rgba(138, 43, 226, 0.3);
-          color: #fff;
-        }
-
-
-        .execution-info {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 10px 12px;
-          background: rgba(138, 43, 226, 0.1);
-          border-radius: 8px;
-          margin-top: 12px;
-        }
-        .execution-info .info-icon {
-          font-size: 14px;
-        }
-        .execution-info span:last-child {
-          color: #aaa;
+          padding: 6px 8px;
+          color: #e0e0e0;
           font-size: 12px;
-          font-family: 'Consolas', monospace;
+        }
+        .working-directory-input:focus {
+          outline: none;
+          border-color: rgba(138, 43, 226, 0.5);
+        }
+        .working-directory-input::placeholder {
+          color: #666;
+          font-style: italic;
         }
         
         /* Execution Log */

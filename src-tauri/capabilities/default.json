@@ -6,6 +6,7 @@
   "permissions": [
     "core:default",
     "core:window:allow-hide",
+    "core:window:allow-set-size",
     "opener:default",
     "store:default",
     "updater:default",

@@ -412,7 +412,7 @@ pub fn show_command_confirm_overlay(
             .title("Voice Command")
             .position(x, y)
             .inner_size(COMMAND_CONFIRM_WIDTH, COMMAND_CONFIRM_HEIGHT)
-            .resizable(false)
+            .resizable(true)  // Allow programmatic resizing for error display
             .maximizable(false)
             .minimizable(false)
             .closable(true)

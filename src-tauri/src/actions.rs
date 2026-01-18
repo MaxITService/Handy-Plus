@@ -2036,16 +2036,26 @@ struct VoiceCommandAction;
 /// Event payload for showing the command confirmation overlay
 #[derive(Clone, serde::Serialize, specta::Type)]
 pub struct CommandConfirmPayload {
-    /// The script from the voice command card (replaces ${command} in template)
+    /// The PowerShell script/command to execute
     pub command: String,
     /// What the user said (for context)
     pub spoken_text: String,
     /// Whether this came from LLM (true) or predefined match (false)
     pub from_llm: bool,
-    /// Command execution template with ${command} placeholder (like Win+R)
-    pub template: String,
-    /// Whether to open console window and keep it open
-    pub keep_window_open: bool,
+    // ==================== Execution Options ====================
+    /// Silent execution (hidden window, non-interactive)
+    pub silent: bool,
+    /// Skip profile loading (-NoProfile flag)
+    pub no_profile: bool,
+    /// Use PowerShell 7 (pwsh) instead of Windows PowerShell 5.1
+    pub use_pwsh: bool,
+    /// Execution policy (None = system default)
+    pub execution_policy: Option<String>,
+    /// Working directory (None = current directory)
+    pub working_directory: Option<String>,
+    /// Timeout in seconds (0 = no limit)
+    pub timeout_seconds: u32,
+    // ==================== Auto-run Options ====================
     /// Whether to auto-run after countdown (only for predefined commands)
     pub auto_run: bool,
     /// Countdown seconds before auto-run
@@ -2180,6 +2190,17 @@ fn compute_similarity(a: &str, b: &str, config: &FuzzyMatchConfig) -> f64 {
     // Final score combines coverage, quality, and length similarity
     // Coverage is most important (70%), quality matters (20%), length is a tiebreaker (10%)
     coverage * 0.7 + quality * coverage * 0.2 + len_ratio * 0.1
+}
+
+/// Format ExecutionPolicy for frontend display.
+fn format_execution_policy(policy: crate::settings::ExecutionPolicy) -> Option<String> {
+    use crate::settings::ExecutionPolicy;
+    match policy {
+        ExecutionPolicy::Default => None,
+        ExecutionPolicy::Bypass => Some("bypass".to_string()),
+        ExecutionPolicy::Unrestricted => Some("unrestricted".to_string()),
+        ExecutionPolicy::RemoteSigned => Some("remote_signed".to_string()),
+    }
 }
 
 /// Finds the best matching predefined command for the given transcription.
@@ -2357,6 +2378,9 @@ impl ShortcutAction for VoiceCommandAction {
                     matched_cmd.trigger_phrase, matched_cmd.script, score
                 );
 
+                // Resolve execution options for this command
+                let resolved = matched_cmd.resolve_execution_options(&settings.voice_command_defaults);
+
                 // Show confirmation overlay
                 crate::overlay::show_command_confirm_overlay(
                     &ah,
@@ -2364,8 +2388,12 @@ impl ShortcutAction for VoiceCommandAction {
                         command: matched_cmd.script.clone(),
                         spoken_text: transcription.clone(),
                         from_llm: false,
-                        template: settings.voice_command_template.clone(),
-                        keep_window_open: settings.voice_command_keep_window_open,
+                        silent: resolved.silent,
+                        no_profile: resolved.no_profile,
+                        use_pwsh: resolved.use_pwsh,
+                        execution_policy: format_execution_policy(resolved.execution_policy),
+                        working_directory: resolved.working_directory,
+                        timeout_seconds: resolved.timeout_seconds,
                         auto_run: settings.voice_command_auto_run,
                         auto_run_seconds: settings.voice_command_auto_run_seconds,
                     },
@@ -2390,6 +2418,9 @@ impl ShortcutAction for VoiceCommandAction {
                     Ok(suggested_command) => {
                         debug!("LLM suggested command: '{}'", suggested_command);
 
+                        // LLM fallback uses global defaults
+                        let resolved = settings.voice_command_defaults.to_resolved_options();
+
                         // Show confirmation overlay
                         crate::overlay::show_command_confirm_overlay(
                             &ah,
@@ -2397,8 +2428,12 @@ impl ShortcutAction for VoiceCommandAction {
                                 command: suggested_command,
                                 spoken_text: transcription,
                                 from_llm: true,
-                                template: settings.voice_command_template.clone(),
-                                keep_window_open: settings.voice_command_keep_window_open,
+                                silent: resolved.silent,
+                                no_profile: resolved.no_profile,
+                                use_pwsh: resolved.use_pwsh,
+                                execution_policy: format_execution_policy(resolved.execution_policy),
+                                working_directory: resolved.working_directory,
+                                timeout_seconds: resolved.timeout_seconds,
                                 auto_run: false, // Never auto-run LLM-generated commands
                                 auto_run_seconds: 0,
                             },

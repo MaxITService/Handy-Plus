@@ -1,213 +1,238 @@
 //! Voice Command Tauri commands
 //!
-//! Commands for executing voice-triggered scripts after user confirmation.
-//! Works like Windows Run dialog (Win+R) with optional ${command} variable.
+//! Commands for executing voice-triggered PowerShell scripts.
+//! Uses direct PowerShell invocation with configurable execution options.
 
 use log::{debug, error, info};
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 use std::process::Command;
+use std::sync::mpsc;
+use std::thread;
+use std::time::Duration;
+
+use crate::settings::{ExecutionPolicy, ResolvedExecutionOptions};
 
 #[cfg(target_os = "windows")]
 const CREATE_NEW_CONSOLE: u32 = 0x00000010;
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-/// Executes a command template after user confirmation.
-/// Works like Windows Run dialog - executes the full command line directly.
+/// Executes a PowerShell command with the given execution options.
 ///
 /// Parameters:
-/// - `command`: The script from the voice command card (replaces ${command} in template)
-/// - `template`: The full command template (e.g., "powershell -Command \"${command}\"")
-/// - `keep_window_open`: If true, opens a visible console window instead of silent execution
+/// - `script`: The PowerShell script/command to execute
+/// - `options`: Resolved execution options (silent, no_profile, use_pwsh, etc.)
 ///
 /// Returns the output on success or an error message on failure.
-/// When `keep_window_open` is true, returns success immediately (no output capture).
 #[tauri::command]
 #[specta::specta]
 #[cfg(target_os = "windows")]
 pub fn execute_voice_command(
-    command: String,
-    template: String,
-    keep_window_open: bool,
+    script: String,
+    silent: bool,
+    no_profile: bool,
+    use_pwsh: bool,
+    execution_policy: Option<String>,
+    working_directory: Option<String>,
+    timeout_seconds: u32,
 ) -> Result<String, String> {
-    // Replace ${command} placeholder with actual command (can be empty)
-    let full_command = template.replace("${command}", &command);
-
-    if full_command.trim().is_empty() {
+    if script.trim().is_empty() {
         return Err("Command is empty".to_string());
     }
 
-    info!("Executing voice command: {}", full_command);
-    debug!("Template: '{}', Command: '{}', keep_window_open: {}", template, command, keep_window_open);
+    // Parse execution policy from string
+    let policy = execution_policy.as_deref().and_then(|p| match p {
+        "bypass" => Some(ExecutionPolicy::Bypass),
+        "unrestricted" => Some(ExecutionPolicy::Unrestricted),
+        "remote_signed" => Some(ExecutionPolicy::RemoteSigned),
+        "default" | "" => None,
+        _ => None,
+    });
 
-    if keep_window_open {
-        // Open a visible console window that stays open
-        // Detect shell type and use appropriate "stay open" flag
-        info!("Opening command in new console window: {}", full_command);
+    let options = ResolvedExecutionOptions {
+        silent,
+        no_profile,
+        use_pwsh,
+        execution_policy: policy.unwrap_or(ExecutionPolicy::Default),
+        working_directory,
+        timeout_seconds,
+    };
 
-        let full_command_lower = full_command.to_lowercase();
+    execute_powershell_command(&script, &options)
+}
 
-        if full_command_lower.starts_with("powershell") {
-            // PowerShell: extract args and command, run with -NoExit
-            if let Some((pre_args, cmd_content)) = parse_powershell_command(&full_command) {
-                debug!("PowerShell -NoExit with args {:?}, command: {}", pre_args, cmd_content);
-                let mut cmd = Command::new("powershell");
-                cmd.args(&pre_args);
-                cmd.args(["-NoExit", "-Command", &cmd_content]);
-                cmd.creation_flags(CREATE_NEW_CONSOLE);
-                cmd.spawn().map_err(|e| format!("Failed to open PowerShell window: {}", e))?;
-            } else {
-                // Fallback: run the whole command via cmd /k
-                let comspec = std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".to_string());
-                Command::new(&comspec)
-                    .args(["/k", &full_command])
-                    .creation_flags(CREATE_NEW_CONSOLE)
-                    .spawn()
-                    .map_err(|e| format!("Failed to open console window: {}", e))?;
-            }
-        } else if full_command_lower.starts_with("pwsh") {
-            // PowerShell 7+: extract args and command, run with -NoExit
-            if let Some((pre_args, cmd_content)) = parse_powershell_command(&full_command) {
-                debug!("pwsh -NoExit with args {:?}, command: {}", pre_args, cmd_content);
-                let mut cmd = Command::new("pwsh");
-                cmd.args(&pre_args);
-                cmd.args(["-NoExit", "-Command", &cmd_content]);
-                cmd.creation_flags(CREATE_NEW_CONSOLE);
-                cmd.spawn().map_err(|e| format!("Failed to open pwsh window: {}", e))?;
-            } else {
-                let comspec = std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".to_string());
-                Command::new(&comspec)
-                    .args(["/k", &full_command])
-                    .creation_flags(CREATE_NEW_CONSOLE)
-                    .spawn()
-                    .map_err(|e| format!("Failed to open console window: {}", e))?;
-            }
-        } else {
-            // Generic command: use cmd /k
-            let comspec = std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".to_string());
-            Command::new(&comspec)
-                .args(["/k", &full_command])
-                .creation_flags(CREATE_NEW_CONSOLE)
-                .spawn()
-                .map_err(|e| format!("Failed to open console window: {}", e))?;
+/// Internal function to execute PowerShell commands.
+#[cfg(target_os = "windows")]
+fn execute_powershell_command(
+    script: &str,
+    options: &ResolvedExecutionOptions,
+) -> Result<String, String> {
+    let shell = if options.use_pwsh { "pwsh" } else { "powershell" };
+
+    info!(
+        "Executing voice command via {}: {} (silent={}, no_profile={}, policy={:?})",
+        shell, script, options.silent, options.no_profile, options.execution_policy
+    );
+
+    let mut cmd = Command::new(shell);
+
+    // Add -NoProfile flag if requested
+    if options.no_profile {
+        cmd.arg("-NoProfile");
+    }
+
+    // Add -NonInteractive for silent execution
+    if options.silent {
+        cmd.arg("-NonInteractive");
+    }
+
+    // Add execution policy if not default
+    match options.execution_policy {
+        ExecutionPolicy::Default => {}
+        ExecutionPolicy::Bypass => {
+            cmd.args(["-ExecutionPolicy", "Bypass"]);
         }
+        ExecutionPolicy::Unrestricted => {
+            cmd.args(["-ExecutionPolicy", "Unrestricted"]);
+        }
+        ExecutionPolicy::RemoteSigned => {
+            cmd.args(["-ExecutionPolicy", "RemoteSigned"]);
+        }
+    }
 
-        Ok("Command opened in console window".to_string())
+    // Set working directory if specified
+    if let Some(ref dir) = options.working_directory {
+        if !dir.trim().is_empty() {
+            cmd.current_dir(dir);
+            debug!("Working directory set to: {}", dir);
+        }
+    }
+
+    // Add the command
+    cmd.args(["-Command", script]);
+
+    if options.silent {
+        // Silent execution: hide window, capture output
+        cmd.creation_flags(CREATE_NO_WINDOW);
+
+        if options.timeout_seconds > 0 {
+            execute_with_timeout(cmd, options.timeout_seconds)
+        } else {
+            execute_and_capture(cmd)
+        }
     } else {
-        // Silent execution via cmd /c (like Win+R)
-        let comspec = std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".to_string());
-        debug!("Silent execution via {}: /c {}", comspec, full_command);
+        // Windowed execution: show console, add -NoExit to keep window open
+        debug!("Opening {} window with -NoExit for: {}", shell, script);
 
-        let output = Command::new(&comspec)
-            .args(["/c", &full_command])
-            .output()
-            .map_err(|e| format!("Failed to execute command: {}", e))?;
+        // Rebuild command with -NoExit before -Command
+        let mut windowed_cmd = Command::new(shell);
 
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-        if output.status.success() {
-            debug!("Command executed successfully. Output: {}", stdout.trim());
-            Ok(stdout)
-        } else {
-            error!("Command failed. Stderr: {}", stderr);
-            Err(format!("Command failed: {}", stderr.trim()))
+        if options.no_profile {
+            windowed_cmd.arg("-NoProfile");
         }
+
+        match options.execution_policy {
+            ExecutionPolicy::Default => {}
+            ExecutionPolicy::Bypass => {
+                windowed_cmd.args(["-ExecutionPolicy", "Bypass"]);
+            }
+            ExecutionPolicy::Unrestricted => {
+                windowed_cmd.args(["-ExecutionPolicy", "Unrestricted"]);
+            }
+            ExecutionPolicy::RemoteSigned => {
+                windowed_cmd.args(["-ExecutionPolicy", "RemoteSigned"]);
+            }
+        }
+
+        if let Some(ref dir) = options.working_directory {
+            if !dir.trim().is_empty() {
+                windowed_cmd.current_dir(dir);
+            }
+        }
+
+        // Add -NoExit before -Command to keep window open
+        windowed_cmd.args(["-NoExit", "-Command", script]);
+        windowed_cmd.creation_flags(CREATE_NEW_CONSOLE);
+
+        windowed_cmd
+            .spawn()
+            .map_err(|e| format!("Failed to open {} window: {}", shell, e))?;
+
+        Ok("Command opened in PowerShell window".to_string())
     }
 }
 
-/// Parse PowerShell command line and extract pre-command args and command content.
-/// E.g., `powershell -NoProfile -Command "start msedge"` → (vec!["-NoProfile"], "start msedge")
+/// Execute command and capture output.
 #[cfg(target_os = "windows")]
-fn parse_powershell_command(full_cmd: &str) -> Option<(Vec<String>, String)> {
-    let lower = full_cmd.to_lowercase();
+fn execute_and_capture(mut cmd: Command) -> Result<String, String> {
+    let output = cmd
+        .output()
+        .map_err(|e| format!("Failed to execute command: {}", e))?;
 
-    // Find -Command or -c (short form)
-    let cmd_idx = lower.find("-command ").or_else(|| lower.find("-c "))?;
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
-    // Get args between shell name and -Command
-    let shell_end = if lower.starts_with("powershell.exe") {
-        14
-    } else if lower.starts_with("powershell") {
-        10
-    } else if lower.starts_with("pwsh.exe") {
-        8
-    } else if lower.starts_with("pwsh") {
-        4
+    if output.status.success() {
+        Ok(stdout)
     } else {
-        0
-    };
-
-    let pre_args_str = full_cmd[shell_end..cmd_idx].trim();
-    let pre_args: Vec<String> = pre_args_str
-        .split_whitespace()
-        .map(|s| s.to_string())
-        .collect();
-
-    // Get everything after -Command/-c
-    let after_flag = if lower[cmd_idx..].starts_with("-command ") {
-        &full_cmd[cmd_idx + 9..] // len("-command ") = 9
-    } else {
-        &full_cmd[cmd_idx + 3..] // len("-c ") = 3
-    };
-
-    let trimmed = after_flag.trim();
-
-    // Remove surrounding quotes if present
-    let cmd_content = if (trimmed.starts_with('"') && trimmed.ends_with('"')) ||
-       (trimmed.starts_with('\'') && trimmed.ends_with('\'')) {
-        trimmed[1..trimmed.len()-1].to_string()
-    } else {
-        trimmed.to_string()
-    };
-
-    Some((pre_args, cmd_content))
+        let error_msg = if stderr.trim().is_empty() {
+            format!("Command failed with exit code: {:?}", output.status.code())
+        } else {
+            stderr.trim().to_string()
+        };
+        Err(error_msg)
+    }
 }
 
-/// Find Windows Terminal (wt.exe) by checking multiple locations.
-/// Returns the path to wt.exe if found, or an error with helpful message.
+/// Execute command with timeout.
 #[cfg(target_os = "windows")]
-fn find_windows_terminal() -> Result<String, String> {
-    // First try: just "wt" (relies on PATH)
-    if let Ok(output) = Command::new("where").arg("wt.exe").output() {
-        if output.status.success() {
-            let path = String::from_utf8_lossy(&output.stdout);
-            if let Some(first_line) = path.lines().next() {
-                let trimmed = first_line.trim();
-                if !trimmed.is_empty() {
-                    debug!("Found wt.exe via PATH: {}", trimmed);
-                    return Ok(trimmed.to_string());
+fn execute_with_timeout(mut cmd: Command, timeout_seconds: u32) -> Result<String, String> {
+    let (tx, rx) = mpsc::channel();
+
+    // Spawn command in a separate thread
+    let handle = thread::spawn(move || {
+        let result = cmd.output();
+        let _ = tx.send(result);
+    });
+
+    // Wait for result with timeout
+    let timeout = Duration::from_secs(timeout_seconds as u64);
+    match rx.recv_timeout(timeout) {
+        Ok(result) => {
+            let _ = handle.join();
+            match result {
+                Ok(output) => {
+                    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+                    if output.status.success() {
+                        Ok(stdout)
+                    } else {
+                        let error_msg = if stderr.trim().is_empty() {
+                            format!("Command failed with exit code: {:?}", output.status.code())
+                        } else {
+                            stderr.trim().to_string()
+                        };
+                        Err(error_msg)
+                    }
                 }
+                Err(e) => Err(format!("Failed to execute command: {}", e)),
             }
         }
-    }
-
-    // Second try: WindowsApps in LOCALAPPDATA (user app execution alias)
-    if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
-        let windows_apps_path = format!("{}\\Microsoft\\WindowsApps\\wt.exe", local_app_data);
-        if std::path::Path::new(&windows_apps_path).exists() {
-            debug!("Found wt.exe in WindowsApps: {}", windows_apps_path);
-            return Ok(windows_apps_path);
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            error!("Command timed out after {} seconds", timeout_seconds);
+            // Note: The spawned process will continue running, but we return an error
+            // In a production system, you might want to kill the process
+            Err(format!(
+                "Command timed out after {} seconds",
+                timeout_seconds
+            ))
+        }
+        Err(mpsc::RecvTimeoutError::Disconnected) => {
+            Err("Command execution thread disconnected unexpectedly".to_string())
         }
     }
-
-    // Third try: Check common Program Files locations (for non-Store installs)
-    let program_files_paths = [
-        "C:\\Program Files\\Windows Terminal\\wt.exe",
-        "C:\\Program Files (x86)\\Windows Terminal\\wt.exe",
-    ];
-    for path in program_files_paths {
-        if std::path::Path::new(path).exists() {
-            debug!("Found wt.exe in Program Files: {}", path);
-            return Ok(path.to_string());
-        }
-    }
-
-    Err(
-        "Windows Terminal (wt.exe) not found. Please ensure Windows Terminal is installed:\n\
-         1. Check Start Menu for 'Windows Terminal'\n\
-         2. Install from Microsoft Store"
-            .to_string(),
-    )
 }
 
 /// Non-Windows stub
@@ -215,9 +240,13 @@ fn find_windows_terminal() -> Result<String, String> {
 #[specta::specta]
 #[cfg(not(target_os = "windows"))]
 pub fn execute_voice_command(
-    _command: String,
-    _template: String,
-    _keep_window_open: bool,
+    _script: String,
+    _silent: bool,
+    _no_profile: bool,
+    _use_pwsh: bool,
+    _execution_policy: Option<String>,
+    _working_directory: Option<String>,
+    _timeout_seconds: u32,
 ) -> Result<String, String> {
     Err("Voice commands are only supported on Windows".to_string())
 }
@@ -231,7 +260,9 @@ pub async fn test_voice_command_mock(
     app: tauri::AppHandle,
     mock_text: String,
 ) -> Result<String, String> {
-    use crate::actions::{find_matching_command, generate_command_with_llm, CommandConfirmPayload, FuzzyMatchConfig};
+    use crate::actions::{
+        find_matching_command, generate_command_with_llm, CommandConfirmPayload, FuzzyMatchConfig,
+    };
     use crate::settings::get_settings;
     use log::debug;
 
@@ -256,15 +287,22 @@ pub async fn test_voice_command_mock(
             matched_cmd.trigger_phrase, matched_cmd.script, score
         );
 
-        // Show confirmation overlay
+        // Resolve execution options for this command
+        let resolved = matched_cmd.resolve_execution_options(&settings.voice_command_defaults);
+
+        // Show confirmation overlay with resolved options
         crate::overlay::show_command_confirm_overlay(
             &app,
             CommandConfirmPayload {
                 command: matched_cmd.script.clone(),
                 spoken_text: mock_text.clone(),
                 from_llm: false,
-                template: settings.voice_command_template.clone(),
-                keep_window_open: settings.voice_command_keep_window_open,
+                silent: resolved.silent,
+                no_profile: resolved.no_profile,
+                use_pwsh: resolved.use_pwsh,
+                execution_policy: format_execution_policy(resolved.execution_policy),
+                working_directory: resolved.working_directory,
+                timeout_seconds: resolved.timeout_seconds,
                 auto_run: settings.voice_command_auto_run,
                 auto_run_seconds: settings.voice_command_auto_run_seconds,
             },
@@ -288,6 +326,9 @@ pub async fn test_voice_command_mock(
             Ok(suggested_command) => {
                 debug!("LLM suggested command: '{}'", suggested_command);
 
+                // LLM fallback uses global defaults
+                let resolved = settings.voice_command_defaults.to_resolved_options();
+
                 // Show confirmation overlay
                 crate::overlay::show_command_confirm_overlay(
                     &app,
@@ -295,8 +336,12 @@ pub async fn test_voice_command_mock(
                         command: suggested_command.clone(),
                         spoken_text: mock_text,
                         from_llm: true,
-                        template: settings.voice_command_template.clone(),
-                        keep_window_open: settings.voice_command_keep_window_open,
+                        silent: resolved.silent,
+                        no_profile: resolved.no_profile,
+                        use_pwsh: resolved.use_pwsh,
+                        execution_policy: format_execution_policy(resolved.execution_policy),
+                        working_directory: resolved.working_directory,
+                        timeout_seconds: resolved.timeout_seconds,
                         auto_run: false, // Never auto-run LLM-generated commands
                         auto_run_seconds: 0,
                     },
@@ -314,6 +359,17 @@ pub async fn test_voice_command_mock(
         "No matching command found for: '{}' (LLM fallback disabled)",
         mock_text
     ))
+}
+
+/// Format ExecutionPolicy for frontend display.
+#[cfg(target_os = "windows")]
+fn format_execution_policy(policy: ExecutionPolicy) -> Option<String> {
+    match policy {
+        ExecutionPolicy::Default => None,
+        ExecutionPolicy::Bypass => Some("bypass".to_string()),
+        ExecutionPolicy::Unrestricted => Some("unrestricted".to_string()),
+        ExecutionPolicy::RemoteSigned => Some("remote_signed".to_string()),
+    }
 }
 
 /// Non-Windows stub for mock testing
