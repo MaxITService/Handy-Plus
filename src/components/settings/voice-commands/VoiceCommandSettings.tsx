@@ -31,7 +31,7 @@ Example inputs and outputs:
 - "open word and excel" → Start-Process winword; Start-Process excel
 - "show my documents folder" → Start-Process explorer -ArgumentList "$env:USERPROFILE\\Documents"`;
 
-const DEFAULT_COMMAND_TEMPLATE = 'powershell -NonInteractive -Command "${command}"';
+const DEFAULT_TEMPLATE = 'powershell -NoProfile -NonInteractive -Command "${command}"';
 const MAX_LOG_ENTRIES = 100;
 
 interface LogEntry extends VoiceCommandResultPayload {
@@ -156,7 +156,7 @@ export default function VoiceCommandSettings() {
   
   if (!settings) return null;
 
-  const commandTemplate = settings.voice_command_template ?? DEFAULT_COMMAND_TEMPLATE;
+  const commandTemplate = settings.voice_command_template ?? DEFAULT_TEMPLATE;
 
   // Listen for execution results
   useEffect(() => {
@@ -498,20 +498,20 @@ export default function VoiceCommandSettings() {
               <div className="setting-label">
                 <span>{t("voiceCommands.commandTemplate", "Command Template")}</span>
                 <span className="setting-sublabel">
-                  {t("voiceCommands.commandTemplateDesc", "Use ${command} as placeholder for your command")}
+                  {t("voiceCommands.commandTemplateDesc", "Like Win+R. Use ${command} for script from card.")}
                 </span>
               </div>
               <div className="command-template-container">
-                <textarea
+                <input
+                  type="text"
                   className="command-template-input"
                   value={commandTemplate}
                   onChange={(e) => updateSetting("voice_command_template", e.target.value)}
-                  placeholder='powershell -NonInteractive -Command "${command}"'
-                  rows={3}
+                  placeholder='powershell -NoProfile -NonInteractive -Command "${command}"'
                 />
                 <button
                   className="btn-reset-template"
-                  onClick={() => updateSetting("voice_command_template", DEFAULT_COMMAND_TEMPLATE)}
+                  onClick={() => updateSetting("voice_command_template", DEFAULT_TEMPLATE)}
                   title={t("voiceCommands.resetToDefault", "Reset to default")}
                 >
                   ↺
@@ -519,18 +519,11 @@ export default function VoiceCommandSettings() {
               </div>
             </div>
 
-            <div className="execution-info">
-              <span className="info-icon">ℹ️</span>
-              <span>
-                {t("voiceCommands.templateHelp", "Use pwsh.exe for PowerShell 7+. Typical args: -NoProfile, -NoLogo")}
-              </span>
-            </div>
-
             <div className="setting-row">
               <div className="setting-label">
-                <span>{t("voiceCommands.keepWindowOpen", "Keep Terminal Window Open")}</span>
+                <span>{t("voiceCommands.keepWindowOpen", "Keep Console Window Open")}</span>
                 <span className="setting-sublabel">
-                  {t("voiceCommands.keepWindowOpenDesc", "Opens Windows Terminal instead of silent execution (useful for debugging)")}
+                  {t("voiceCommands.keepWindowOpenDesc", "Opens a visible console window instead of silent execution")}
                 </span>
               </div>
               <label className="toggle-switch">

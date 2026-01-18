@@ -261,9 +261,9 @@ async changeVoiceCommandSystemPromptSetting(prompt: string) : Promise<Result<nul
     else return { status: "error", error: e  as any };
 }
 },
-async changeVoiceCommandPsArgsSetting(args: string) : Promise<Result<null, string>> {
+async changeVoiceCommandTemplateSetting(template: string) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("change_voice_command_ps_args_setting", { args }) };
+    return { status: "ok", data: await TAURI_INVOKE("change_voice_command_template_setting", { template }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -272,14 +272,6 @@ async changeVoiceCommandPsArgsSetting(args: string) : Promise<Result<null, strin
 async changeVoiceCommandKeepWindowOpenSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_voice_command_keep_window_open_setting", { enabled }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async changeVoiceCommandUseWindowsTerminalSetting(enabled: boolean) : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("change_voice_command_use_windows_terminal_setting", { enabled }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1434,12 +1426,13 @@ async regionCaptureCancel() : Promise<void> {
     await TAURI_INVOKE("region_capture_cancel");
 },
 /**
- * Executes a command using a template after user confirmation.
+ * Executes a command template after user confirmation.
+ * Works like Windows Run dialog - executes the full command line directly.
  * 
  * Parameters:
- * - `command`: The command to execute (will replace ${command} in template)
- * - `template`: The execution template (e.g., "powershell -NonInteractive -Command \"${command}\"")
- * - `keep_window_open`: If true, uses Windows Terminal to open a visible window
+ * - `command`: The script from the voice command card (replaces ${command} in template)
+ * - `template`: The full command template (e.g., "powershell -Command \"${command}\"")
+ * - `keep_window_open`: If true, opens a visible console window instead of silent execution
  * 
  * Returns the output on success or an error message on failure.
  * When `keep_window_open` is true, returns success immediately (no output capture).
@@ -1596,22 +1589,15 @@ voice_command_llm_fallback?: boolean;
  */
 voice_command_system_prompt?: string; 
 /**
- * Command execution template. Use ${command} as placeholder for the actual command.
- * Example: "powershell -NonInteractive -Command \"${command}\""
+ * Command execution template. Use ${command} as placeholder for the script from voice command card.
+ * Works like Windows Run dialog - can be any command line.
+ * Example: "powershell -Command \"${command}\""
  */
 voice_command_template?: string; 
 /**
- * Whether to open terminal window and keep it open (for debugging)
+ * Whether to open console window and keep it open (for debugging)
  */
 voice_command_keep_window_open?: boolean; 
-/**
- * Whether to use Windows Terminal (wt.exe) instead of conhost for command execution
- */
-voice_command_use_windows_terminal?: boolean; 
-/**
- * Additional PowerShell arguments to pass when executing commands
- */
-voice_command_ps_args?: string; 
 /**
  * Whether to auto-run predefined commands after countdown (not LLM-generated)
  */

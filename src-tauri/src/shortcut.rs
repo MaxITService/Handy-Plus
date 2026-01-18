@@ -658,9 +658,9 @@ pub fn change_voice_command_system_prompt_setting(
 
 #[tauri::command]
 #[specta::specta]
-pub fn change_voice_command_ps_args_setting(app: AppHandle, args: String) -> Result<(), String> {
+pub fn change_voice_command_template_setting(app: AppHandle, template: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    settings.voice_command_ps_args = args;
+    settings.voice_command_template = template;
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -673,18 +673,6 @@ pub fn change_voice_command_keep_window_open_setting(
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.voice_command_keep_window_open = enabled;
-    settings::write_settings(&app, settings);
-    Ok(())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn change_voice_command_use_windows_terminal_setting(
-    app: AppHandle,
-    enabled: bool,
-) -> Result<(), String> {
-    let mut settings = settings::get_settings(&app);
-    settings.voice_command_use_windows_terminal = enabled;
     settings::write_settings(&app, settings);
     Ok(())
 }

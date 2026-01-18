@@ -103,14 +103,14 @@ export default function CommandConfirmOverlay() {
 
   const handleRun = async () => {
     if (!payload || isExecuting) return;
-    
+
     setIsExecuting(true);
     const commandToRun = isEditing ? editedCommand : payload.command;
-    
+
     // Get execution settings with defaults
-    const template = payload.template ?? 'powershell -NonInteractive -Command "${command}"';
+    const template = payload.template ?? 'powershell -NoProfile -NonInteractive -Command "${command}"';
     const keepWindowOpen = payload.keep_window_open ?? false;
-    
+
     try {
       const result = await commands.executeVoiceCommand(
         commandToRun,

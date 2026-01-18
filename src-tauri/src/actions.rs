@@ -2036,15 +2036,15 @@ struct VoiceCommandAction;
 /// Event payload for showing the command confirmation overlay
 #[derive(Clone, serde::Serialize, specta::Type)]
 pub struct CommandConfirmPayload {
-    /// The suggested command to execute
+    /// The script from the voice command card (replaces ${command} in template)
     pub command: String,
     /// What the user said (for context)
     pub spoken_text: String,
     /// Whether this came from LLM (true) or predefined match (false)
     pub from_llm: bool,
-    /// Command execution template with ${command} placeholder
+    /// Command execution template with ${command} placeholder (like Win+R)
     pub template: String,
-    /// Whether to open terminal window and keep it open
+    /// Whether to open console window and keep it open
     pub keep_window_open: bool,
     /// Whether to auto-run after countdown (only for predefined commands)
     pub auto_run: bool,

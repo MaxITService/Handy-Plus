@@ -740,19 +740,14 @@ pub struct AppSettings {
     /// System prompt for LLM command generation
     #[serde(default = "default_voice_command_system_prompt")]
     pub voice_command_system_prompt: String,
-    /// Command execution template. Use ${command} as placeholder for the actual command.
-    /// Example: "powershell -NonInteractive -Command \"${command}\""
+    /// Command execution template. Use ${command} as placeholder for the script from voice command card.
+    /// Works like Windows Run dialog - can be any command line.
+    /// Example: "powershell -Command \"${command}\""
     #[serde(default = "default_voice_command_template")]
     pub voice_command_template: String,
-    /// Whether to open terminal window and keep it open (for debugging)
+    /// Whether to open console window and keep it open (for debugging)
     #[serde(default)]
     pub voice_command_keep_window_open: bool,
-    /// Whether to use Windows Terminal (wt.exe) instead of conhost for command execution
-    #[serde(default)]
-    pub voice_command_use_windows_terminal: bool,
-    /// Additional PowerShell arguments to pass when executing commands
-    #[serde(default)]
-    pub voice_command_ps_args: String,
     /// Whether to auto-run predefined commands after countdown (not LLM-generated)
     #[serde(default)]
     pub voice_command_auto_run: bool,
@@ -1017,7 +1012,7 @@ Example inputs and outputs:
 }
 
 fn default_voice_command_template() -> String {
-    r#"powershell -NonInteractive -Command "${command}""#.to_string()
+    r#"powershell -NoProfile -NonInteractive -Command "${command}""#.to_string()
 }
 
 /// Default connector password - used for initial mutual authentication
@@ -1462,8 +1457,6 @@ pub fn get_default_settings() -> AppSettings {
         voice_command_system_prompt: default_voice_command_system_prompt(),
         voice_command_template: default_voice_command_template(),
         voice_command_keep_window_open: false,
-        voice_command_use_windows_terminal: false,
-        voice_command_ps_args: String::new(),
         voice_command_auto_run: false,
         voice_command_auto_run_seconds: default_voice_command_auto_run_seconds(),
         // Extended Thinking / Reasoning

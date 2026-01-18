@@ -1,16 +1,23 @@
 //! Voice Command Tauri commands
 //!
 //! Commands for executing voice-triggered scripts after user confirmation.
+//! Works like Windows Run dialog (Win+R) with optional ${command} variable.
 
 use log::{debug, error, info};
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use std::process::Command;
 
-/// Executes a command using a template after user confirmation.
+#[cfg(target_os = "windows")]
+const CREATE_NEW_CONSOLE: u32 = 0x00000010;
+
+/// Executes a command template after user confirmation.
+/// Works like Windows Run dialog - executes the full command line directly.
 ///
 /// Parameters:
-/// - `command`: The command to execute (will replace ${command} in template)
-/// - `template`: The execution template (e.g., "powershell -NonInteractive -Command \"${command}\"")
-/// - `keep_window_open`: If true, uses Windows Terminal to open a visible window
+/// - `command`: The script from the voice command card (replaces ${command} in template)
+/// - `template`: The full command template (e.g., "powershell -Command \"${command}\"")
+/// - `keep_window_open`: If true, opens a visible console window instead of silent execution
 ///
 /// Returns the output on success or an error message on failure.
 /// When `keep_window_open` is true, returns success immediately (no output capture).
@@ -22,43 +29,76 @@ pub fn execute_voice_command(
     template: String,
     keep_window_open: bool,
 ) -> Result<String, String> {
-    if command.trim().is_empty() {
+    // Replace ${command} placeholder with actual command (can be empty)
+    let full_command = template.replace("${command}", &command);
+
+    if full_command.trim().is_empty() {
         return Err("Command is empty".to_string());
     }
 
-    // Build the full command line by replacing ${command} in template
-    let full_command_line = template.replace("${command}", &command);
-
-    info!("Executing voice command: {}", command);
-    debug!("Full command line: {}", full_command_line);
-    debug!("Options: keep_window_open={}", keep_window_open);
+    info!("Executing voice command: {}", full_command);
+    debug!("Template: '{}', Command: '{}', keep_window_open: {}", template, command, keep_window_open);
 
     if keep_window_open {
-        // Open in Windows Terminal with visible window
-        let wt_path = find_windows_terminal()?;
+        // Open a visible console window that stays open
+        // Detect shell type and use appropriate "stay open" flag
+        info!("Opening command in new console window: {}", full_command);
 
-        info!(
-            "Opening Windows Terminal: {} new-tab -- {}",
-            wt_path, full_command_line
-        );
+        let full_command_lower = full_command.to_lowercase();
 
-        // Parse the template to extract shell and args
-        // wt new-tab -- <full_command_line>
-        Command::new(&wt_path)
-            .arg("new-tab")
-            .arg("--")
-            .arg("cmd")
-            .arg("/k")
-            .arg(&full_command_line)
-            .spawn()
-            .map_err(|e| format!("Failed to open Windows Terminal: {}", e))?;
+        if full_command_lower.starts_with("powershell") {
+            // PowerShell: extract args and command, run with -NoExit
+            if let Some((pre_args, cmd_content)) = parse_powershell_command(&full_command) {
+                debug!("PowerShell -NoExit with args {:?}, command: {}", pre_args, cmd_content);
+                let mut cmd = Command::new("powershell");
+                cmd.args(&pre_args);
+                cmd.args(["-NoExit", "-Command", &cmd_content]);
+                cmd.creation_flags(CREATE_NEW_CONSOLE);
+                cmd.spawn().map_err(|e| format!("Failed to open PowerShell window: {}", e))?;
+            } else {
+                // Fallback: run the whole command via cmd /k
+                let comspec = std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".to_string());
+                Command::new(&comspec)
+                    .args(["/k", &full_command])
+                    .creation_flags(CREATE_NEW_CONSOLE)
+                    .spawn()
+                    .map_err(|e| format!("Failed to open console window: {}", e))?;
+            }
+        } else if full_command_lower.starts_with("pwsh") {
+            // PowerShell 7+: extract args and command, run with -NoExit
+            if let Some((pre_args, cmd_content)) = parse_powershell_command(&full_command) {
+                debug!("pwsh -NoExit with args {:?}, command: {}", pre_args, cmd_content);
+                let mut cmd = Command::new("pwsh");
+                cmd.args(&pre_args);
+                cmd.args(["-NoExit", "-Command", &cmd_content]);
+                cmd.creation_flags(CREATE_NEW_CONSOLE);
+                cmd.spawn().map_err(|e| format!("Failed to open pwsh window: {}", e))?;
+            } else {
+                let comspec = std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".to_string());
+                Command::new(&comspec)
+                    .args(["/k", &full_command])
+                    .creation_flags(CREATE_NEW_CONSOLE)
+                    .spawn()
+                    .map_err(|e| format!("Failed to open console window: {}", e))?;
+            }
+        } else {
+            // Generic command: use cmd /k
+            let comspec = std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".to_string());
+            Command::new(&comspec)
+                .args(["/k", &full_command])
+                .creation_flags(CREATE_NEW_CONSOLE)
+                .spawn()
+                .map_err(|e| format!("Failed to open console window: {}", e))?;
+        }
 
-        Ok("Command opened in terminal window".to_string())
+        Ok("Command opened in console window".to_string())
     } else {
-        // Silent execution using cmd /c to run the full command line
-        let output = Command::new("cmd")
-            .arg("/c")
-            .arg(&full_command_line)
+        // Silent execution via cmd /c (like Win+R)
+        let comspec = std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".to_string());
+        debug!("Silent execution via {}: /c {}", comspec, full_command);
+
+        let output = Command::new(&comspec)
+            .args(["/c", &full_command])
             .output()
             .map_err(|e| format!("Failed to execute command: {}", e))?;
 
@@ -73,6 +113,54 @@ pub fn execute_voice_command(
             Err(format!("Command failed: {}", stderr.trim()))
         }
     }
+}
+
+/// Parse PowerShell command line and extract pre-command args and command content.
+/// E.g., `powershell -NoProfile -Command "start msedge"` → (vec!["-NoProfile"], "start msedge")
+#[cfg(target_os = "windows")]
+fn parse_powershell_command(full_cmd: &str) -> Option<(Vec<String>, String)> {
+    let lower = full_cmd.to_lowercase();
+
+    // Find -Command or -c (short form)
+    let cmd_idx = lower.find("-command ").or_else(|| lower.find("-c "))?;
+
+    // Get args between shell name and -Command
+    let shell_end = if lower.starts_with("powershell.exe") {
+        14
+    } else if lower.starts_with("powershell") {
+        10
+    } else if lower.starts_with("pwsh.exe") {
+        8
+    } else if lower.starts_with("pwsh") {
+        4
+    } else {
+        0
+    };
+
+    let pre_args_str = full_cmd[shell_end..cmd_idx].trim();
+    let pre_args: Vec<String> = pre_args_str
+        .split_whitespace()
+        .map(|s| s.to_string())
+        .collect();
+
+    // Get everything after -Command/-c
+    let after_flag = if lower[cmd_idx..].starts_with("-command ") {
+        &full_cmd[cmd_idx + 9..] // len("-command ") = 9
+    } else {
+        &full_cmd[cmd_idx + 3..] // len("-c ") = 3
+    };
+
+    let trimmed = after_flag.trim();
+
+    // Remove surrounding quotes if present
+    let cmd_content = if (trimmed.starts_with('"') && trimmed.ends_with('"')) ||
+       (trimmed.starts_with('\'') && trimmed.ends_with('\'')) {
+        trimmed[1..trimmed.len()-1].to_string()
+    } else {
+        trimmed.to_string()
+    };
+
+    Some((pre_args, cmd_content))
 }
 
 /// Find Windows Terminal (wt.exe) by checking multiple locations.

@@ -238,14 +238,10 @@ const settingUpdaters: {
   invoke("change_voice_command_llm_fallback_setting", { enabled: value });
 (settingUpdaters as any).voice_command_system_prompt = (value: any) =>
   invoke("change_voice_command_system_prompt_setting", { prompt: value });
-(settingUpdaters as any).voice_command_ps_args = (value: any) =>
-  invoke("change_voice_command_ps_args_setting", { args: value });
+(settingUpdaters as any).voice_command_template = (value: any) =>
+  invoke("change_voice_command_template_setting", { template: value });
 (settingUpdaters as any).voice_command_keep_window_open = (value: any) =>
   invoke("change_voice_command_keep_window_open_setting", { enabled: value });
-(settingUpdaters as any).voice_command_use_windows_terminal = (value: any) =>
-  invoke("change_voice_command_use_windows_terminal_setting", {
-    enabled: value,
-  });
 (settingUpdaters as any).voice_command_auto_run = (value: any) =>
   invoke("change_voice_command_auto_run_setting", { enabled: value });
 (settingUpdaters as any).voice_command_auto_run_seconds = (value: any) =>
