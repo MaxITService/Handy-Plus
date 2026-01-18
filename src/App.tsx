@@ -141,7 +141,7 @@ function App() {
         {/* Scrollable content area with gradient background */}
         <div className="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-[#121212] via-[#161616] to-[#0f0f0f]">
           <div className="flex-1 overflow-y-auto">
-            <div className="flex flex-col items-center p-6 gap-5 max-w-3xl mx-auto">
+            <div className="flex flex-col items-center p-6 gap-5 max-w-3xl mx-auto min-h-full">
               <AccessibilityPermissions />
               {renderSettingsContent(currentSection)}
             </div>

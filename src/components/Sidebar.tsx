@@ -132,57 +132,58 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className="adobe-sidebar flex flex-col w-52 h-full items-center px-3 py-4">
-      {/* Logo Section with glow effect */}
-      <div className="w-full p-3 mb-2">
+      {/* Logo Section with glow effect - fixed at top */}
+      <div className="w-full p-3 mb-2 shrink-0">
         <HandyTextLogo className="w-full h-auto drop-shadow-[0_0_8px_rgba(255,107,157,0.3)]" />
       </div>
       
       {/* Gradient Divider */}
-      <div className="section-divider w-full mb-4" />
+      <div className="section-divider w-full mb-4 shrink-0" />
       
-      {/* Navigation Items */}
-      <div className="flex flex-col w-full gap-1">
-        {availableSections.map((section) => {
-          const Icon = section.icon;
-          const isActive = activeSection === section.id;
+      {/* Navigation Items - scrollable */}
+      <div className="flex-1 w-full min-h-0 overflow-y-auto">
+        <div className="flex flex-col w-full gap-1">
+          {availableSections.map((section) => {
+            const Icon = section.icon;
+            const isActive = activeSection === section.id;
 
-          return (
-            <div
-              key={section.id}
-              className={`adobe-sidebar-item flex gap-3 items-center w-full ${
-                isActive ? "active" : ""
-              }`}
-              onClick={() => onSectionChange(section.id)}
-            >
-              {/* Icon with gradient on active */}
-              <div className={`shrink-0 transition-all duration-200 ${
-                isActive 
-                  ? "text-[#ff4d8d] drop-shadow-[0_0_6px_rgba(255,77,141,0.5)]" 
-                  : "text-[#b8b8b8] group-hover:text-[#f5f5f5]"
-              }`}>
-                <Icon width={20} height={20} />
-              </div>
-              
-              {/* Label */}
-              <p
-                className={`text-sm font-medium truncate transition-colors duration-200 ${
-                  isActive 
-                    ? "text-[#f5f5f5]" 
-                    : "text-[#b8b8b8]"
+            return (
+              <div
+                key={section.id}
+                className={`adobe-sidebar-item flex gap-3 items-center w-full ${
+                  isActive ? "active" : ""
                 }`}
-                title={t(section.labelKey)}
+                onClick={() => onSectionChange(section.id)}
               >
-                {t(section.labelKey)}
-              </p>
-            </div>
-          );
-        })}
+                {/* Icon with gradient on active */}
+                <div className={`shrink-0 transition-all duration-200 ${
+                  isActive 
+                    ? "text-[#ff4d8d] drop-shadow-[0_0_6px_rgba(255,77,141,0.5)]" 
+                    : "text-[#b8b8b8] group-hover:text-[#f5f5f5]"
+                }`}>
+                  <Icon width={20} height={20} />
+                </div>
+                
+                {/* Label */}
+                <p
+                  className={`text-sm font-medium truncate transition-colors duration-200 ${
+                    isActive 
+                      ? "text-[#f5f5f5]" 
+                      : "text-[#b8b8b8]"
+                  }`}
+                  title={t(section.labelKey)}
+                >
+                  {t(section.labelKey)}
+                </p>
+              </div>
+            );
+          })}
+        </div>
       </div>
       
-      {/* Bottom spacer with subtle gradient */}
-      <div className="flex-1" />
-      <div className="section-divider w-full mt-4" />
-      <div className="w-full py-3 px-2 text-center">
+      {/* Bottom footer - fixed at bottom */}
+      <div className="section-divider w-full mt-4 shrink-0" />
+      <div className="w-full py-3 px-2 text-center shrink-0">
         <span className="text-xs text-[#707070]">AivoRelay</span>
       </div>
     </div>

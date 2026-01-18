@@ -2046,6 +2046,8 @@ pub struct CommandConfirmPayload {
     pub keep_window_open: bool,
     /// Whether to use Windows Terminal instead of classic PowerShell
     pub use_windows_terminal: bool,
+    /// Whether to use PowerShell 7+ (pwsh) instead of Windows PowerShell 5.1 (powershell)
+    pub use_pwsh: bool,
     /// Whether to auto-run after countdown (only for predefined commands)
     pub auto_run: bool,
     /// Countdown seconds before auto-run
@@ -2263,6 +2265,7 @@ impl ShortcutAction for VoiceCommandAction {
                         ps_args: settings.voice_command_ps_args.clone(),
                         keep_window_open: settings.voice_command_keep_window_open,
                         use_windows_terminal: settings.voice_command_use_windows_terminal,
+                        use_pwsh: settings.voice_command_use_pwsh,
                         auto_run: settings.voice_command_auto_run,
                         auto_run_seconds: settings.voice_command_auto_run_seconds,
                     },
@@ -2297,6 +2300,7 @@ impl ShortcutAction for VoiceCommandAction {
                                 ps_args: settings.voice_command_ps_args.clone(),
                                 keep_window_open: settings.voice_command_keep_window_open,
                                 use_windows_terminal: settings.voice_command_use_windows_terminal,
+                                use_pwsh: settings.voice_command_use_pwsh,
                                 auto_run: false, // Never auto-run LLM-generated commands
                                 auto_run_seconds: 0,
                             },

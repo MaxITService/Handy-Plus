@@ -889,6 +889,14 @@ async changeTextReplacementsSetting(replacements: TextReplacement[]) : Promise<R
     else return { status: "error", error: e  as any };
 }
 },
+async changeTextReplacementsBeforeLlmSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_text_replacements_before_llm_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
  * Get the current keyboard layout language from the OS.
  * Returns ISO 639-1 code (e.g., "en", "ru", "de") or None if detection fails.
@@ -1393,13 +1401,14 @@ async regionCaptureCancel() : Promise<void> {
  * - `ps_args`: PowerShell arguments (e.g., "-NoProfile -NonInteractive")
  * - `keep_window_open`: If true, opens a visible terminal window instead of silent execution
  * - `use_windows_terminal`: If true, uses Windows Terminal (wt); otherwise uses classic PowerShell window
+ * - `use_pwsh`: If true, uses PowerShell 7+ (pwsh); otherwise uses Windows PowerShell 5.1 (powershell)
  * 
  * Returns the output on success or an error message on failure.
  * When `keep_window_open` is true, returns success immediately (no output capture).
  */
-async executeVoiceCommand(command: string, psArgs: string, keepWindowOpen: boolean, useWindowsTerminal: boolean) : Promise<Result<string, string>> {
+async executeVoiceCommand(command: string, psArgs: string, keepWindowOpen: boolean, useWindowsTerminal: boolean, usePwsh: boolean) : Promise<Result<string, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("execute_voice_command", { command, psArgs, keepWindowOpen, useWindowsTerminal }) };
+    return { status: "ok", data: await TAURI_INVOKE("execute_voice_command", { command, psArgs, keepWindowOpen, useWindowsTerminal, usePwsh }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1561,6 +1570,10 @@ voice_command_keep_window_open?: boolean;
  */
 voice_command_use_windows_terminal?: boolean; 
 /**
+ * Whether to use PowerShell 7+ (pwsh) instead of Windows PowerShell 5.1 (powershell)
+ */
+voice_command_use_pwsh?: boolean; 
+/**
  * Whether to auto-run predefined commands after countdown (not LLM-generated)
  */
 voice_command_auto_run?: boolean; 
@@ -1616,6 +1629,12 @@ text_replacements_enabled?: boolean;
  * List of text replacement rules
  */
 text_replacements?: TextReplacement[]; 
+/**
+ * Whether to apply text replacements BEFORE LLM post-processing (default: after)
+ * When true: STT → Text Replacement → LLM → Output
+ * When false (default): STT → LLM → Text Replacement → Output
+ */
+text_replacements_before_llm?: boolean; 
 /**
  * Whether to filter filler words (uh, um, hmm, etc.) from transcriptions
  */

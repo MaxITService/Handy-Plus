@@ -749,6 +749,9 @@ pub struct AppSettings {
     /// Whether to use Windows Terminal (wt) instead of classic PowerShell window
     #[serde(default = "default_true")]
     pub voice_command_use_windows_terminal: bool,
+    /// Whether to use PowerShell 7+ (pwsh) instead of Windows PowerShell 5.1 (powershell)
+    #[serde(default)]
+    pub voice_command_use_pwsh: bool,
     /// Whether to auto-run predefined commands after countdown (not LLM-generated)
     #[serde(default)]
     pub voice_command_auto_run: bool,
@@ -1431,6 +1434,7 @@ pub fn get_default_settings() -> AppSettings {
         voice_command_ps_args: default_voice_command_ps_args(),
         voice_command_keep_window_open: false,
         voice_command_use_windows_terminal: true,
+        voice_command_use_pwsh: false,
         voice_command_auto_run: false,
         voice_command_auto_run_seconds: default_voice_command_auto_run_seconds(),
         // Extended Thinking / Reasoning

@@ -532,10 +532,31 @@ export default function VoiceCommandSettings() {
               </div>
             )}
 
+            <div className="setting-row">
+              <div className="setting-label">
+                <span>{t("voiceCommands.usePwsh", "Use PowerShell 7+")}</span>
+                <span className="setting-sublabel">
+                  {t("voiceCommands.usePwshDesc", "Use pwsh (PowerShell 7+) instead of powershell (Windows PowerShell 5.1)")}
+                </span>
+              </div>
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={settings.voice_command_use_pwsh ?? false}
+                  onChange={(e) => updateSetting("voice_command_use_pwsh", e.target.checked)}
+                />
+                <span className="slider"></span>
+              </label>
+            </div>
+
             <div className="execution-info">
               <span className="info-icon">ℹ️</span>
               <span>
-                {executionInfo}
+                {t("voiceCommands.executionInfoWithShell", {
+                  shell: (settings.voice_command_use_pwsh ?? false) ? "pwsh" : "powershell",
+                  args: executionArgs,
+                  defaultValue: `Commands run via: ${(settings.voice_command_use_pwsh ?? false) ? "pwsh" : "powershell"} ${executionArgs} -Command "<your command>"`,
+                })}
               </span>
             </div>
           </div>

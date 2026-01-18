@@ -3,9 +3,9 @@
 //! Commands for executing voice-triggered scripts after user confirmation.
 
 use log::{debug, error, info};
-use std::process::Command;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
+use std::process::Command;
 
 #[cfg(target_os = "windows")]
 const CREATE_NEW_CONSOLE: u32 = 0x00000010;
@@ -84,6 +84,7 @@ fn parse_ps_args(ps_args: &str) -> Vec<String> {
 /// - `ps_args`: PowerShell arguments (e.g., "-NoProfile -NonInteractive")
 /// - `keep_window_open`: If true, opens a visible terminal window instead of silent execution
 /// - `use_windows_terminal`: If true, uses Windows Terminal (wt); otherwise uses classic PowerShell window
+/// - `use_pwsh`: If true, uses PowerShell 7+ (pwsh); otherwise uses Windows PowerShell 5.1 (powershell)
 ///
 /// Returns the output on success or an error message on failure.
 /// When `keep_window_open` is true, returns success immediately (no output capture).
@@ -95,15 +96,19 @@ pub fn execute_voice_command(
     ps_args: String,
     keep_window_open: bool,
     use_windows_terminal: bool,
+    use_pwsh: bool,
 ) -> Result<String, String> {
     if command.trim().is_empty() {
         return Err("Command is empty".to_string());
     }
 
+    // Determine which PowerShell to use
+    let ps_executable = if use_pwsh { "pwsh" } else { "powershell" };
+
     info!("Executing voice command: {}", command);
     debug!(
-        "Options: ps_args='{}', keep_window_open={}, use_windows_terminal={}",
-        ps_args, keep_window_open, use_windows_terminal
+        "Options: ps_args='{}', keep_window_open={}, use_windows_terminal={}, use_pwsh={}, shell={}",
+        ps_args, keep_window_open, use_windows_terminal, use_pwsh, ps_executable
     );
 
     if keep_window_open {
@@ -120,17 +125,27 @@ pub fn execute_voice_command(
         if use_windows_terminal {
             // Use Windows Terminal (wt) with PowerShell
             // wt new-tab powershell <args> -Command "<command>"
-            let mut display_args = vec!["new-tab".to_string(), "--".to_string(), "powershell".to_string()];
+            let wt_path = find_windows_terminal()?;
+
+            let mut display_args = vec![
+                "new-tab".to_string(),
+                "--".to_string(),
+                ps_executable.to_string(),
+            ];
             display_args.extend(ps_args_vec.clone());
             display_args.push("-Command".to_string());
             display_args.push(command.clone());
 
-            info!("Opening Windows Terminal: wt {}", display_args.join(" "));
+            info!(
+                "Opening Windows Terminal: {} {}",
+                wt_path,
+                display_args.join(" ")
+            );
 
-            Command::new("wt")
+            Command::new(&wt_path)
                 .arg("new-tab")
                 .arg("--")
-                .arg("powershell")
+                .arg(ps_executable)
                 .args(&ps_args_vec)
                 .arg("-Command")
                 .arg(&command)
@@ -138,15 +153,15 @@ pub fn execute_voice_command(
                 .map_err(|e| format!("Failed to open Windows Terminal: {}", e))?;
         } else {
             // Use classic PowerShell window by spawning a new console
-            info!("Opening PowerShell window in a new console");
+            info!("Opening {} window in a new console", ps_executable);
 
-            Command::new("powershell")
+            Command::new(ps_executable)
                 .creation_flags(CREATE_NEW_CONSOLE)
                 .args(&ps_args_vec)
                 .arg("-Command")
                 .arg(&command)
                 .spawn()
-                .map_err(|e| format!("Failed to open PowerShell window: {}", e))?;
+                .map_err(|e| format!("Failed to open {} window: {}", ps_executable, e))?;
         }
 
         Ok("Command opened in terminal window".to_string())
@@ -154,13 +169,13 @@ pub fn execute_voice_command(
         // Silent execution with output capture (original behavior)
         let ps_args_vec = parse_ps_args(&ps_args);
 
-        let mut cmd = Command::new("powershell");
+        let mut cmd = Command::new(ps_executable);
         cmd.args(&ps_args_vec);
         cmd.arg("-Command").arg(&command);
 
         let output = cmd
             .output()
-            .map_err(|e| format!("Failed to spawn PowerShell: {}", e))?;
+            .map_err(|e| format!("Failed to spawn {}: {}", ps_executable, e))?;
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -175,6 +190,54 @@ pub fn execute_voice_command(
     }
 }
 
+/// Find Windows Terminal (wt.exe) by checking multiple locations.
+/// Returns the path to wt.exe if found, or an error with helpful message.
+#[cfg(target_os = "windows")]
+fn find_windows_terminal() -> Result<String, String> {
+    // First try: just "wt" (relies on PATH)
+    if let Ok(output) = Command::new("where").arg("wt.exe").output() {
+        if output.status.success() {
+            let path = String::from_utf8_lossy(&output.stdout);
+            if let Some(first_line) = path.lines().next() {
+                let trimmed = first_line.trim();
+                if !trimmed.is_empty() {
+                    debug!("Found wt.exe via PATH: {}", trimmed);
+                    return Ok(trimmed.to_string());
+                }
+            }
+        }
+    }
+
+    // Second try: WindowsApps in LOCALAPPDATA (user app execution alias)
+    if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+        let windows_apps_path = format!("{}\\Microsoft\\WindowsApps\\wt.exe", local_app_data);
+        if std::path::Path::new(&windows_apps_path).exists() {
+            debug!("Found wt.exe in WindowsApps: {}", windows_apps_path);
+            return Ok(windows_apps_path);
+        }
+    }
+
+    // Third try: Check common Program Files locations (for non-Store installs)
+    let program_files_paths = [
+        "C:\\Program Files\\Windows Terminal\\wt.exe",
+        "C:\\Program Files (x86)\\Windows Terminal\\wt.exe",
+    ];
+    for path in program_files_paths {
+        if std::path::Path::new(path).exists() {
+            debug!("Found wt.exe in Program Files: {}", path);
+            return Ok(path.to_string());
+        }
+    }
+
+    Err(
+        "Windows Terminal (wt.exe) not found. Please ensure Windows Terminal is installed and try:\n\
+         1. Check Start Menu for 'Windows Terminal'\n\
+         2. Install from Microsoft Store\n\
+         3. Or disable 'Use Windows Terminal' to use classic PowerShell window"
+            .to_string(),
+    )
+}
+
 /// Non-Windows stub
 #[tauri::command]
 #[specta::specta]
@@ -184,6 +247,7 @@ pub fn execute_voice_command(
     _ps_args: String,
     _keep_window_open: bool,
     _use_windows_terminal: bool,
+    _use_pwsh: bool,
 ) -> Result<String, String> {
     Err("Voice commands are only supported on Windows".to_string())
 }
@@ -230,6 +294,7 @@ pub async fn test_voice_command_mock(
                 ps_args: settings.voice_command_ps_args.clone(),
                 keep_window_open: settings.voice_command_keep_window_open,
                 use_windows_terminal: settings.voice_command_use_windows_terminal,
+                use_pwsh: settings.voice_command_use_pwsh,
                 auto_run: settings.voice_command_auto_run,
                 auto_run_seconds: settings.voice_command_auto_run_seconds,
             },
@@ -263,6 +328,7 @@ pub async fn test_voice_command_mock(
                         ps_args: settings.voice_command_ps_args.clone(),
                         keep_window_open: settings.voice_command_keep_window_open,
                         use_windows_terminal: settings.voice_command_use_windows_terminal,
+                        use_pwsh: settings.voice_command_use_pwsh,
                         auto_run: false, // Never auto-run LLM-generated commands
                         auto_run_seconds: 0,
                     },

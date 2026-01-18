@@ -11,6 +11,7 @@ interface CommandConfirmPayload {
   ps_args?: string;
   keep_window_open?: boolean;
   use_windows_terminal?: boolean;
+  use_pwsh?: boolean;
   // Auto-run settings (only for predefined commands)
   auto_run?: boolean;
   auto_run_seconds?: number;
@@ -112,13 +113,15 @@ export default function CommandConfirmOverlay() {
     const psArgs = payload.ps_args ?? "-NoProfile -NonInteractive";
     const keepWindowOpen = payload.keep_window_open ?? false;
     const useWindowsTerminal = payload.use_windows_terminal ?? true;
+    const usePwsh = payload.use_pwsh ?? false;
     
     try {
       const result = await commands.executeVoiceCommand(
         commandToRun,
         psArgs,
         keepWindowOpen,
-        useWindowsTerminal
+        useWindowsTerminal,
+        usePwsh
       );
       
       if (result.status === "ok") {
