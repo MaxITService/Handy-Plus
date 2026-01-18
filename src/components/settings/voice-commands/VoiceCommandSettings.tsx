@@ -152,6 +152,7 @@ export default function VoiceCommandSettings() {
   const [mockInput, setMockInput] = useState("");
   const [mockStatus, setMockStatus] = useState<{ type: "success" | "error" | "loading"; message: string } | null>(null);
   const [isLlmSettingsOpen, setIsLlmSettingsOpen] = useState(false);
+  const [isFuzzyMatchingOpen, setIsFuzzyMatchingOpen] = useState(false);
   
   if (!settings) return null;
 
@@ -462,29 +463,54 @@ export default function VoiceCommandSettings() {
             </div>
           )}
 
+          <div className="voice-commands-list">
+            <div className="list-header">
+              <h4>{t("voiceCommands.predefinedCommands", "Predefined Commands")}</h4>
+              <button className="btn-add" onClick={handleAddCommand}>
+                + {t("voiceCommands.addCommand", "Add Command")}
+              </button>
+            </div>
+
+            {(settings.voice_commands || []).length === 0 ? (
+              <div className="empty-state">
+                <p>{t("voiceCommands.noCommands", "No commands defined yet. Add one to get started!")}</p>
+                <p className="hint">{t("voiceCommands.hint", "Example: \"lock computer\" → rundll32.exe user32.dll,LockWorkStation")}</p>
+              </div>
+            ) : (
+              (settings.voice_commands || []).map((cmd, index) => (
+                <VoiceCommandCard
+                  key={cmd.id}
+                  command={cmd}
+                  onUpdate={(updated) => handleUpdateCommand(index, updated)}
+                  onDelete={() => handleDeleteCommand(index)}
+                />
+              ))
+            )}
+          </div>
+
           {/* Execution Settings Section */}
           <div className="execution-settings-section">
             <div className="section-divider">
               <span>{t("voiceCommands.executionSettings", "Execution Settings")}</span>
             </div>
 
-            <div className="setting-row">
+            <div className="setting-row command-template-row">
               <div className="setting-label">
                 <span>{t("voiceCommands.commandTemplate", "Command Template")}</span>
                 <span className="setting-sublabel">
                   {t("voiceCommands.commandTemplateDesc", "Use ${command} as placeholder for your command")}
                 </span>
               </div>
-              <div className="ps-args-container">
-                <input
-                  type="text"
-                  className="ps-args-input"
+              <div className="command-template-container">
+                <textarea
+                  className="command-template-input"
                   value={commandTemplate}
                   onChange={(e) => updateSetting("voice_command_template", e.target.value)}
                   placeholder='powershell -NonInteractive -Command "${command}"'
+                  rows={3}
                 />
                 <button
-                  className="btn-reset-small"
+                  className="btn-reset-template"
                   onClick={() => updateSetting("voice_command_template", DEFAULT_COMMAND_TEMPLATE)}
                   title={t("voiceCommands.resetToDefault", "Reset to default")}
                 >
@@ -538,118 +564,137 @@ export default function VoiceCommandSettings() {
 
           {/* Fuzzy Matching Settings */}
           <div className="fuzzy-matching-section">
-            <div className="section-divider">
-              <span>{t("voiceCommands.fuzzyMatching.title", "Fuzzy Matching Settings")}</span>
-            </div>
-
-            <TellMeMore title={t("voiceCommands.fuzzyMatching.tellMeMore", "Tell me more: Fuzzy Matching")}>
-              <p className="mb-3">
-                {t("voiceCommands.fuzzyMatching.description", "Fuzzy matching helps recognize voice commands even with slight variations, typos, or pronunciation differences.")}
-              </p>
-              <p className="mb-3">
-                <strong>{t("voiceCommands.fuzzyMatching.levenshteinTitle", "Character-level matching (Levenshtein):")}</strong>
-                {" "}{t("voiceCommands.fuzzyMatching.levenshteinDesc", "Handles typos and misheard letters. For example, 'srart' matches 'start' because only one letter is different.")}
-              </p>
-              <p className="mb-3">
-                <strong>{t("voiceCommands.fuzzyMatching.phoneticTitle", "Phonetic matching (Soundex):")}</strong>
-                {" "}{t("voiceCommands.fuzzyMatching.phoneticDesc", "Matches words that sound similar. For example, 'edge' and 'etch' have the same phonetic code.")}
-              </p>
-              <p className="text-text/70">
-                {t("voiceCommands.fuzzyMatching.tip", "Tip: If commands aren't matching, try lowering the thresholds. If too many false matches occur, raise them.")}
-              </p>
-            </TellMeMore>
-
-            <div className="setting-row">
-              <div className="setting-label">
-                <span>{t("voiceCommands.fuzzyMatching.useLevenshtein", "Character-level matching")}</span>
-                <span className="setting-sublabel">
-                  {t("voiceCommands.fuzzyMatching.useLevenshteinDesc", "Handles typos and transcription errors")}
+            <button
+              type="button"
+              className="fuzzy-matching-toggle"
+              onClick={() => setIsFuzzyMatchingOpen((prev) => !prev)}
+              aria-expanded={isFuzzyMatchingOpen}
+            >
+              <div className="fuzzy-matching-toggle-text">
+                <span className="fuzzy-matching-title">
+                  {t("voiceCommands.fuzzyMatching.title", "Fuzzy Matching Settings")}
+                </span>
+                <span className="fuzzy-matching-sublabel">
+                  {t("voiceCommands.fuzzyMatching.toggleDesc", "Handle typos, mishearings, and similar-sounding words")}
                 </span>
               </div>
-              <label className="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={settings.voice_command_use_levenshtein ?? true}
-                  onChange={(e) => updateSetting("voice_command_use_levenshtein", e.target.checked)}
-                />
-                <span className="slider"></span>
-              </label>
-            </div>
+              <span className="fuzzy-matching-toggle-icon">
+                {isFuzzyMatchingOpen ? "−" : "+"}
+              </span>
+            </button>
 
-            {(settings.voice_command_use_levenshtein ?? true) && (
-              <div className="setting-row sub-setting">
-                <div className="setting-label">
-                  <span>{t("voiceCommands.fuzzyMatching.levenshteinThreshold", "Character tolerance")}</span>
-                  <span className="setting-sublabel">
-                    {Math.round((settings.voice_command_levenshtein_threshold ?? 0.3) * 100)}%
-                  </span>
+            {isFuzzyMatchingOpen && (
+              <div className="fuzzy-matching-content">
+                <TellMeMore title={t("voiceCommands.fuzzyMatching.tellMeMore", "Tell me more: Fuzzy Matching")}>
+                  <p className="mb-3">
+                    {t("voiceCommands.fuzzyMatching.description", "Fuzzy matching helps recognize voice commands even with slight variations, typos, or pronunciation differences.")}
+                  </p>
+                  <p className="mb-3">
+                    <strong>{t("voiceCommands.fuzzyMatching.levenshteinTitle", "Character-level matching (Levenshtein):")}</strong>
+                    {" "}{t("voiceCommands.fuzzyMatching.levenshteinDesc", "Handles typos and misheard letters. For example, 'srart' matches 'start' because only one letter is different.")}
+                  </p>
+                  <p className="mb-3">
+                    <strong>{t("voiceCommands.fuzzyMatching.phoneticTitle", "Phonetic matching (Soundex):")}</strong>
+                    {" "}{t("voiceCommands.fuzzyMatching.phoneticDesc", "Matches words that sound similar. For example, 'edge' and 'etch' have the same phonetic code.")}
+                  </p>
+                  <p className="text-text/70">
+                    {t("voiceCommands.fuzzyMatching.tip", "Tip: If commands aren't matching, try lowering the thresholds. If too many false matches occur, raise them.")}
+                  </p>
+                </TellMeMore>
+
+                <div className="setting-row">
+                  <div className="setting-label">
+                    <span>{t("voiceCommands.fuzzyMatching.useLevenshtein", "Character-level matching")}</span>
+                    <span className="setting-sublabel">
+                      {t("voiceCommands.fuzzyMatching.useLevenshteinDesc", "Handles typos and transcription errors")}
+                    </span>
+                  </div>
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={settings.voice_command_use_levenshtein ?? true}
+                      onChange={(e) => updateSetting("voice_command_use_levenshtein", e.target.checked)}
+                    />
+                    <span className="slider"></span>
+                  </label>
                 </div>
-                <input
-                  type="range"
-                  min="0.1"
-                  max="0.5"
-                  step="0.05"
-                  value={settings.voice_command_levenshtein_threshold ?? 0.3}
-                  onChange={(e) => updateSetting("voice_command_levenshtein_threshold", parseFloat(e.target.value))}
-                  className="threshold-slider"
-                />
+
+                {(settings.voice_command_use_levenshtein ?? true) && (
+                  <div className="setting-row sub-setting">
+                    <div className="setting-label">
+                      <span>{t("voiceCommands.fuzzyMatching.levenshteinThreshold", "Character tolerance")}</span>
+                      <span className="setting-sublabel">
+                        {Math.round((settings.voice_command_levenshtein_threshold ?? 0.3) * 100)}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="0.5"
+                      step="0.05"
+                      value={settings.voice_command_levenshtein_threshold ?? 0.3}
+                      onChange={(e) => updateSetting("voice_command_levenshtein_threshold", parseFloat(e.target.value))}
+                      className="threshold-slider"
+                    />
+                  </div>
+                )}
+
+                <div className="setting-row">
+                  <div className="setting-label">
+                    <span>{t("voiceCommands.fuzzyMatching.usePhonetic", "Phonetic matching")}</span>
+                    <span className="setting-sublabel">
+                      {t("voiceCommands.fuzzyMatching.usePhoneticDesc", "Match similar-sounding words")}
+                    </span>
+                  </div>
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={settings.voice_command_use_phonetic ?? true}
+                      onChange={(e) => updateSetting("voice_command_use_phonetic", e.target.checked)}
+                    />
+                    <span className="slider"></span>
+                  </label>
+                </div>
+
+                {(settings.voice_command_use_phonetic ?? true) && (
+                  <div className="setting-row sub-setting">
+                    <div className="setting-label">
+                      <span>{t("voiceCommands.fuzzyMatching.phoneticBoost", "Phonetic boost factor")}</span>
+                      <span className="setting-sublabel">
+                        {Math.round((settings.voice_command_phonetic_boost ?? 0.5) * 100)}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.3"
+                      max="0.8"
+                      step="0.05"
+                      value={settings.voice_command_phonetic_boost ?? 0.5}
+                      onChange={(e) => updateSetting("voice_command_phonetic_boost", parseFloat(e.target.value))}
+                      className="threshold-slider"
+                    />
+                  </div>
+                )}
+
+                <div className="setting-row">
+                  <div className="setting-label">
+                    <span>{t("voiceCommands.fuzzyMatching.wordSimilarityThreshold", "Word match strictness")}</span>
+                    <span className="setting-sublabel">
+                      {Math.round((settings.voice_command_word_similarity_threshold ?? 0.7) * 100)}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="0.9"
+                    step="0.05"
+                    value={settings.voice_command_word_similarity_threshold ?? 0.7}
+                    onChange={(e) => updateSetting("voice_command_word_similarity_threshold", parseFloat(e.target.value))}
+                    className="threshold-slider"
+                  />
+                </div>
               </div>
             )}
-
-            <div className="setting-row">
-              <div className="setting-label">
-                <span>{t("voiceCommands.fuzzyMatching.usePhonetic", "Phonetic matching")}</span>
-                <span className="setting-sublabel">
-                  {t("voiceCommands.fuzzyMatching.usePhoneticDesc", "Match similar-sounding words")}
-                </span>
-              </div>
-              <label className="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={settings.voice_command_use_phonetic ?? true}
-                  onChange={(e) => updateSetting("voice_command_use_phonetic", e.target.checked)}
-                />
-                <span className="slider"></span>
-              </label>
-            </div>
-
-            {(settings.voice_command_use_phonetic ?? true) && (
-              <div className="setting-row sub-setting">
-                <div className="setting-label">
-                  <span>{t("voiceCommands.fuzzyMatching.phoneticBoost", "Phonetic boost factor")}</span>
-                  <span className="setting-sublabel">
-                    {Math.round((settings.voice_command_phonetic_boost ?? 0.5) * 100)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0.3"
-                  max="0.8"
-                  step="0.05"
-                  value={settings.voice_command_phonetic_boost ?? 0.5}
-                  onChange={(e) => updateSetting("voice_command_phonetic_boost", parseFloat(e.target.value))}
-                  className="threshold-slider"
-                />
-              </div>
-            )}
-
-            <div className="setting-row">
-              <div className="setting-label">
-                <span>{t("voiceCommands.fuzzyMatching.wordSimilarityThreshold", "Word match strictness")}</span>
-                <span className="setting-sublabel">
-                  {Math.round((settings.voice_command_word_similarity_threshold ?? 0.7) * 100)}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0.5"
-                max="0.9"
-                step="0.05"
-                value={settings.voice_command_word_similarity_threshold ?? 0.7}
-                onChange={(e) => updateSetting("voice_command_word_similarity_threshold", parseFloat(e.target.value))}
-                className="threshold-slider"
-              />
-            </div>
           </div>
 
           <div className="setting-row">
@@ -679,31 +724,6 @@ export default function VoiceCommandSettings() {
                 <span className="slider"></span>
               </label>
             </div>
-          </div>
-
-          <div className="voice-commands-list">
-            <div className="list-header">
-              <h4>{t("voiceCommands.predefinedCommands", "Predefined Commands")}</h4>
-              <button className="btn-add" onClick={handleAddCommand}>
-                + {t("voiceCommands.addCommand", "Add Command")}
-              </button>
-            </div>
-
-            {(settings.voice_commands || []).length === 0 ? (
-              <div className="empty-state">
-                <p>{t("voiceCommands.noCommands", "No commands defined yet. Add one to get started!")}</p>
-                <p className="hint">{t("voiceCommands.hint", "Example: \"lock computer\" → rundll32.exe user32.dll,LockWorkStation")}</p>
-              </div>
-            ) : (
-              (settings.voice_commands || []).map((cmd, index) => (
-                <VoiceCommandCard
-                  key={cmd.id}
-                  command={cmd}
-                  onUpdate={(updated) => handleUpdateCommand(index, updated)}
-                  onDelete={() => handleDeleteCommand(index)}
-                />
-              ))
-            )}
           </div>
 
           {/* Execution Log Section */}
@@ -988,48 +1008,110 @@ export default function VoiceCommandSettings() {
 
         /* Fuzzy Matching Settings */
         .fuzzy-matching-section {
-          margin-top: 16px;
-          padding-top: 8px;
-          border-top: 1px solid rgba(255,255,255,0.06);
+          margin-top: 12px;
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 10px;
+          background: rgba(255,255,255,0.02);
+          overflow: hidden;
+        }
+        .fuzzy-matching-toggle {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 12px 14px;
+          background: rgba(255,255,255,0.04);
+          border: none;
+          cursor: pointer;
+          text-align: left;
+        }
+        .fuzzy-matching-toggle:hover {
+          background: rgba(255,255,255,0.06);
+        }
+        .fuzzy-matching-toggle-text {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .fuzzy-matching-title {
+          color: #e0e0e0;
+          font-size: 13px;
+          font-weight: 600;
+        }
+        .fuzzy-matching-sublabel {
+          color: #666;
+          font-size: 12px;
+        }
+        .fuzzy-matching-toggle-icon {
+          width: 22px;
+          text-align: center;
+          color: #888;
+          font-size: 16px;
+        }
+        .fuzzy-matching-content {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          padding: 6px 14px 12px;
         }
         .sub-setting {
           padding-left: 20px;
           border-left: 2px solid rgba(138, 43, 226, 0.3);
           margin-left: 10px;
         }
-        .ps-args-container {
-          display: flex;
-          align-items: center;
-          gap: 8px;
+        
+        /* Command Template Area */
+        .command-template-row {
+          flex-direction: column !important;
+          align-items: flex-start !important;
+          gap: 12px !important;
         }
-        .ps-args-input {
-          width: 220px;
+        .command-template-container {
+          position: relative;
+          width: 100%;
+        }
+        .command-template-input {
+          width: 100%;
+          min-height: 80px;
           background: rgba(0,0,0,0.3);
           border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 6px;
-          padding: 8px 10px;
-          color: #4fc3f7;
-          font-size: 12px;
-          font-family: 'Consolas', monospace;
+          border-radius: 8px;
+          padding: 12px;
+          padding-right: 44px;
+          color: #e0e0e0;
+          font-size: 13px;
+          font-family: 'Consolas', 'Monaco', monospace;
+          line-height: 1.5;
+          resize: vertical;
+          transition: border-color 0.2s;
         }
-        .ps-args-input:focus {
+        .command-template-input:focus {
           outline: none;
           border-color: rgba(138, 43, 226, 0.5);
         }
-        .btn-reset-small {
+        .btn-reset-template {
+          position: absolute;
+          top: 8px;
+          right: 8px;
           background: rgba(255,255,255,0.08);
           border: none;
           border-radius: 6px;
-          padding: 6px 8px;
+          padding: 6px 10px;
           color: #888;
-          font-size: 14px;
+          font-size: 16px;
           cursor: pointer;
           transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
-        .btn-reset-small:hover {
+        .btn-reset-template:hover {
           background: rgba(138, 43, 226, 0.3);
           color: #fff;
         }
+
+
         .execution-info {
           display: flex;
           align-items: center;

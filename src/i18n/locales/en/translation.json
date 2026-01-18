@@ -74,6 +74,7 @@
     "seconds": "sec",
     "fuzzyMatching": {
       "title": "Fuzzy Matching Settings",
+      "toggleDesc": "Handle typos, mishearings, and similar-sounding words",
       "tellMeMore": "Tell me more: Fuzzy Matching",
       "description": "Fuzzy matching helps recognize voice commands even with slight variations, typos, or pronunciation differences.",
       "levenshteinTitle": "Character-level matching (Levenshtein):",
