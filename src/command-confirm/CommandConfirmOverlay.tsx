@@ -57,6 +57,9 @@ export default function CommandConfirmOverlay() {
   const [isPaused, setIsPaused] = useState(false);
   // Copy button state
   const [copied, setCopied] = useState(false);
+  // Double-Enter detection state
+  const [enterPressedOnce, setEnterPressedOnce] = useState(false);
+  const enterTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Whether auto-run is active for current payload
   const isAutoRunActive = payload?.auto_run && !payload.from_llm && countdownMs > 0 && !isEditing && !status;
@@ -241,20 +244,60 @@ export default function CommandConfirmOverlay() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
   
-  // Handle Ctrl+Enter to run command
+  // Handle Enter (double-press) and Ctrl+Enter to run command
   useEffect(() => {
     if (!payload) return;
     
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !isExecuting) {
+      // Skip if in editing mode (textarea needs Enter)
+      if (isEditing) return;
+      
+      if (e.key === "Enter" && !isExecuting) {
         e.preventDefault();
-        handleRun();
+        
+        // Ctrl/Cmd+Enter - immediate run
+        if (e.ctrlKey || e.metaKey) {
+          handleRun();
+          return;
+        }
+        
+        // Double Enter detection
+        if (enterPressedOnce) {
+          // Clear timeout and run
+          if (enterTimeoutRef.current) {
+            clearTimeout(enterTimeoutRef.current);
+            enterTimeoutRef.current = null;
+          }
+          setEnterPressedOnce(false);
+          handleRun();
+        } else {
+          setEnterPressedOnce(true);
+          // Reset after 800ms
+          enterTimeoutRef.current = setTimeout(() => {
+            setEnterPressedOnce(false);
+            enterTimeoutRef.current = null;
+          }, 800);
+        }
       }
     };
     
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [payload, isEditing, editedCommand, isExecuting]);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (enterTimeoutRef.current) {
+        clearTimeout(enterTimeoutRef.current);
+      }
+    };
+  }, [payload, isEditing, editedCommand, isExecuting, enterPressedOnce]);
+
+  // Reset enterPressedOnce when payload changes (new command shown)
+  useEffect(() => {
+    setEnterPressedOnce(false);
+    if (enterTimeoutRef.current) {
+      clearTimeout(enterTimeoutRef.current);
+      enterTimeoutRef.current = null;
+    }
+  }, [payload]);
 
   if (!payload) {
     return null;
@@ -345,15 +388,16 @@ export default function CommandConfirmOverlay() {
           </button>
         )}
         
-        <button 
-          className="command-confirm-btn run" 
+        <button
+          className={`command-confirm-btn run ${enterPressedOnce ? "enter-primed" : ""}`}
           onClick={handleRun}
           disabled={isExecuting}
+          title="Tip: Press Enter twice quickly to run (or Ctrl+Enter)"
         >
           <svg viewBox="0 0 24 24" fill="currentColor">
             <path d="M8 5v14l11-7z"/>
           </svg>
-          {isExecuting ? "Running..." : "Run"}
+          {isExecuting ? "Running..." : enterPressedOnce ? "Enter ↵" : "Run"}
         </button>
       </div>
 
