@@ -3,13 +3,10 @@
 //! Commands for executing voice-triggered PowerShell scripts.
 //! Uses direct PowerShell invocation with configurable execution options.
 
-use log::{debug, error, info};
+use log::{debug, info};
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 use std::process::Command;
-use std::sync::mpsc;
-use std::thread;
-use std::time::Duration;
 
 use crate::settings::{ExecutionPolicy, ResolvedExecutionOptions};
 
@@ -113,14 +110,13 @@ fn execute_powershell_command(
     cmd.args(["-Command", script]);
 
     if options.silent {
-        // Silent execution: hide window, capture output
+        // Silent execution: hide window, fire-and-forget (non-blocking)
         cmd.creation_flags(CREATE_NO_WINDOW);
 
-        if options.timeout_seconds > 0 {
-            execute_with_timeout(cmd, options.timeout_seconds)
-        } else {
-            execute_and_capture(cmd)
-        }
+        cmd.spawn()
+            .map_err(|e| format!("Failed to spawn command: {}", e))?;
+
+        Ok("Command started in background".to_string())
     } else {
         // Windowed execution: show console, add -NoExit to keep window open
         debug!("Opening {} window with -NoExit for: {}", shell, script);
@@ -160,78 +156,6 @@ fn execute_powershell_command(
             .map_err(|e| format!("Failed to open {} window: {}", shell, e))?;
 
         Ok("Command opened in PowerShell window".to_string())
-    }
-}
-
-/// Execute command and capture output.
-#[cfg(target_os = "windows")]
-fn execute_and_capture(mut cmd: Command) -> Result<String, String> {
-    let output = cmd
-        .output()
-        .map_err(|e| format!("Failed to execute command: {}", e))?;
-
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-    if output.status.success() {
-        Ok(stdout)
-    } else {
-        let error_msg = if stderr.trim().is_empty() {
-            format!("Command failed with exit code: {:?}", output.status.code())
-        } else {
-            stderr.trim().to_string()
-        };
-        Err(error_msg)
-    }
-}
-
-/// Execute command with timeout.
-#[cfg(target_os = "windows")]
-fn execute_with_timeout(mut cmd: Command, timeout_seconds: u32) -> Result<String, String> {
-    let (tx, rx) = mpsc::channel();
-
-    // Spawn command in a separate thread
-    let handle = thread::spawn(move || {
-        let result = cmd.output();
-        let _ = tx.send(result);
-    });
-
-    // Wait for result with timeout
-    let timeout = Duration::from_secs(timeout_seconds as u64);
-    match rx.recv_timeout(timeout) {
-        Ok(result) => {
-            let _ = handle.join();
-            match result {
-                Ok(output) => {
-                    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-                    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-                    if output.status.success() {
-                        Ok(stdout)
-                    } else {
-                        let error_msg = if stderr.trim().is_empty() {
-                            format!("Command failed with exit code: {:?}", output.status.code())
-                        } else {
-                            stderr.trim().to_string()
-                        };
-                        Err(error_msg)
-                    }
-                }
-                Err(e) => Err(format!("Failed to execute command: {}", e)),
-            }
-        }
-        Err(mpsc::RecvTimeoutError::Timeout) => {
-            error!("Command timed out after {} seconds", timeout_seconds);
-            // Note: The spawned process will continue running, but we return an error
-            // In a production system, you might want to kill the process
-            Err(format!(
-                "Command timed out after {} seconds",
-                timeout_seconds
-            ))
-        }
-        Err(mpsc::RecvTimeoutError::Disconnected) => {
-            Err("Command execution thread disconnected unexpectedly".to_string())
-        }
     }
 }
 
