@@ -9,7 +9,7 @@
   "sidebar": {
     "general": "Speech / Mic",
     "advanced": "Advanced",
-    "postProcessing": "LLM API Relay",
+    "postProcessing": "LLM Post Processing",
     "aiReplace": "AI Replace",
     "voiceCommands": "Voice Commands",
     "browserConnector": "Connector",
@@ -20,12 +20,7 @@
     "debug": "Debug",
     "about": "About"
   },
-  "textReplacement": {
-    "cleanupTitle": "Speech Clean-up",
-    "cleanupDescription": "Automatically remove common speech artifacts from the final text.",
-    "beforeLlm": "Apply Before LLM Post-Processing",
-    "beforeLlmDescription": "When enabled, text replacements are applied BEFORE LLM processing. This prevents the LLM from modifying your replacement patterns."
-  },
+
   "audioProcessing": {
     "title": "Speech Processing",
     "description": "Configure voice activity detection and speech artifact filtering.",
@@ -353,11 +348,11 @@
         "title": "LLM Post-Processing",
         "description": "Enable AI-powered text refinement for this profile",
         "descriptionWithLink": "Enable AI-powered text refinement for this profile: set up API keys and System Prompt for it in",
-        "llmApiRelayLink": "LLM API Relay",
+        "llmApiRelayLink": "LLM Post Processing",
         "notConfigured": "LLM API is not configured.",
         "configureLink": "Configure LLM settings",
         "overridePrompt": "Override system prompt",
-        "overridePromptHint": "Leave empty to use the global prompt configured in LLM API Relay.",
+        "overridePromptHint": "Leave empty to use the global prompt configured in LLM Post Processing.",
         "promptPlaceholder": "Custom LLM prompt for this profile...",
         "overrideModel": "Override LLM model",
         "overrideModelHint": "Leave empty to use the global model.",
@@ -644,7 +639,7 @@
       }
     },
     "postProcessing": {
-      "title": "LLM API Relay",
+      "title": "LLM Post Processing",
       "help": {
         "title": "Model Configuration",
         "description": "Here you can connect to large language model for either post-processing of your transcriptions or for function of AI replacing where the text is cut and sent to the large language model along with your voice message to be returned and pasted when AI responds."
@@ -678,7 +673,7 @@
       },
       "disabledNotice": "Post processing is currently disabled. Enable it in Debug settings to configure.",
       "api": {
-        "title": "Set API providers and keys for all LLM features in app",
+        "title": "API Configuration",
         "provider": {
           "title": "Provider",
           "description": "Select an OpenAI-compatible provider."
@@ -712,13 +707,6 @@
         "transcription": {
           "title": "Transcription Post-Processing",
           "description": "Configure the LLM used to refine your speech-to-text results."
-        },
-        "aiReplace": {
-          "title": "AI Replace (Text Selection)",
-          "description": "Configure the LLM used for the AI Replace feature. You can use separate settings or the same as post-processing.",
-          "sameAsPostProcessing": "Use same settings as Transcription Post-Processing",
-          "sameAsPostProcessingOption": "Same as Post-Processing",
-          "differentSettings": "Use separate settings for AI Replace"
         }
       },
       "prompts": {
@@ -880,6 +868,16 @@
           "description": "GPU acceleration for local speech recognition models",
           "details": "AivoRelay bundles the Vulkan Loader (vulkan-1.dll) for GPU-accelerated inference. Licensed under Apache 2.0 by The Khronos Group. License file is provided in THIRD_PARTY_LICENSES.md"
         }
+      },
+      "forkInfo": {
+        "title": "Project Origin",
+        "description": "AivoRelay is a feature-rich fork of the open-source Handy project, adding advanced LLM workflows, AI Replace, and Windows integrations.",
+        "button": "View Upstream Project (Handy)"
+      },
+      "license": {
+        "title": "License",
+        "description": "AivoRelay is released under the MIT License.",
+        "viewUpstream": "View Upstream License"
       }
     },
     "browserConnector": {
@@ -1080,6 +1078,14 @@
       "shortcuts": {
         "title": "Shortcut"
       },
+      "api": {
+        "title": "AI Replace (Text Selection)",
+        "description": "Configure the LLM used for the AI Replace feature. You can use separate settings or the same as post-processing.",
+        "sameAsPostProcessing": "Use same settings as Transcription Post-Processing",
+        "sameAsPostProcessingOption": "Same as Post-Processing",
+        "differentSettings": "Use separate settings for AI Replace",
+        "usingPostProcessingModel": "Using Post-Processing Model: {{model}}"
+      },
       "noSelection": {
         "title": "Without Selection Mode",
         "description": "When no text is selected, AI can generate new text based on your voice instruction.",
@@ -1235,6 +1241,10 @@
     "description": "Automatically replace text patterns in transcriptions. Useful for fixing commonly misheard words or applying consistent formatting.",
     "enable": "Enable Text Replacement",
     "enableDescription": "Apply replacement rules to all transcriptions after processing.",
+    "cleanupTitle": "Speech Clean-up",
+    "cleanupDescription": "Automatically remove common speech artifacts from the final text.",
+    "beforeLlm": "Apply Before LLM Post-Processing",
+    "beforeLlmDescription": "When enabled, text replacements are applied BEFORE LLM processing. This prevents the LLM from modifying your replacement patterns.",
     "helpTitle": "How to use special characters",
     "escapeSequences": "Escape Sequences",
     "escapeIntro": "Use these codes to match or insert special characters:",

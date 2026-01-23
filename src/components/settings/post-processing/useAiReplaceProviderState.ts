@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
 import { commands } from "@/bindings";
 import type { PostProcessProvider } from "@/bindings";
@@ -46,6 +47,7 @@ export const useAiReplaceProviderState = (): AiReplaceProviderState => {
     updateAiReplaceApiKey,
     updateAiReplaceModel,
   } = useSettings();
+  const { t } = useTranslation();
 
   const providers = settings?.post_process_providers || [];
 
@@ -102,7 +104,7 @@ export const useAiReplaceProviderState = (): AiReplaceProviderState => {
     const options: DropdownOption[] = [
       {
         value: SAME_AS_POST_PROCESS_VALUE,
-        label: "Same as Post-Processing",
+        label: t("settings.aiReplace.api.sameAsPostProcessingOption"),
       },
     ];
     providers.forEach((provider) => {
@@ -112,7 +114,7 @@ export const useAiReplaceProviderState = (): AiReplaceProviderState => {
       });
     });
     return options;
-  }, [providers]);
+  }, [providers, t]);
 
   const handleProviderSelect = useCallback(
     async (providerId: string | null) => {

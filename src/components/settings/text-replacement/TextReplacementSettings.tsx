@@ -6,6 +6,9 @@ import { SettingsGroup } from "@/components/ui/SettingsGroup";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { CustomWords } from "@/components/settings/CustomWords";
+import { Slider } from "@/components/ui/Slider";
+import { TellMeMore } from "@/components/ui/TellMeMore";
 
 interface TextReplacementRule {
   id: string;
@@ -263,6 +266,15 @@ export const TextReplacementSettings: React.FC = () => {
                   <span>→</span>
                   <span>
                     {t("textReplacement.escapeBackslash", "Literal backslash")}
+                  </span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <code className="px-2 py-0.5 bg-[#252525] rounded text-[#9b5de5]">
+                    \u{"{}"}
+                  </code>
+                  <span>→</span>
+                  <span>
+                    {t("textReplacement.escapeUnicode", "Unicode character (e.g., \\u{200D} for Zero Width Joiner)")}
                   </span>
                 </li>
               </ul>
@@ -667,6 +679,49 @@ export const TextReplacementSettings: React.FC = () => {
               </div>
             </div>
           </details>
+        </div>
+      </SettingsGroup>
+
+      {/* Fuzzy Word Correction Group */}
+      <SettingsGroup
+        title="Fuzzy Word Correction"
+        description="Add words that are often misheard (names, technical terms). The system will automatically correct similar-sounding words."
+      >
+        <div className="px-4 py-3 bg-white/[0.02] border-b border-white/[0.05]">
+          <TellMeMore title="How Fuzzy Correction Works">
+            <div className="space-y-3 text-sm">
+              <p>
+                This algorithm fixes misheard words by comparing them to your custom list using two methods:
+              </p>
+              <ul className="list-disc list-inside space-y-2 ml-1 opacity-90">
+                <li>
+                  <strong>Sounds Like (Phonetic):</strong> It recognizes that "edge" and "etch" sound similar.
+                </li>
+                <li>
+                  <strong>Looks Like (Levenshtein):</strong> It catches typos like "srart" instead of "start".
+                </li>
+              </ul>
+              <p className="pt-1 text-xs text-text/70 italic">
+                Tip: If it corrects words too aggressively, lower the sensitivity slider below.
+              </p>
+            </div>
+          </TellMeMore>
+        </div>
+
+        <CustomWords descriptionMode="inline" grouped={true} />
+        
+        {/* Word Correction Threshold */}
+        <div className="px-4 py-3 border-t border-white/[0.05]">
+          <Slider
+            value={settings?.word_correction_threshold ?? 0.18}
+            onChange={(value) => updateSetting("word_correction_threshold", value)}
+            min={0.0}
+            max={1.0}
+            label="Correction Sensitivity"
+            description="Threshold for fuzzy match score (0.0 = exact match only, 1.0 = accept any). Default 0.18 means a word must be ~82% similar to be corrected."
+            descriptionMode="inline"
+            grouped={true}
+          />
         </div>
       </SettingsGroup>
     </div>

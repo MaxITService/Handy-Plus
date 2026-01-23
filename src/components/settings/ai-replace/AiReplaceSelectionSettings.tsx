@@ -9,13 +9,14 @@ import { SettingsGroup } from "../../ui/SettingsGroup";
 import { Textarea } from "../../ui/Textarea";
 import { ToggleSwitch } from "../../ui/ToggleSwitch";
 import { TellMeMore } from "../../ui/TellMeMore";
+import { LlmConfigSection } from "../PostProcessingSettingsApi/LlmConfigSection";
+import { useAiReplaceProviderState } from "../post-processing/useAiReplaceProviderState";
 
-import { useNavigationStore } from "../../../stores/navigationStore";
 
 export const AiReplaceSelectionSettings: React.FC = () => {
   const { t } = useTranslation();
   const { settings, getSetting, updateSetting, isUpdating } = useSettings();
-  const { setSection } = useNavigationStore();
+  const aiReplaceState = useAiReplaceProviderState();
 
   const systemPrompt = getSetting("ai_replace_system_prompt") ?? "";
   const userPrompt = getSetting("ai_replace_user_prompt") ?? "";
@@ -48,6 +49,8 @@ export const AiReplaceSelectionSettings: React.FC = () => {
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-8 pb-12">
+
+
       {/* Help Banner */}
       <TellMeMore title={t("settings.advanced.aiReplace.tellMeMore.title", "Tell me more: How to use AI Replace")}>
         <div className="space-y-3">
@@ -71,7 +74,7 @@ export const AiReplaceSelectionSettings: React.FC = () => {
             <p className="font-semibold text-red-300 mb-1">⚠️ Configuration Required</p>
             <p className="text-xs">
               This feature requires an active <strong>LLM API</strong> connection to process instructions. Local speech models only handle speech-to-text conversion.<br/><br/>
-              Please configure an API Key (OpenAI, Groq, Anthropic) in the <button onClick={() => setSection("postprocessing")} className="font-bold text-accent hover:underline cursor-pointer">LLM API Relay</button> settings.
+              Please configure an API Key (OpenAI, Groq, Anthropic) in the <strong>API Configuration</strong> section at the bottom of this page.
             </p>
           </div>
 
@@ -251,6 +254,17 @@ export const AiReplaceSelectionSettings: React.FC = () => {
             </span>
           </div>
         </SettingContainer>
+      </SettingsGroup>
+
+      <SettingsGroup title={t("settings.aiReplace.api.title")}>
+        <LlmConfigSection
+          title=""
+          description={t("settings.aiReplace.api.description")}
+          state={aiReplaceState}
+          showBaseUrl={false}
+          reasoningSettingPrefix="ai_replace"
+          sameAsSummary={t("settings.aiReplace.api.usingPostProcessingModel", { model: aiReplaceState.model })}
+        />
       </SettingsGroup>
     </div>
   );

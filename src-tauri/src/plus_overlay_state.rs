@@ -23,6 +23,7 @@ pub enum OverlayErrorCategory {
     ServerError,
     ParseError,
     ExtensionOffline,
+    MicrophoneUnavailable,
     Unknown,
 }
 
@@ -37,6 +38,7 @@ impl OverlayErrorCategory {
             OverlayErrorCategory::ServerError => "Server error",
             OverlayErrorCategory::ParseError => "Invalid response",
             OverlayErrorCategory::ExtensionOffline => "Extension offline",
+            OverlayErrorCategory::MicrophoneUnavailable => "Mic unavailable",
             OverlayErrorCategory::Unknown => "Transcription failed",
         }
     }
@@ -160,6 +162,13 @@ pub fn handle_transcription_error(app: &AppHandle, err_string: &str) {
         err_string
     );
     show_error_overlay(app, category);
+}
+
+/// Show error overlay for microphone unavailability.
+/// This is called when the microphone cannot be opened (e.g., device busy, permissions, etc.)
+pub fn show_mic_error_overlay(app: &AppHandle) {
+    log::warn!("Showing microphone error overlay");
+    show_error_overlay(app, OverlayErrorCategory::MicrophoneUnavailable);
 }
 
 #[cfg(test)]

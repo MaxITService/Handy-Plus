@@ -62,6 +62,9 @@ impl AudioRecorder {
         let (sample_tx, sample_rx) = mpsc::channel::<Vec<f32>>();
         let (cmd_tx, cmd_rx) = mpsc::channel::<Cmd>();
 
+        // Channel to receive initialization result from worker thread
+        let (init_tx, init_rx) = mpsc::channel::<Result<(), String>>();
+
         let host = crate::audio_toolkit::get_cpal_host();
         let device = match device {
             Some(dev) => dev,
@@ -76,56 +79,82 @@ impl AudioRecorder {
         let level_cb = self.level_cb.clone();
 
         let worker = std::thread::spawn(move || {
-            let config = AudioRecorder::get_preferred_config(&thread_device)
-                .expect("failed to fetch preferred config");
+            // Wrap all fallible operations in a closure that returns Result
+            let init_result = (|| -> Result<(cpal::Stream, u32), String> {
+                let config = AudioRecorder::get_preferred_config(&thread_device)
+                    .map_err(|e| format!("Failed to get audio config: {}", e))?;
 
-            let sample_rate = config.sample_rate().0;
-            let channels = config.channels() as usize;
+                let sample_rate = config.sample_rate().0;
+                let channels = config.channels() as usize;
 
-            log::info!(
-                "Using device: {:?}\nSample rate: {}\nChannels: {}\nFormat: {:?}",
-                thread_device.name(),
-                sample_rate,
-                channels,
-                config.sample_format()
-            );
+                log::info!(
+                    "Using device: {:?}\nSample rate: {}\nChannels: {}\nFormat: {:?}",
+                    thread_device.name(),
+                    sample_rate,
+                    channels,
+                    config.sample_format()
+                );
 
-            let stream = match config.sample_format() {
-                cpal::SampleFormat::U8 => {
-                    AudioRecorder::build_stream::<u8>(&thread_device, &config, sample_tx, channels)
-                        .unwrap()
+                let stream = match config.sample_format() {
+                    cpal::SampleFormat::U8 => {
+                        AudioRecorder::build_stream::<u8>(&thread_device, &config, sample_tx, channels)
+                    }
+                    cpal::SampleFormat::I8 => {
+                        AudioRecorder::build_stream::<i8>(&thread_device, &config, sample_tx, channels)
+                    }
+                    cpal::SampleFormat::I16 => {
+                        AudioRecorder::build_stream::<i16>(&thread_device, &config, sample_tx, channels)
+                    }
+                    cpal::SampleFormat::I32 => {
+                        AudioRecorder::build_stream::<i32>(&thread_device, &config, sample_tx, channels)
+                    }
+                    cpal::SampleFormat::F32 => {
+                        AudioRecorder::build_stream::<f32>(&thread_device, &config, sample_tx, channels)
+                    }
+                    other => return Err(format!("Unsupported sample format: {:?}", other)),
                 }
-                cpal::SampleFormat::I8 => {
-                    AudioRecorder::build_stream::<i8>(&thread_device, &config, sample_tx, channels)
-                        .unwrap()
-                }
-                cpal::SampleFormat::I16 => {
-                    AudioRecorder::build_stream::<i16>(&thread_device, &config, sample_tx, channels)
-                        .unwrap()
-                }
-                cpal::SampleFormat::I32 => {
-                    AudioRecorder::build_stream::<i32>(&thread_device, &config, sample_tx, channels)
-                        .unwrap()
-                }
-                cpal::SampleFormat::F32 => {
-                    AudioRecorder::build_stream::<f32>(&thread_device, &config, sample_tx, channels)
-                        .unwrap()
-                }
-                _ => panic!("unsupported sample format"),
-            };
+                .map_err(|e| format!("Failed to build audio stream: {}", e))?;
 
-            stream.play().expect("failed to start stream");
+                stream
+                    .play()
+                    .map_err(|e| format!("Failed to start audio stream: {}", e))?;
 
-            // keep the stream alive while we process samples
-            run_consumer(sample_rate, vad, sample_rx, cmd_rx, level_cb);
-            // stream is dropped here, after run_consumer returns
+                Ok((stream, sample_rate))
+            })();
+
+            match init_result {
+                Ok((stream, sample_rate)) => {
+                    // Signal success
+                    let _ = init_tx.send(Ok(()));
+                    // Keep stream alive while processing
+                    run_consumer(sample_rate, vad, sample_rx, cmd_rx, level_cb);
+                    drop(stream);
+                }
+                Err(e) => {
+                    // Signal failure - thread will exit
+                    let _ = init_tx.send(Err(e));
+                }
+            }
         });
 
-        self.device = Some(device);
-        self.cmd_tx = Some(cmd_tx);
-        self.worker_handle = Some(worker);
-
-        Ok(())
+        // Wait for initialization result with timeout
+        match init_rx.recv_timeout(Duration::from_secs(5)) {
+            Ok(Ok(())) => {
+                self.device = Some(device);
+                self.cmd_tx = Some(cmd_tx);
+                self.worker_handle = Some(worker);
+                Ok(())
+            }
+            Ok(Err(e)) => {
+                // Worker reported an error
+                let _ = worker.join();
+                Err(e.into())
+            }
+            Err(_) => {
+                // Timeout waiting for initialization
+                Err("Timeout waiting for audio device initialization".into())
+            }
+        }
     }
 
     pub fn start(&self) -> Result<(), Box<dyn std::error::Error>> {

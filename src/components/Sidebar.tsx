@@ -131,7 +131,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     .map(([id, config]) => ({ id: id as SidebarSection, ...config }));
 
   return (
-    <div className="adobe-sidebar flex flex-col w-52 h-full items-center px-3 py-4">
+    <div className="adobe-sidebar flex flex-col w-56 h-full items-center px-3 py-4">
       {/* Logo Section with glow effect - fixed at top */}
       <div className="w-full p-3 mb-2 shrink-0">
         <HandyTextLogo className="w-full h-auto drop-shadow-[0_0_8px_rgba(255,107,157,0.3)]" />

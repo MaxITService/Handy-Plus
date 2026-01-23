@@ -499,9 +499,8 @@ fn start_recording_with_feedback(app: &AppHandle, binding_id: &str) -> bool {
         *state_guard = session_manager::SessionState::Idle;
         drop(state_guard);
 
-        // Session's Drop will handle cleanup, but we also explicitly reset UI
-        utils::hide_recording_overlay(app);
-        change_tray_icon(app, TrayIconState::Idle);
+        // Show microphone error overlay instead of just hiding
+        crate::plus_overlay_state::show_mic_error_overlay(app);
     }
 
     recording_started

@@ -92,6 +92,36 @@ export const AboutSettings: React.FC = () => {
         </SettingContainer>
       </SettingsGroup>
 
+      <SettingsGroup title={t("settings.about.forkInfo.title")}>
+        <SettingContainer
+          title={t("settings.about.forkInfo.title")}
+          description={t("settings.about.forkInfo.description")}
+          grouped={true}
+        >
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={() => openUrl("https://github.com/cjpais/Handy")}
+          >
+            {t("settings.about.forkInfo.button")}
+          </Button>
+        </SettingContainer>
+
+        <SettingContainer
+          title={t("settings.about.license.title")}
+          description={t("settings.about.license.description")}
+          grouped={true}
+        >
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={() => openUrl("https://github.com/cjpais/Handy/blob/main/LICENSE")}
+          >
+            {t("settings.about.license.viewUpstream")}
+          </Button>
+        </SettingContainer>
+      </SettingsGroup>
+
       <SettingsGroup title={t("settings.about.acknowledgments.title")}>
         <SettingContainer
           title={t("settings.about.acknowledgments.whisper.title")}

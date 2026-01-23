@@ -19,6 +19,7 @@ export type OverlayErrorCategory =
   | "ServerError"
   | "ParseError"
   | "ExtensionOffline"
+  | "MicrophoneUnavailable"
   | "Unknown";
 
 /**
@@ -54,6 +55,7 @@ export function getErrorDisplayText(category: OverlayErrorCategory): string {
     ServerError: "Server error",
     ParseError: "Invalid response",
     ExtensionOffline: "Extension offline",
+    MicrophoneUnavailable: "Mic unavailable",
     Unknown: "Transcription failed",
   };
   return messages[category];

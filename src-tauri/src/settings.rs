@@ -291,7 +291,10 @@ pub struct ResolvedExecutionOptions {
 impl VoiceCommand {
     /// Resolves execution options by merging command-level settings with global defaults.
     /// Command-level settings take priority over defaults.
-    pub fn resolve_execution_options(&self, defaults: &VoiceCommandDefaults) -> ResolvedExecutionOptions {
+    pub fn resolve_execution_options(
+        &self,
+        defaults: &VoiceCommandDefaults,
+    ) -> ResolvedExecutionOptions {
         ResolvedExecutionOptions {
             silent: self.silent,
             no_profile: self.no_profile,
@@ -380,6 +383,46 @@ impl TextReplacement {
                     Some('\\') => {
                         result.push('\\');
                         chars.next();
+                    }
+                    Some('u') => {
+                        // Unicode escape: \u{XXXX} where XXXX is 1-6 hex digits
+                        chars.next(); // consume 'u'
+                        if chars.peek() == Some(&'{') {
+                            chars.next(); // consume '{'
+                            let mut hex_str = String::new();
+                            while let Some(&ch) = chars.peek() {
+                                if ch == '}' {
+                                    chars.next(); // consume '}'
+                                    break;
+                                }
+                                if ch.is_ascii_hexdigit() && hex_str.len() < 6 {
+                                    hex_str.push(ch);
+                                    chars.next();
+                                } else {
+                                    // Invalid character in hex sequence, abort
+                                    break;
+                                }
+                            }
+                            if let Ok(code_point) = u32::from_str_radix(&hex_str, 16) {
+                                if let Some(unicode_char) = char::from_u32(code_point) {
+                                    result.push(unicode_char);
+                                } else {
+                                    // Invalid code point, keep original sequence
+                                    result.push_str("\\u{");
+                                    result.push_str(&hex_str);
+                                    result.push('}');
+                                }
+                            } else {
+                                // Failed to parse hex, keep original
+                                result.push_str("\\u{");
+                                result.push_str(&hex_str);
+                                result.push('}');
+                            }
+                        } else {
+                            // No opening brace, keep \u as literal
+                            result.push('\\');
+                            result.push('u');
+                        }
                     }
                     _ => {
                         // Keep the backslash if not a recognized escape
@@ -1878,7 +1921,9 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
                 // voice_command_keep_window_open: true → silent: false
                 // voice_command_keep_window_open: false → silent: true (default)
                 if settings.voice_command_keep_window_open {
-                    debug!("Migrating voice_command_keep_window_open to voice_command_defaults.silent");
+                    debug!(
+                        "Migrating voice_command_keep_window_open to voice_command_defaults.silent"
+                    );
                     settings.voice_command_defaults.silent = false;
                     settings.voice_command_keep_window_open = false;
                     updated = true;
