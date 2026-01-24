@@ -19,21 +19,12 @@ Profiles let you create different transcription configurations and switch betwee
 
 - **Multilingual users** — Switch between English, Russian, Finnish, etc.
 - **Different use cases** — One profile for dictation, another for code comments
-- **Translation workflows** — Speak in one language, output in another
+- **Translation workflows** — Speak in one language, output in another + auto switch language with Windows language!
 - **Everything you can imagine!** — Serioulsy, you can invent so many uses!
 
 #### Profile Settings
 
-Each profile can customize:
-
-| Setting                  | Description                                                       |
-| ------------------------ | ----------------------------------------------------------------- |
-| **Language**             | Speech recognition language (e.g., English, Russian, Auto-detect) |
-| **Translate to English** | Automatically translate non-English speech to English             |
-| **Push-to-Talk**         | Hold hotkey to record vs. toggle on/off                           |
-| **Voice Model Prompt**   | System prompt for STT model (word hints, formatting)              |
-| **Include in Cycle**     | Whether this profile appears when cycling through profiles        |
-
+![Profile Settings](Promo/profiles.png)
 #### LLM Post-Processing Override
 
 Each profile can override the global LLM post-processing settings:
