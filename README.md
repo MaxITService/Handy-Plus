@@ -52,11 +52,14 @@ Translate this to Finnish: ${output}
 
 #### Shortcuts
 
+Assign key combination to following actions:
+
 | Shortcut                        | Action                                           |
 | ------------------------------- | ------------------------------------------------ |
-| **Main Transcribe** (`Ctrl+F8`) | Transcribe using the active profile              |
-| **Cycle Profile**               | Switch to the next profile in cycle              |
-| **Per-Profile Shortcuts**       | Each profile can have its own dedicated shortcut |
+| **Main Transcribe**   | Transcribe using the active profile              |
+| **Cycle Profile**               | Switch to the next active profile in cycle              |
+| **Per-Profile Shortcuts**       | Each profile can have its own dedicated shortcut if you don'w want to cycle profiles but use all at once |
+
 
 #### Default Profile
 
