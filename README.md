@@ -100,16 +100,6 @@ Voice-to-AI bridge via [AivoRelay Connector](https://github.com/MaxITService/Aiv
 > ⚠️ **Requires:** [AivoRelay Connector](https://github.com/MaxITService/AivoRelay-relay) Chrome extension
 
 
-### 🗣️ Voice Command Center
-
-Execute PowerShell scripts with your voice.
-
-- Say "lock computer" → Locks Windows
-- Say "open notepad" → Opens Notepad
-- **Safe:** Always shows confirmation before running
-- **Smart:** If no command matches, use AI to generate a script on the fly (e.g. "open chrome and go to youtube")
-
-**Setup:** Settings → Voice Command Center
 
 ### 📁 Transcribe Audio Files
 
@@ -152,6 +142,16 @@ Use Groq, Deepgram, or other OpenAI-compatible APIs — _or_ keep using local Wh
 **Setup:** Settings → Advanced → Transcription Provider
 
 ---
+### 🗣️ Voice Command Center (Dangerous! Do not use)
+
+Execute PowerShell scripts with your voice. Pre write scriopts... or make LMM write them on the fly (confirmation dialog window appears, you can cancel)
+
+- Say "lock computer" → Locks Windows
+- Say "open notepad" → Opens Notepad
+- **Somewhat safe:** Always shows confirmation before running
+- **Smart:** If no command matches, use AI to generate a script on the fly (e.g. "open chrome and go to youtube")
+
+**Setup:** Settings → Voice Command Center
 
 ## 🚀 Quick Start
 
