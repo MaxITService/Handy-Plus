@@ -9,38 +9,6 @@ AI Voice Relay
 > A fork of [cjpais/Handy](https://github.com/cjpais/Handy) with additional features
 
 ## ✨ Key Features
-
-### 🤖 AI Replace Selection
-
-Voice-controlled text editing — select text, speak instruction, get AI-transformed result.
-
-- Select code → say "add error handling" → improved code replaces selection
-- Select paragraph → say "make it shorter" → condensed version
-- Empty field + "no selection" mode → say "write a greeting email" → generated text
-- Works in any Windows application
-
-**Setup:** Settings → Advanced → AI Replace Settings
-
-### 📤 Send to ChatGPT/Claude
-
-Voice-to-AI bridge via [AivoRelay Connector](https://github.com/MaxITService/AivoRelay-relay) browser extension.
-
-![How it works](Promo/How_it_works.png)
-
-| Mode                   | Input                  | What ChatGPT receives     |
-| ---------------------- | ---------------------- | ------------------------- |
-| **Voice only**         | Speak your question    | Your transcribed question |
-| **Voice + Selection**  | Speak + selected text  | Question with context     |
-| **Voice + Screenshot** | Speak + screen capture | Question with image       |
-
-**Examples:**
-
-- Say "what is recursion" → ChatGPT gets your question
-- Select error log, say "why is this failing" → ChatGPT gets question + the log
-- Capture chart, say "explain this" → ChatGPT gets question + screenshot
-
-> ⚠️ **Requires:** [AivoRelay Connector](https://github.com/MaxITService/AivoRelay-relay) Chrome extension
-
 ### 🎚️ Transcription Profiles
 
 Quick-switch between language, prompt, and LLM post-processing presets with dedicated shortcuts: swithc currently active profile or assign each profile its own hotkey!
@@ -104,6 +72,38 @@ Translate this to Finnish: ${output}
 The "Default Profile" uses your global settings (Settings → Speech). It cannot be deleted but can be customized or set as active.
 
 **Setup:** Settings → Speech → Transcription Profiles
+
+### 🤖 AI Replace Selection
+
+Voice-controlled text editing — select text, speak instruction, get AI-transformed result.
+
+- Select code → say "add error handling" → improved code replaces selection
+- Select paragraph → say "make it shorter" → condensed version
+- Empty field + "no selection" mode → say "write a greeting email" → generated text
+- Works in any Windows application
+
+**Setup:** Settings → Advanced → AI Replace Settings
+
+### 📤 Send to ChatGPT/Claude
+
+Voice-to-AI bridge via [AivoRelay Connector](https://github.com/MaxITService/AivoRelay-relay) browser extension.
+
+![How it works](Promo/How_it_works.png)
+
+| Mode                   | Input                  | What ChatGPT receives     |
+| ---------------------- | ---------------------- | ------------------------- |
+| **Voice only**         | Speak your question    | Your transcribed question |
+| **Voice + Selection**  | Speak + selected text  | Question with context     |
+| **Voice + Screenshot** | Speak + screen capture | Question with image       |
+
+**Examples:**
+
+- Say "what is recursion" → ChatGPT gets your question
+- Select error log, say "why is this failing" → ChatGPT gets question + the log
+- Capture chart, say "explain this" → ChatGPT gets question + screenshot
+
+> ⚠️ **Requires:** [AivoRelay Connector](https://github.com/MaxITService/AivoRelay-relay) Chrome extension
+
 
 ### 🗣️ Voice Command Center
 
