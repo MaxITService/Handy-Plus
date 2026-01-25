@@ -5,7 +5,6 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Listener, Manager, State};
 use tauri_plugin_autostart::ManagerExt;
-#[cfg(not(target_os = "windows"))]
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 use crate::actions::ACTION_MAP;
@@ -17,7 +16,8 @@ use crate::settings::ShortcutBinding;
 use crate::settings::APPLE_INTELLIGENCE_DEFAULT_MODEL_ID;
 use crate::settings::{
     self, get_settings, ClipboardHandling, LLMPrompt, OverlayPosition, PasteMethod,
-    RemoteSttDebugMode, SoundTheme, TranscriptionProvider, APPLE_INTELLIGENCE_PROVIDER_ID,
+    RemoteSttDebugMode, ShortcutEngine, SoundTheme, TranscriptionProvider,
+    APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use crate::tray;
 use crate::ManagedToggleState;
@@ -25,15 +25,41 @@ use crate::ManagedToggleState;
 /// Track which shortcuts are registered via rdev (not tauri-plugin-global-shortcut)
 pub type RdevShortcutsSet = std::sync::Mutex<HashSet<String>>;
 
+/// Track which shortcut engine is actually running (set at startup, doesn't change until restart)
+pub type ActiveShortcutEngine = std::sync::Mutex<ShortcutEngine>;
+
 pub fn init_shortcuts(app: &AppHandle) {
     let default_bindings = settings::get_default_settings().bindings;
     let user_settings = settings::load_or_create_app_settings(app);
 
-    // Start the rdev key listener for shortcuts that tauri doesn't support
-    start_rdev_listener(app);
+    // On Windows, only start rdev listener if rdev engine is selected
+    // This avoids the overhead of processing every keystroke when using Tauri engine
+    #[cfg(target_os = "windows")]
+    {
+        // Store the active engine at startup (this won't change until restart)
+        if let Some(active_engine_state) = app.try_state::<ActiveShortcutEngine>() {
+            if let Ok(mut engine) = active_engine_state.lock() {
+                *engine = user_settings.shortcut_engine;
+            }
+        }
 
-    // Set up listener for rdev-shortcut events
-    setup_rdev_shortcut_handler(app);
+        if user_settings.shortcut_engine == ShortcutEngine::Rdev {
+            // Start the rdev key listener
+            start_rdev_listener(app);
+            // Set up listener for rdev-shortcut events
+            setup_rdev_shortcut_handler(app);
+            info!("Using rdev shortcut engine (processes all keystrokes)");
+        } else {
+            info!("Using Tauri shortcut engine (high performance, limited key support)");
+        }
+    }
+
+    // On non-Windows platforms, always start rdev as fallback for unsupported shortcuts
+    #[cfg(not(target_os = "windows"))]
+    {
+        start_rdev_listener(app);
+        setup_rdev_shortcut_handler(app);
+    }
 
     // Register all default shortcuts, applying user customizations
     for (id, default_binding) in default_bindings {
@@ -2068,6 +2094,103 @@ pub fn change_app_language_setting(app: AppHandle, language: String) -> Result<(
     Ok(())
 }
 
+// ============================================================================
+// Shortcut Engine Settings
+// ============================================================================
+
+/// Get the currently active (running) shortcut engine.
+/// This returns the engine that was selected at app startup, not the configured one.
+/// On Windows, reads from app state. On other platforms, always returns Tauri.
+#[tauri::command]
+#[specta::specta]
+pub fn get_current_shortcut_engine(app: AppHandle) -> ShortcutEngine {
+    #[cfg(target_os = "windows")]
+    {
+        // Read from state (the actual running engine), not settings (which may have changed)
+        if let Some(active_engine_state) = app.try_state::<ActiveShortcutEngine>() {
+            if let Ok(engine) = active_engine_state.lock() {
+                return *engine;
+            }
+        }
+        // Fallback to settings if state not available (shouldn't happen)
+        let settings = settings::get_settings(&app);
+        settings.shortcut_engine
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+        ShortcutEngine::Tauri
+    }
+}
+
+/// Set the shortcut engine setting (requires app restart to take effect).
+/// On non-Windows platforms, this is a no-op.
+#[tauri::command]
+#[specta::specta]
+pub fn set_shortcut_engine_setting(app: AppHandle, engine: ShortcutEngine) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let mut settings = settings::get_settings(&app);
+        let old_engine = settings.shortcut_engine;
+
+        // If no change, return early
+        if old_engine == engine {
+            return Ok(());
+        }
+
+        info!(
+            "Setting shortcut engine to {:?} (was {:?}) - requires restart",
+            engine, old_engine
+        );
+
+        settings.shortcut_engine = engine;
+        settings::write_settings(&app, settings);
+
+        // Emit event to notify frontend of the change
+        let _ = app.emit(
+            "settings-changed",
+            serde_json::json!({
+                "setting": "shortcut_engine",
+                "value": engine,
+                "requires_restart": true
+            }),
+        );
+
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+        let _ = engine;
+        Err("Shortcut engine selection is only available on Windows".to_string())
+    }
+}
+
+/// Get the list of shortcuts that are incompatible with the Tauri engine.
+/// Used by the UI to show which shortcuts will be disabled when switching to Tauri.
+/// On non-Windows platforms, returns an empty list.
+#[tauri::command]
+#[specta::specta]
+pub fn get_tauri_incompatible_shortcuts(app: AppHandle) -> Vec<ShortcutBinding> {
+    #[cfg(target_os = "windows")]
+    {
+        let settings = settings::get_settings(&app);
+        settings
+            .bindings
+            .values()
+            .filter(|b| {
+                !b.current_binding.is_empty() && !is_shortcut_tauri_compatible(&b.current_binding)
+            })
+            .cloned()
+            .collect()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+        Vec::new()
+    }
+}
+
 /// Validate that a shortcut is not empty and has valid structure.
 /// On Windows, modifier-only shortcuts (like Ctrl+Alt) are allowed via rdev.
 /// On other platforms, tauri-plugin-global-shortcut requires a main key.
@@ -2171,22 +2294,81 @@ pub fn unregister_cancel_shortcut(app: &AppHandle) {
 }
 
 pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<(), String> {
-    // On Windows, use rdev for ALL shortcuts for maximum compatibility
-    // This bypasses tauri-plugin-global-shortcut which has issues with some key combinations
+    let settings = get_settings(app);
+
+    // On Windows, check the shortcut_engine setting to decide which engine to use
     #[cfg(target_os = "windows")]
     {
-        return register_shortcut_via_rdev(app, binding);
+        match settings.shortcut_engine {
+            ShortcutEngine::Tauri => {
+                // Check if the shortcut is compatible with Tauri engine
+                if !is_shortcut_tauri_compatible(&binding.current_binding) {
+                    // Return error - incompatible shortcuts are not allowed in Tauri mode
+                    let error_msg = format!(
+                        "Shortcut '{}' is not compatible with Tauri engine. To use CapsLock, NumLock, ScrollLock, Pause, or modifier-only shortcuts, switch to the rdev engine in Settings → Debug → Experimental Features.",
+                        binding.current_binding
+                    );
+                    warn!("{}", error_msg);
+                    return Err(error_msg);
+                }
+                register_shortcut_tauri(app, binding)
+            }
+            ShortcutEngine::Rdev => register_shortcut_via_rdev(app, binding),
+        }
     }
 
     // On other platforms, use tauri-plugin-global-shortcut with rdev fallback
     #[cfg(not(target_os = "windows"))]
     {
+        let _ = settings; // suppress unused warning
         register_shortcut_tauri(app, binding)
     }
 }
 
-/// Register shortcut via tauri-plugin-global-shortcut (used on macOS/Linux)
-#[cfg(not(target_os = "windows"))]
+/// Check if a shortcut string is compatible with tauri-plugin-global-shortcut.
+/// Returns false for keys that only rdev supports (Caps Lock, Num Lock, modifier-only, etc.)
+pub fn is_shortcut_tauri_compatible(shortcut: &str) -> bool {
+    let lower = shortcut.to_lowercase();
+    let parts: Vec<&str> = lower.split('+').map(|s| s.trim()).collect();
+
+    // Keys that only rdev supports
+    let rdev_only_keys = [
+        "capslock",
+        "caps_lock",
+        "caps",
+        "numlock",
+        "num_lock",
+        "scrolllock",
+        "scroll_lock",
+        "pause",
+    ];
+
+    // Check if any part is an rdev-only key
+    for part in &parts {
+        if rdev_only_keys.contains(part) {
+            return false;
+        }
+    }
+
+    // Check for modifier-only shortcuts (no main key)
+    let modifiers = [
+        "ctrl", "control", "shift", "alt", "option", "meta", "command", "cmd", "super", "win",
+        "windows",
+    ];
+    let has_non_modifier = parts
+        .iter()
+        .any(|part| !modifiers.contains(part));
+
+    if !has_non_modifier {
+        // Modifier-only shortcut - not supported by Tauri
+        return false;
+    }
+
+    // Try to parse with tauri-plugin to verify
+    shortcut.parse::<Shortcut>().is_ok()
+}
+
+/// Register shortcut via tauri-plugin-global-shortcut (used on macOS/Linux, and Windows when Tauri engine selected)
 fn register_shortcut_tauri(app: &AppHandle, binding: ShortcutBinding) -> Result<(), String> {
     // Try to parse shortcut for tauri-plugin-global-shortcut
     let shortcut_result = binding.current_binding.parse::<Shortcut>();

@@ -541,6 +541,28 @@ pub enum TranscriptionProvider {
     RemoteOpenAiCompatible,
 }
 
+/// Shortcut engine selection for Windows.
+/// Controls which mechanism is used to listen for global hotkeys.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ShortcutEngine {
+    /// Use tauri-plugin-global-shortcut (high performance, limited key support)
+    /// Does NOT support: Caps Lock, Num Lock, Scroll Lock, modifier-only shortcuts
+    Tauri,
+    /// Use rdev low-level hooks (all keys supported, higher CPU usage)
+    /// Supports ALL keys including Caps Lock, Num Lock, and modifier-only shortcuts
+    Rdev,
+}
+
+impl Default for ShortcutEngine {
+    fn default() -> Self {
+        // Default to Tauri for all platforms (better performance)
+        // Users who need Caps Lock, Num Lock, or modifier-only shortcuts
+        // can switch to rdev in Settings → Debug → Experimental Features
+        ShortcutEngine::Tauri
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum RemoteSttDebugMode {
@@ -980,6 +1002,12 @@ pub struct AppSettings {
     /// Higher = less sensitive (cleaner input but may cut off quiet speech)
     #[serde(default = "default_vad_threshold")]
     pub vad_threshold: f32,
+    // ==================== Shortcut Engine (Windows only) ====================
+    /// Which shortcut engine to use for global hotkeys (Windows only)
+    /// - "tauri": High performance, but doesn't support Caps Lock, Num Lock, modifier-only shortcuts
+    /// - "rdev": Supports all keys, but uses more CPU (processes every keystroke)
+    #[serde(default)]
+    pub shortcut_engine: ShortcutEngine,
 }
 
 fn default_model() -> String {
@@ -1642,6 +1670,8 @@ pub fn get_default_settings() -> AppSettings {
         // Audio Processing
         filler_word_filter_enabled: false,
         vad_threshold: default_vad_threshold(),
+        // Shortcut Engine (Windows only)
+        shortcut_engine: ShortcutEngine::default(),
     }
 }
 

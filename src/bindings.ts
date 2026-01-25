@@ -936,6 +936,34 @@ async changeTextReplacementsBeforeLlmSetting(enabled: boolean) : Promise<Result<
 async getLanguageFromOsInput() : Promise<string | null> {
     return await TAURI_INVOKE("get_language_from_os_input");
 },
+/**
+ * Get the currently active (running) shortcut engine.
+ * This returns the engine that was selected at app startup, not the configured one.
+ * On Windows, reads from app state. On other platforms, always returns Tauri.
+ */
+async getCurrentShortcutEngine() : Promise<ShortcutEngine> {
+    return await TAURI_INVOKE("get_current_shortcut_engine");
+},
+/**
+ * Set the shortcut engine setting (requires app restart to take effect).
+ * On non-Windows platforms, this is a no-op.
+ */
+async setShortcutEngineSetting(engine: ShortcutEngine) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_shortcut_engine_setting", { engine }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get the list of shortcuts that are incompatible with the Tauri engine.
+ * Used by the UI to show which shortcuts will be disabled when switching to Tauri.
+ * On non-Windows platforms, returns an empty list.
+ */
+async getTauriIncompatibleShortcuts() : Promise<ShortcutBinding[]> {
+    return await TAURI_INVOKE("get_tauri_incompatible_shortcuts");
+},
 async triggerUpdateCheck() : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("trigger_update_check") };
@@ -1769,7 +1797,13 @@ filler_word_filter_enabled?: boolean;
  * Lower = more sensitive (captures quieter speech but may include noise)
  * Higher = less sensitive (cleaner input but may cut off quiet speech)
  */
-vad_threshold?: number }
+vad_threshold?: number; 
+/**
+ * Which shortcut engine to use for global hotkeys (Windows only)
+ * - "tauri": High performance, but doesn't support Caps Lock, Num Lock, modifier-only shortcuts
+ * - "rdev": Supports all keys, but uses more CPU (processes every keystroke)
+ */
+shortcut_engine?: ShortcutEngine }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type BindingResponse = { success: boolean; binding: ShortcutBinding | null; error: string | null }
 export type ClipboardHandling = "dont_modify" | "copy_to_clipboard" | 
@@ -1953,6 +1987,21 @@ width: number;
  */
 height: number }
 export type ShortcutBinding = { id: string; name: string; description: string; default_binding: string; current_binding: string }
+/**
+ * Shortcut engine selection for Windows.
+ * Controls which mechanism is used to listen for global hotkeys.
+ */
+export type ShortcutEngine = 
+/**
+ * Use tauri-plugin-global-shortcut (high performance, limited key support)
+ * Does NOT support: Caps Lock, Num Lock, Scroll Lock, modifier-only shortcuts
+ */
+"tauri" | 
+/**
+ * Use rdev low-level hooks (all keys supported, higher CPU usage)
+ * Supports ALL keys including Caps Lock, Num Lock, and modifier-only shortcuts
+ */
+"rdev"
 export type SoundTheme = "marimba" | "pop" | "custom"
 /**
  * A transcription segment with timing information

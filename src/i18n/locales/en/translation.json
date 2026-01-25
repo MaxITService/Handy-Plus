@@ -773,6 +773,41 @@
     },
     "debug": {
       "title": "Debug",
+      "shortcutEngine": {
+        "title": "Shortcut Engine",
+        "description": "Choose the keyboard shortcut detection method. rdev supports all keys but uses more CPU. Tauri is faster but has limited key support.",
+        "options": {
+          "rdev": "rdev (All Keys)",
+          "tauri": "Tauri (High Performance)"
+        },
+        "activeEngine": "Currently active",
+        "restartRequired": {
+          "title": "Restart Required",
+          "description": "The new engine will be active after restarting AivoRelay.",
+          "button": "Restart Now"
+        },
+        "rdevInfo": {
+          "title": "rdev Engine",
+          "description": "Supports all keys including Caps Lock, Num Lock, and modifier-only shortcuts. Processes every keystroke which may use slightly more CPU.",
+          "warning": "⚠️ rdev uses low-level keyboard hooks that may be flagged by antivirus software or blocked by anti-cheat systems in games. If you experience issues, switch to Tauri engine."
+        },
+        "tauriInfo": {
+          "title": "Tauri Engine",
+          "description": "High performance mode using native OS shortcuts. Does not support Caps Lock, Num Lock, Scroll Lock, Pause, or modifier-only shortcuts (e.g., Ctrl+Alt alone)."
+        },
+        "incompatibleWarning": {
+          "title": "Incompatible Shortcuts Will Be Disabled",
+          "description": "The following shortcuts are not supported by the Tauri engine and will be disabled after restart:"
+        },
+        "confirmRestart": {
+          "title": "Some Shortcuts Will Be Disabled",
+          "description": "The Tauri engine doesn't support certain shortcuts. They will stop working after restart.",
+          "incompatibleList": "The following shortcuts will be disabled:",
+          "cancel": "Cancel",
+          "confirm": "Restart Anyway"
+        },
+        "error": "Failed to change shortcut engine"
+      },
       "logDirectory": {
         "title": "Log Directory",
         "description": "Location where log files are stored"

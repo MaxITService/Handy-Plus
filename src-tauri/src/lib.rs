@@ -400,6 +400,9 @@ pub fn run() {
         shortcut::change_text_replacements_setting,
         shortcut::change_text_replacements_before_llm_setting,
         shortcut::get_language_from_os_input,
+        shortcut::get_current_shortcut_engine,
+        shortcut::set_shortcut_engine_setting,
+        shortcut::get_tauri_incompatible_shortcuts,
         trigger_update_check,
         commands::cancel_operation,
         commands::get_app_dir_path,
@@ -540,6 +543,7 @@ pub fn run() {
         .manage(Mutex::new(PressTimestamps::default()))
         .manage(Mutex::new(session_manager::SessionState::default()))
         .manage(std::sync::Mutex::new(std::collections::HashSet::<String>::new()) as shortcut::RdevShortcutsSet)
+        .manage(std::sync::Mutex::new(settings::ShortcutEngine::default()) as shortcut::ActiveShortcutEngine)
         .setup(move |app| {
             let settings = get_settings(&app.handle());
             let tauri_log_level: tauri_plugin_log::LogLevel = settings.log_level.into();
