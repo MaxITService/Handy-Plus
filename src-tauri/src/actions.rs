@@ -794,17 +794,20 @@ async fn get_transcription_or_cleanup(
     let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
 
     if let Some(samples) = rm.stop_recording(binding_id) {
-        // Quick Tap Optimization: If audio is less than threshold, skip STT
-        // 16000 Hz * (threshold_ms / 1000)
+        // Quick Tap Optimization: Only apply to AI Replace action
         let settings = get_settings(app);
-        let threshold_samples =
-            (settings.ai_replace_quick_tap_threshold_ms as f32 / 1000.0 * 16000.0) as usize;
+        let is_ai_replace = binding_id.starts_with("ai_replace");
+        let should_skip = is_ai_replace && {
+            let threshold_samples =
+                (settings.ai_replace_quick_tap_threshold_ms as f32 / 1000.0 * 16000.0) as usize;
+            samples.len() < threshold_samples
+        };
 
-        if samples.len() < threshold_samples {
+        if should_skip {
             debug!(
-                "Quick tap detected ({} samples < {}), skipping transcription",
+                "Quick tap detected for AI Replace ({} samples < {}), skipping transcription",
                 samples.len(),
-                threshold_samples
+                (settings.ai_replace_quick_tap_threshold_ms as f32 / 1000.0 * 16000.0) as usize
             );
             return Some((String::new(), samples));
         }
