@@ -2055,8 +2055,6 @@ pub struct CommandConfirmPayload {
     pub execution_policy: Option<String>,
     /// Working directory (None = current directory)
     pub working_directory: Option<String>,
-    /// Timeout in seconds (0 = no limit)
-    pub timeout_seconds: u32,
     // ==================== Auto-run Options ====================
     /// Whether to auto-run after countdown (only for predefined commands)
     pub auto_run: bool,
@@ -2395,7 +2393,6 @@ impl ShortcutAction for VoiceCommandAction {
                         use_pwsh: resolved.use_pwsh,
                         execution_policy: format_execution_policy(resolved.execution_policy),
                         working_directory: resolved.working_directory,
-                        timeout_seconds: resolved.timeout_seconds,
                         auto_run: settings.voice_command_auto_run,
                         auto_run_seconds: settings.voice_command_auto_run_seconds,
                     },
@@ -2435,7 +2432,6 @@ impl ShortcutAction for VoiceCommandAction {
                                 use_pwsh: resolved.use_pwsh,
                                 execution_policy: format_execution_policy(resolved.execution_policy),
                                 working_directory: resolved.working_directory,
-                                timeout_seconds: resolved.timeout_seconds,
                                 auto_run: false, // Never auto-run LLM-generated commands
                                 auto_run_seconds: 0,
                             },

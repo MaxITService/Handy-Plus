@@ -492,6 +492,12 @@ fn string_to_rdev_key(s: &str) -> Result<Key, String> {
         // Numlock
         "numlock" => Ok(Key::NumLock),
 
+        // Numpad delete (maps to Delete - KpDelete not available in rdev)
+        "kpdelete" | "numpaddelete" | "numdel" => Ok(Key::Delete),
+
+        // International backslash (non-US keyboards, key between left shift and Z)
+        "intlbackslash" | "oem102" => Ok(Key::IntlBackslash),
+
         _ => Err(format!("Unknown key: '{}'", s)),
     }
 }

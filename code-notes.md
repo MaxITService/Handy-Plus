@@ -21,6 +21,8 @@ Files that differentiate this fork from the original [cjpais/Handy](https://gith
 | `src-tauri/src/subtitle.rs`                    | **Subtitle Formatting**: Logic for generating timestamped subtitles (SRT/VTT). Used by `file_transcription.rs` to structure transcription segments into standard subtitle formats.                                                                                                                                                                          |
 | `src-tauri/src/audio_toolkit/text.rs`          | **Text Post-Processing**: Logic for cleaning up transcriptions, including collapsing repeated 1-2 letter stutters (e.g., "I-I" → "I") and filtering filler words ("uhm", "uh").                                                                                                                                                                             |
 | `src-tauri/src/input_source.rs`                | **OS Language Detection**: Utilities to detect the current system input language, used for automatic language switching in transcription profiles.                                                                                                                                                                                                         |
+| `src-tauri/src/managers/key_listener.rs`       | **rdev Key Listener** (Windows): Low-level keyboard hook using rdev library. Tracks modifier state, parses shortcut strings (e.g., "ctrl+shift+a", "caps lock"), emits `rdev-shortcut` events. Supports keys that Tauri can't handle: CapsLock, NumLock, ScrollLock, Pause, modifier-only shortcuts.                                                       |
+| `src-tauri/src/commands/key_listener.rs`       | Tauri commands for key listener: `register_rdev_shortcut`, `unregister_rdev_shortcut`, `is_rdev_shortcut_registered`.                                                                                                                                                                                                                                       |
 
 ### Frontend (React/TypeScript)
 
@@ -39,6 +41,7 @@ Files that differentiate this fork from the original [cjpais/Handy](https://gith
 | `src/components/settings/transcribe-file/TranscribeFileSettings.tsx`   | UI for "Transcribe Audio File" feature: Drag-and-drop zone, file info, output format selection (Text/SRT/VTT), optional model override, and results display.            |
 | `src/components/settings/text-replacement/TextReplacementSettings.tsx` | UI for "Text Replacement" feature: Add/remove replacement rules with enable/disable toggles. Supports escape sequences for special characters (\\n, \\r\\n, \\t, \\\\), regex matching, and adjustable execution order (Before/After LLM). |
 | `src/components/settings/audio-processing/AudioProcessingSettings.tsx` | UI for audio processing settings: VAD sensitivity, stutter collapsing, and transcription cleaning options.                                                                                                                                                                                           |
+| `src/components/settings/debug/ShortcutEngineSelector.tsx`             | **Shortcut Engine Selector** (Windows): UI for switching between Tauri (high-perf, limited keys) and rdev (all keys, higher CPU) engines. Shows incompatible shortcuts warning, requires app restart. Located in Debug → Experimental Features.                                                     |
 | `src/stores/transcribeFileStore.ts`                                    | Session store for Transcribe File UI state (selected file, output mode, profile selection, results).                                                                    |
 
 ## Modified Files
@@ -49,9 +52,9 @@ Files that differentiate this fork from the original [cjpais/Handy](https://gith
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src-tauri/src/actions.rs`   | Added new shortcut actions: `AiReplaceSelectionAction`, `SendToExtensionAction`, `SendToExtensionWithSelectionAction`, `SendScreenshotToExtensionAction`. These handle the new voice-to-LLM, connector, and screenshot workflows. **Uses `show_sending_overlay()` for Remote STT instead of `show_transcribing_overlay()`.**                                                                                                                                                                                          |
 | `src-tauri/src/overlay.rs`   | Added `show_sending_overlay()` function, made `force_overlay_topmost()` public for reuse.                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `src-tauri/src/settings.rs`  | Extended `AppSettings` with: `transcription_provider`, `remote_stt` settings, `ai_replace_*` fields, `connector_*` fields (including `connector_password` for auth), `screenshot_*` fields, individual push-to-talk settings (`send_to_extension_push_to_talk`, `send_to_extension_with_selection_push_to_talk`, `ai_replace_selection_push_to_talk`, `send_screenshot_to_extension_push_to_talk`). Added `RemoteSttSettings`, `TranscriptionProvider` enum, `default_true()` helper, `default_connector_password()`. |
+| `src-tauri/src/settings.rs`  | Extended `AppSettings` with: `transcription_provider`, `remote_stt` settings, `ai_replace_*` fields, `connector_*` fields (including `connector_password` for auth), `screenshot_*` fields, individual push-to-talk settings, `shortcut_engine` (Windows). Added `RemoteSttSettings`, `TranscriptionProvider`, `ShortcutEngine` enums. Added explicit `store.save()` in `write_settings()` to prevent race conditions on restart. |
 | `src-tauri/src/lib.rs`       | Registered new managers (`RemoteSttManager`, `ConnectorManager`) and commands including individual push-to-talk commands and screenshot settings commands. Starts connector server on app init. Handles tray icon creation and event loop.                                                                    |
-| `src-tauri/src/shortcut.rs`  | Added shortcut bindings for new actions (AI Replace, Send to Extension, Send Screenshot to Extension). Added commands for individual push-to-talk settings and screenshot settings, plus logic to use per-binding push-to-talk instead of global setting for fork-specific actions. Integrated OS language detection for automatic profile switching. |
+| `src-tauri/src/shortcut.rs`  | Added shortcut bindings for new actions (AI Replace, Send to Extension, Send Screenshot to Extension). Added commands for individual push-to-talk settings and screenshot settings, plus logic to use per-binding push-to-talk instead of global setting for fork-specific actions. Integrated OS language detection for automatic profile switching. **Added dual-engine support (Windows)**: conditionally starts rdev listener, routes shortcuts to Tauri or rdev based on compatibility, clears incompatible bindings on engine switch. |
 | `src-tauri/src/clipboard.rs` | Enhanced clipboard handling for AI Replace selection capture.                                                                                                                                                                                                                                                                                                                        |
 | `src-tauri/src/input.rs`     | Added selection capture utilities for Windows.                                                                                                                                                                                                                                                                                                                                       |
 | `src-tauri/src/tray.rs`      | Custom tray menu implementation: added "Copy Last Transcript" action and access to quick settings.                                                                                                                                                                                                                                                                                |
@@ -192,6 +195,26 @@ User drops file in UI
 - **Formatting**: Supports Text, SRT, and VTT output.
 - **Timestamping**: Accurate timestamps require Local model; Remote STT currently returns text-only (single segment).
 - **Audio Processing**: Supports wav, mp3, m4a, ogg, flac, webm. Resamples to 16kHz automatically.
+
+### Shortcut Engine (Windows)
+
+```
+User selects engine in Settings → Debug → Experimental Features
+    └─► ShortcutEngineSelector.tsx
+            └─► invoke("set_shortcut_engine_setting")
+                    └─► shortcut.rs → saves to settings, clears incompatible bindings if switching to Tauri
+                            └─► relaunch() required to apply
+
+On app startup
+    └─► init_shortcuts() in shortcut.rs
+            ├─► If Tauri engine: register via tauri-plugin-global-shortcut (WM_HOTKEY)
+            └─► If rdev engine: start key_listener.rs → rdev::listen() (WH_KEYBOARD_LL hook)
+                    └─► emits "rdev-shortcut" events → handle_rdev_shortcut_event()
+```
+
+- **Tauri engine**: High performance, zero polling, uses Windows `RegisterHotKey` API. Cannot support CapsLock, NumLock, ScrollLock, Pause, or modifier-only shortcuts.
+- **rdev engine**: Supports ALL keys via low-level hook. Processes every keystroke system-wide (higher CPU). May trigger antivirus false positives.
+- **Default**: Tauri (for performance). Users needing special keys switch to rdev manually.
 
 ## Entry Points for Common Tasks
 

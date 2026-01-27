@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { AlertTriangle, Info, RefreshCw, CheckCircle } from "lucide-react";
 import { SettingContainer } from "../../ui/SettingContainer";
+import { TellMeMore } from "../../ui/TellMeMore";
 import { useSettings } from "../../../hooks/useSettings";
 
 // ShortcutBinding type from backend
@@ -112,9 +113,17 @@ export const ShortcutEngineSelector: React.FC = () => {
 
   return (
     <div className="space-y-3">
+      {/* Visual separator from preceding items */}
+      <div className="h-px bg-white/[0.05] mx-6 mt-2 mb-4" />
       <SettingContainer
         title={t("settings.debug.shortcutEngine.title")}
-        description={t("settings.debug.shortcutEngine.description")}
+        description={
+          <span className="text-gray-400">
+            Choose the keyboard shortcut detection method. rdev supports all keys but uses more CPU:{" "}
+            <span className="text-red-400 font-medium">read warning in "tell me more" below</span>.{" "}
+            Tauri is faster but has limited key support.
+          </span>
+        }
         descriptionMode="inline"
         grouped={true}
       >
@@ -223,38 +232,6 @@ export const ShortcutEngineSelector: React.FC = () => {
         </div>
       )}
 
-      {/* Engine info box */}
-      <div className="mx-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-        <div className="flex items-start gap-2">
-          <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-          <div className="text-xs text-blue-200/80">
-            {configuredEngine === "rdev" ? (
-              <>
-                <p className="font-semibold mb-1">{t("settings.debug.shortcutEngine.rdevInfo.title")}</p>
-                <p>{t("settings.debug.shortcutEngine.rdevInfo.description")}</p>
-              </>
-            ) : (
-              <>
-                <p className="font-semibold mb-1">{t("settings.debug.shortcutEngine.tauriInfo.title")}</p>
-                <p>{t("settings.debug.shortcutEngine.tauriInfo.description")}</p>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Antivirus/anti-cheat warning for rdev */}
-      {configuredEngine === "rdev" && (
-        <div className="mx-4 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-orange-400 mt-0.5 flex-shrink-0" />
-            <div className="text-xs text-orange-200/80">
-              <p>{t("settings.debug.shortcutEngine.rdevInfo.warning")}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Warning about incompatible shortcuts when switching to Tauri */}
       {configuredEngine === "tauri" && incompatibleShortcuts.length > 0 && (
         <div className="mx-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
@@ -275,6 +252,99 @@ export const ShortcutEngineSelector: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Detailed Help Info */}
+      <div className="mx-4">
+        <TellMeMore title={t("settings.debug.shortcutEngine.tellMeMore.title")}>
+          <div className="space-y-6">
+            <p className="text-gray-400 italic text-center text-xs">
+              {t("settings.debug.shortcutEngine.tellMeMore.intro")}
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Native Engine Column */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+                  <CheckCircle className="w-5 h-5 text-accent" />
+                  <h4 className="font-bold text-base text-accent">
+                    {t("settings.debug.shortcutEngine.tellMeMore.tauri.title")}
+                  </h4>
+                </div>
+                
+                <p className="text-sm text-gray-300" dangerouslySetInnerHTML={{ __html: t("settings.debug.shortcutEngine.tellMeMore.tauri.description") }} />
+
+                <div className="space-y-3">
+                  <div className="bg-green-500/5 border border-green-500/10 p-3 rounded-lg shadow-sm">
+                    <p className="text-xs font-bold text-green-400 uppercase tracking-wider mb-2">{t("settings.debug.shortcutEngine.tellMeMore.tauri.pros.title")}</p>
+                    <ul className="text-xs text-gray-400 space-y-1.5 list-disc list-inside">
+                      <li>{t("settings.debug.shortcutEngine.tellMeMore.tauri.pros.minimalOverhead")}</li>
+                      <li>{t("settings.debug.shortcutEngine.tellMeMore.tauri.pros.security")}</li>
+                    </ul>
+                  </div>
+                  <div className="bg-orange-500/5 border border-orange-500/10 p-3 rounded-lg shadow-sm font-light">
+                    <p className="text-xs font-bold text-orange-400 uppercase tracking-wider mb-2">{t("settings.debug.shortcutEngine.tellMeMore.tauri.cons.title")}</p>
+                    <ul className="text-xs text-gray-400 space-y-1.5 list-disc list-inside">
+                      <li>{t("settings.debug.shortcutEngine.tellMeMore.tauri.cons.modifierOnly")}</li>
+                      <li>{t("settings.debug.shortcutEngine.tellMeMore.tauri.cons.lockKeys")}</li>
+                      <li>{t("settings.debug.shortcutEngine.tellMeMore.tauri.cons.conflicts")}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hook Engine Column */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+                  <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                  <h4 className="font-bold text-base text-yellow-500">
+                    {t("settings.debug.shortcutEngine.tellMeMore.rdev.title")}
+                  </h4>
+                </div>
+
+                <p className="text-sm text-gray-300" dangerouslySetInnerHTML={{ __html: t("settings.debug.shortcutEngine.tellMeMore.rdev.description") }} />
+
+                <div className="space-y-3">
+                  <div className="bg-green-500/5 border border-green-500/10 p-3 rounded-lg shadow-sm">
+                    <p className="text-xs font-bold text-green-400 uppercase tracking-wider mb-2">{t("settings.debug.shortcutEngine.tellMeMore.rdev.pros.title")}</p>
+                    <ul className="text-xs text-gray-400 space-y-1.5 list-disc list-inside">
+                      <li>{t("settings.debug.shortcutEngine.tellMeMore.rdev.pros.flexibility")}</li>
+                      <li>{t("settings.debug.shortcutEngine.tellMeMore.rdev.pros.enhanced")}</li>
+                    </ul>
+                  </div>
+                  <div className="bg-red-500/5 border border-red-500/20 p-3 rounded-lg shadow-sm font-light space-y-3">
+                    <div>
+                      <p className="text-xs font-bold text-red-400 uppercase tracking-wider mb-2">{t("settings.debug.shortcutEngine.tellMeMore.rdev.cons.title")}</p>
+                      <ul className="text-xs text-gray-400 space-y-1.5 list-disc list-inside">
+                        <li>{t("settings.debug.shortcutEngine.tellMeMore.rdev.cons.security")}</li>
+                        <li>
+                          {t("settings.debug.shortcutEngine.tellMeMore.rdev.cons.antiCheat")}
+                          <div className="mt-1.5 mb-2 px-2 border-l border-red-500/30 ml-4">
+                            <p className="text-[11px] leading-relaxed text-red-100/80 italic font-normal" dangerouslySetInnerHTML={{ __html: t("settings.debug.shortcutEngine.tellMeMore.rdev.cons.harshReality") }} />
+                          </div>
+                        </li>
+                        <li>{t("settings.debug.shortcutEngine.tellMeMore.rdev.cons.performance")}</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Verdict */}
+            <div className="p-4 bg-accent/5 border border-accent/20 rounded-xl flex items-start gap-3">
+              <Info className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
+              <div>
+                <h4 className="text-xs font-bold text-accent uppercase tracking-widest mb-1">
+                  {t("settings.debug.shortcutEngine.tellMeMore.verdict.title")}
+                </h4>
+                <p className="text-sm text-gray-300">
+                  {t("settings.debug.shortcutEngine.tellMeMore.verdict.text")}
+                </p>
+              </div>
+            </div>
+          </div>
+        </TellMeMore>
+      </div>
 
       {/* Error display */}
       {error && (

@@ -223,9 +223,6 @@ pub struct VoiceCommandDefaults {
     /// Execution policy for scripts
     #[serde(default)]
     pub execution_policy: ExecutionPolicy,
-    /// Timeout in seconds (0 = no limit)
-    #[serde(default = "default_voice_command_timeout")]
-    pub timeout_seconds: u32,
 }
 
 impl Default for VoiceCommandDefaults {
@@ -235,7 +232,6 @@ impl Default for VoiceCommandDefaults {
             no_profile: false,
             use_pwsh: false,
             execution_policy: ExecutionPolicy::default(),
-            timeout_seconds: default_voice_command_timeout(),
         }
     }
 }
@@ -285,7 +281,6 @@ pub struct ResolvedExecutionOptions {
     pub use_pwsh: bool,
     pub execution_policy: ExecutionPolicy,
     pub working_directory: Option<String>,
-    pub timeout_seconds: u32,
 }
 
 impl VoiceCommand {
@@ -302,7 +297,6 @@ impl VoiceCommand {
             // Use command's execution_policy if set, otherwise inherit from defaults
             execution_policy: self.execution_policy.unwrap_or(defaults.execution_policy),
             working_directory: self.working_directory.clone(),
-            timeout_seconds: defaults.timeout_seconds,
         }
     }
 }
@@ -316,7 +310,6 @@ impl VoiceCommandDefaults {
             use_pwsh: self.use_pwsh,
             execution_policy: self.execution_policy,
             working_directory: None,
-            timeout_seconds: self.timeout_seconds,
         }
     }
 }
@@ -1162,10 +1155,6 @@ fn default_voice_command_threshold() -> f64 {
 
 fn default_voice_command_auto_run_seconds() -> u32 {
     4
-}
-
-fn default_voice_command_timeout() -> u32 {
-    30
 }
 
 fn default_voice_command_levenshtein_threshold() -> f64 {
@@ -2038,6 +2027,11 @@ pub fn write_settings(app: &AppHandle, settings: AppSettings) {
         .expect("Failed to initialize store");
 
     store.set("settings", serde_json::to_value(&settings).unwrap());
+
+    // Explicitly flush to disk to prevent data loss on app restart
+    if let Err(e) = store.save() {
+        warn!("Failed to flush settings to disk: {}", e);
+    }
 }
 
 pub fn get_bindings(app: &AppHandle) -> HashMap<String, ShortcutBinding> {

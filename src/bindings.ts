@@ -1462,9 +1462,9 @@ async regionCaptureCancel() : Promise<void> {
  * 
  * Returns the output on success or an error message on failure.
  */
-async executeVoiceCommand(script: string, silent: boolean, noProfile: boolean, usePwsh: boolean, executionPolicy: string | null, workingDirectory: string | null, timeoutSeconds: number) : Promise<Result<string, string>> {
+async executeVoiceCommand(script: string, silent: boolean, noProfile: boolean, usePwsh: boolean, executionPolicy: string | null, workingDirectory: string | null) : Promise<Result<string, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("execute_voice_command", { script, silent, noProfile, usePwsh, executionPolicy, workingDirectory, timeoutSeconds }) };
+    return { status: "ok", data: await TAURI_INVOKE("execute_voice_command", { script, silent, noProfile, usePwsh, executionPolicy, workingDirectory }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -2204,11 +2204,7 @@ use_pwsh?: boolean;
 /**
  * Execution policy for scripts
  */
-execution_policy?: ExecutionPolicy; 
-/**
- * Timeout in seconds (0 = no limit)
- */
-timeout_seconds?: number }
+execution_policy?: ExecutionPolicy }
 
 /** tauri-specta globals **/
 

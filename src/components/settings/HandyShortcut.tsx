@@ -88,8 +88,11 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
             // changeBinding (called by updateBinding) already registers the shortcut
             await updateBinding(editingShortcutId, originalBinding);
           } catch (error) {
-            console.error("Failed to restore original binding:", error);
-            toast.error(t("settings.general.shortcut.errors.restore"));
+            toast.error(
+              t("settings.general.shortcut.errors.restore", {
+                error: String(error),
+              }),
+            );
           }
         } else if (editingShortcutId) {
           // No original binding stored, just re-register whatever is in settings
@@ -185,8 +188,11 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
               try {
                 await updateBinding(editingShortcutId, originalBinding);
               } catch (resetError) {
-                console.error("Failed to reset binding:", resetError);
-                toast.error(t("settings.general.shortcut.errors.reset"));
+                toast.error(
+                  t("settings.general.shortcut.errors.reset", {
+                    error: String(resetError),
+                  }),
+                );
               }
             }
           }
@@ -211,8 +217,11 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
             // changeBinding (called by updateBinding) already registers the shortcut
             await updateBinding(editingShortcutId, originalBinding);
           } catch (error) {
-            console.error("Failed to restore original binding:", error);
-            toast.error(t("settings.general.shortcut.errors.restore"));
+            toast.error(
+              t("settings.general.shortcut.errors.restore", {
+                error: String(error),
+              }),
+            );
           }
         } else if (editingShortcutId) {
           // No original binding stored, just re-register whatever is in settings

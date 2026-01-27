@@ -211,7 +211,7 @@ All original Handy features remain available:
 
 - Local Whisper transcription with multiple model sizes
 - Voice Activity Detection (VAD)
-- Global keyboard shortcuts
+- Global keyboard shortcuts (two engines: Tauri for performance, rdev for CapsLock/NumLock support — see Debug settings)
 - Push-to-talk mode
 - LLM post-processing
 - Transcription history

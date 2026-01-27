@@ -259,9 +259,9 @@
           }
         },
         "errors": {
-          "restore": "Failed to restore original shortcut",
+          "restore": "Failed to restore original shortcut: {{error}}",
           "set": "Failed to set shortcut: {{error}}",
-          "reset": "Failed to reset shortcut to original value"
+          "reset": "Failed to reset shortcut to original value: {{error}}"
         },
         "warnings": {
           "modifierOnly": "Modifier-only shortcuts (like Ctrl+Alt) will trigger even when pressing Ctrl+Alt+Delete or other combinations. Consider adding a main key."
@@ -775,7 +775,7 @@
       "title": "Debug",
       "shortcutEngine": {
         "title": "Shortcut Engine",
-        "description": "Choose the keyboard shortcut detection method. rdev supports all keys but uses more CPU. Tauri is faster but has limited key support.",
+        "description": "Choose the keyboard shortcut detection method. rdev supports all keys but uses more CPU: read warning in \"tell me more\" below. Tauri is faster but has limited key support.",
         "options": {
           "rdev": "rdev (All Keys)",
           "tauri": "Tauri (High Performance)"
@@ -798,6 +798,45 @@
         "incompatibleWarning": {
           "title": "Incompatible Shortcuts Will Be Disabled",
           "description": "The following shortcuts are not supported by the Tauri engine and will be disabled after restart:"
+        },
+        "tellMeMore": {
+          "title": "Tell me more: Shortcut Engines",
+          "intro": "AivoRelay offers two different methods (Engines) for detecting when you press your recording hotkeys. Each has different trade-offs in compatibility, performance, and security.",
+          "tauri": {
+            "title": "Native Engine (Tauri / RegisterHotKey)",
+            "description": "The recommended engine for most users; its limitations are hardcoded into the <code>win32</code> <code>RegisterHotKey</code> API because Windows prioritizes system stability over individual app flexibility. Technically, the OS kernel takes over the keyboard monitoring; AivoRelay remains completely idle until the system posts a <code>WM_HOTKEY</code> message directly to its internal message queue. This architecture provides near-zero overhead because there is no continuous polling and zero risk of system-wide input lag.",
+            "pros": {
+              "title": "Pros:",
+              "minimalOverhead": "Minimal overhead: Windows only wakes AivoRelay when the exact shortcut is pressed.",
+              "security": "Security: Uses official high-level system calls, making it much less likely to be flagged by antivirus or anti-cheat software."
+            },
+            "cons": {
+              "title": "Limitations:",
+              "modifierOnly": "Cannot detect 'modifier-only' shortcuts (e.g., just Ctrl+Shift).",
+              "lockKeys": "Cannot use 'Lock' keys (Caps Lock, Num Lock) as modifiers (though they can be the main key).",
+              "conflicts": "Shortcut registration may fail if another application is already using it."
+            }
+          },
+          "rdev": {
+            "title": "Hook Engine (rdev / SetWindowsHookEx)",
+            "description": "A low-level engine providing unrestricted access by utilizing a <code>WH_KEYBOARD_LL</code> global hook. This mechanism injects a callback procedure into the Windows input processing stream, forcing the OS to pass <i>every single keyboard event</i> system-wide to AivoRelay for inspection before it reaches the active application. While this allows for complex shortcuts (like modifier-only or Lock keys), it is the same mechanism used by keyloggers.",
+            "pros": {
+              "title": "Pros:",
+              "flexibility": "Maximum flexibility: Supports any key combination, including 'modifier-only' shortcuts.",
+              "enhanced": "Enhanced support: Can detect 'Lock' keys and even mouse buttons."
+            },
+            "cons": {
+              "title": "Limitations & Risks:",
+              "security": "Security suspicion: Because it monitors all keystrokes, it may be flagged as 'keylogger-like' by security software.",
+              "antiCheat": "Anti-Cheat risk: Aggressive anti-cheat (like Vanguard or EAC) may block or flag software using global hooks. Use at your own risk when playing online games with anti-cheat protection.",
+              "performance": "Performance: Slightly higher CPU usage as every keystroke must be processed. If the app hangs, it could cause brief input lag.",
+              "harshReality": "Harsh Reality: Even extremely well-established software like AutoHotkey has caused permanent, unappealable bans in games like Apex Legends simply for being active in the background. Anti-cheat systems often monitor the <i>presence</i> of hooks rather than their <i>intent</i>."
+            }
+          },
+          "verdict": {
+            "title": "Recommendation:",
+            "text": "Use Native Engine (Tauri) by default for best performance and security. Switch to Hook Engine (rdev) only if you need a specific shortcut that Tauri doesn't support. Tip: Your mouse or keyboard software can likely remap additional buttons to complex combinations that are inconvenient to use manually, allowing you to use them with the Native Engine."
+          }
         },
         "confirmRestart": {
           "title": "Some Shortcuts Will Be Disabled",
