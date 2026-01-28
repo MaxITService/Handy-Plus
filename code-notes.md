@@ -1,5 +1,10 @@
 # Fork Code Notes
 
+> **CRITICAL: WE ARE ON THE `Microsoft-store` BRANCH.**
+> This branch is specifically for the **Microsoft Store Edition**.
+> **RULES:** No self-updating, use MSIX packaging logic, and handle sandboxed environment constraints.
+> Refer to the app as **Microsoft Store Edition** in all agent interactions.
+
 Files that differentiate this fork from the original [cjpais/Handy](https://github.com/cjpais/Handy).
 
 ## New Files (Fork-Specific)
