@@ -42,8 +42,17 @@ To create a release for the Microsoft Store:
 1.  Go to the **Actions** tab in your GitHub repository.
 2.  Select the **Microsoft Store Release** workflow from the sidebar.
 3.  Click **Run workflow** and select the `Microsoft-store` branch.
+    - **Important**: The branch search is **case-sensitive**. Type `Mi` or `Microsoft` (with capital M), not `mi`.
 4.  This will create a draft release with the tag `vX.X.X-store` and assets named `aivorelay-store_*.msi`.
 5.  Check the draft release and publish it when ready.
+
+### GitHub Actions: workflow_dispatch Visibility
+
+For the "Run workflow" button to appear in the GitHub Actions UI:
+
+1.  The workflow file (`.github/workflows/microsoft-store-release.yml`) **must exist in the default branch** (`main`).
+2.  Once it's in `main`, you can select any other branch (like `Microsoft-store`) when running it.
+3.  If you create a new workflow only in a feature branch, it won't show up in the UI until merged to `main`.
 
 This specialized workflow ensures that:
 - The tag is distinct from standard releases (`-store` suffix).
