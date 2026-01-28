@@ -994,6 +994,16 @@
         "title": "License",
         "description": "AivoRelay is released under the MIT License.",
         "viewUpstream": "View Upstream License"
+      },
+      "contactAuthor": {
+        "title": "Contact Author",
+        "description": "Have questions or feedback? Reach out to the author of this fork.",
+        "button": "Send Email"
+      },
+      "reportIssues": {
+        "title": "Report Issues",
+        "description": "Found a bug or have a feature request? Open an issue on GitHub.",
+        "button": "Open Issues"
       }
     },
     "browserConnector": {
