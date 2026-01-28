@@ -34,3 +34,18 @@ Do **NOT** do these things, or the build will fail:
 
 3.  **Renaming the version in configuration files**:
     GitHub Actions require a strict SemVer format. Do not add suffixes like `-Store` to the version in `tauri.conf.json` or `package.json`. Keep the "Store Edition" suffix in the UI (React components) only to ensure the release workflow functions correctly.
+
+## Release Process
+
+To create a release for the Microsoft Store:
+
+1.  Go to the **Actions** tab in your GitHub repository.
+2.  Select the **Microsoft Store Release** workflow from the sidebar.
+3.  Click **Run workflow** and select the `Microsoft-store` branch.
+4.  This will create a draft release with the tag `vX.X.X-store` and assets named `aivorelay-store_*.msi`.
+5.  Check the draft release and publish it when ready.
+
+This specialized workflow ensures that:
+- The tag is distinct from standard releases (`-store` suffix).
+- The release title clearly indicates the **Microsoft Store Edition**.
+- Artifacts use the `aivorelay-store` prefix to avoid confusion with standard binaries.
