@@ -464,38 +464,3 @@ jobs:
           path: |
             src-tauri/target/${{ inputs.target != '' && inputs.target != 'x86_64-pc-windows-msvc' && format('{0}/{1}', inputs.target, steps.build-profile.outputs.profile) || steps.build-profile.outputs.profile }}/bundle/msi/*.msi
           retention-days: 30
-
-      - name: Upload Certificate Files to Release (Windows)
-        if: inputs.release-id && contains(inputs.platform, 'windows')
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const path = require('path');
-
-            const files = [
-              { path: 'Certificate/install_Root_Cert-embedded-in-this-file.ps1', name: 'install_Root_Cert-embedded-in-this-file.ps1' },
-              { path: 'Certificate/max.root.cert.cer', name: 'max.root.cert.cer' }
-            ];
-
-            for (const file of files) {
-              const filePath = path.join(process.env.GITHUB_WORKSPACE, file.path);
-              
-              if (!fs.existsSync(filePath)) {
-                console.log(`File not found: ${filePath}, skipping...`);
-                continue;
-              }
-              
-              const content = fs.readFileSync(filePath);
-              console.log(`Uploading ${file.name} (${content.length} bytes)...`);
-              
-              await github.rest.repos.uploadReleaseAsset({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                release_id: ${{ inputs.release-id }},
-                name: file.name,
-                data: content
-              });
-              
-              console.log(`Successfully uploaded ${file.name}`);
-            }
